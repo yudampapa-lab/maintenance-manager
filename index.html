@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>도서지역 유지보수 관리</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #667380;
+      --line: #d9e1e8;
+      --panel: #ffffff;
+      --soft: #f4f7fa;
+      --navy: #12324a;
+      --teal: #0f766e;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --rose: #e11d48;
+      --green: #15803d;
+      --shadow: 0 12px 28px rgba(22, 34, 45, .09);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #edf4f8 0%, #f7f9fb 42%, #eef3f6 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--navy);
+      color: white;
+      min-height: 42px;
+      padding: 0 14px;
+      font-weight: 700;
+    }
+    button.secondary { background: #e8eef3; color: var(--ink); }
+    button.icon {
+      width: 42px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+    button.good { background: var(--teal); }
+    button.warn { background: var(--amber); }
+    button.danger { background: var(--rose); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, .22);
+      outline-offset: 2px;
+    }
+    svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .app-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #12324a, #0f766e);
+      display: grid;
+      place-items: center;
+      color: white;
+      flex: 0 0 auto;
+    }
+    .brand strong { display: block; font-size: 16px; white-space: nowrap; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .top-actions { margin-left: auto; display: flex; gap: 8px; }
+    main {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 16px 16px 92px;
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+    .dashboard-grid {
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+    .panel-title { margin: 0; font-size: 16px; line-height: 1.3; }
+    .panel-sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .panel-body { padding: 14px; }
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 14px;
+    }
+    .stat {
+      min-height: 92px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .stat strong { font-size: 24px; }
+    .visit-list { display: grid; gap: 10px; }
+    .visit-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: white;
+      display: grid;
+      gap: 10px;
+    }
+    .visit-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: start;
+    }
+    .visit-top h3 { margin: 0; font-size: 15px; }
+    .visit-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .visit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 28px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #eef6f6;
+      color: #0f5f58;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .tag.blue { background: #edf4ff; color: #1d4ed8; }
+    .tag.amber { background: #fff7ed; color: #b45309; }
+    .tag.gray { background: #eef2f5; color: #485563; }
+    .empty {
+      border: 1px dashed #c3ced7;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 18px;
+      text-align: center;
+      background: #fbfcfd;
+    }
+    .weather-strip {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .weather-tile {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 84px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .weather-tile b { font-size: 20px; }
+    .weather-tile span { color: var(--muted); font-size: 12px; }
+
+    .calendar-wrap { user-select: none; touch-action: pan-y; }
+    .calendar-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .calendar-title { font-weight: 800; }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+    }
+    .day-name, .day-cell {
+      min-width: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .day-name:nth-child(7n), .day-cell:nth-child(7n) { border-right: 0; }
+    .day-name {
+      padding: 8px 4px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      background: #f6f9fb;
+      color: var(--muted);
+    }
+    .day-cell {
+      min-height: 94px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: #fff;
+    }
+    .day-cell.muted { background: #f7f9fb; color: #a0aab4; }
+    .day-cell.today { box-shadow: inset 0 0 0 2px var(--teal); }
+    .day-number { font-size: 12px; font-weight: 800; }
+    .event-pill {
+      display: block;
+      width: 100%;
+      border-radius: 6px;
+      background: #e9f2ff;
+      color: #164995;
+      padding: 5px 6px;
+      font-size: 11px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: grab;
+    }
+    .event-pill.visit { background: #e8f7f2; color: #0e6655; }
+    .event-pill.remote { background: #f3eefc; color: #6d28d9; }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .search {
+      flex: 1 1 260px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 8px;
+      padding: 0 10px;
+      min-height: 44px;
+    }
+    .search input { border: 0; outline: 0; width: 100%; min-width: 0; background: transparent; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .org-card {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 8px;
+      padding: 13px;
+      display: grid;
+      gap: 10px;
+    }
+    .org-card h3 { margin: 0; font-size: 15px; }
+    .org-card p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .org-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    form { display: grid; gap: 14px; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    label { font-weight: 800; font-size: 12px; color: #263541; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      min-height: 42px;
+      padding: 9px 10px;
+      color: var(--ink);
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    .full { grid-column: 1 / -1; }
+    .contact-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1.2fr 1.4fr auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .memo-list { display: grid; gap: 10px; }
+    .memo-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 12px;
+    }
+    .memo-card h3 { margin: 0 0 6px; font-size: 15px; }
+    .memo-card p { margin: 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; line-height: 1.5; }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 30;
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(18px);
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+      gap: 6px;
+    }
+    .nav-btn {
+      background: transparent;
+      color: var(--muted);
+      min-height: 54px;
+      padding: 4px 2px;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+    .nav-btn.active { background: #e9f2f4; color: var(--teal); }
+    dialog {
+      border: 0;
+      border-radius: 10px;
+      padding: 0;
+      width: min(560px, calc(100vw - 28px));
+      box-shadow: 0 30px 70px rgba(10, 20, 30, .28);
+    }
+    dialog::backdrop { background: rgba(13, 23, 33, .48); }
+    .modal-body { padding: 16px; }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 82px;
+      transform: translateX(-50%);
+      z-index: 60;
+      background: #17212b;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+    @media (max-width: 920px) {
+      .dashboard-grid, .stats, .cards, .settings-grid { grid-template-columns: 1fr; }
+      .weather-strip { grid-template-columns: 1fr 1fr; }
+      .weather-strip .weather-tile:first-child { grid-column: 1 / -1; }
+      .contact-row { grid-template-columns: 1fr; border: 1px solid var(--line); padding: 10px; border-radius: 8px; }
+    }
+    @media (max-width: 640px) {
+      .topbar { padding: 10px 12px; }
+      .brand span { display: none; }
+      main { padding: 12px 10px 88px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .panel-head { align-items: start; }
+      .top-actions .secondary { display: none; }
+      .calendar-grid { font-size: 12px; }
+      .day-cell { min-height: 78px; padding: 4px; }
+      .event-pill { font-size: 10px; padding: 4px; }
+      .visit-top { flex-direction: column; }
+      .weather-strip { grid-template-columns: 1fr; }
+      button { min-height: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11c4-7 14-7 18 0"/><path d="M5 15c3-3 11-3 14 0"/><path d="M9 19h6"/><path d="M12 3v16"/></svg></div>
+          <div><strong>도서지역 유지보수</strong><span>방문, 청구, 담당자, 기술메모 관리</span></div>
+        </div>
+        <div class="top-actions">
+          <button class="secondary" id="exportIcsBtn" title="캘린더 파일 내보내기">ICS</button>
+          <button id="quickAddBtn" title="기관 빠른 등록">등록</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="view active" id="view-dashboard" aria-label="대시보드">
+        <div class="grid stats">
+          <div class="stat"><span>금일 방문</span><strong id="todayCount">0</strong></div>
+          <div class="stat"><span>내일 방문</span><strong id="tomorrowCount">0</strong></div>
+          <div class="stat"><span>이번 달 청구</span><strong id="billingCount">0</strong></div>
+          <div class="stat"><span>등록 기관</span><strong id="orgCount">0</strong></div>
+        </div>
+        <div class="grid dashboard-grid">
+          <div class="grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div><h2 class="panel-title">오늘 방문 기관</h2><p class="panel-sub">가나다순 자동 정렬, 연락과 Tmap 바로가기</p></div>
+                <span class="tag" id="todayDateTag"></span>
+              </div>
+              <div class="panel-body"><div class="visit-list" id="todayVisits"></div></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div><h2 class="panel-title">내일 방문 기관</h2><p class="panel-sub">다음 방문 준비 목록</p></div>
+                <span class="tag blue" id="tomorrowDateTag"></span>
+              </div>
+              <div class="panel-body"><div class="visit-list" id="tomorrowVisits"></div></div>
+            </section>
+          </div>
+          <div class="grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div><h2 class="panel-title">현장 환경</h2><p class="panel-sub">실제 운영 시 기상청/에어코리아 API 연결 권장</p></div>
+              </div>
+              <div class="panel-body">
+                <div class="weather-strip">
+                  <div class="weather-tile"><span>오늘 날씨</span><b id="weatherText">맑음 22℃</b><span>해상 이동 전 풍속 확인</span></div>
+                  <div class="weather-tile"><span>미세먼지</span><b id="dustText">보통</b><span>PM10 42</span></div>
+                  <div class="weather-tile"><span>해상주의</span><b>양호</b><span>여객선 결항 확인 필요</span></div>
+                </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div><h2 class="panel-title">캘린더</h2><p class="panel-sub">일정을 길게 누르거나 끌어서 날짜 이동</p></div>
+              </div>
+              <div class="panel-body"><div id="miniCalendar" class="calendar-wrap"></div></div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-orgs" aria-label="기관 검색 등록">
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
+          <button id="newOrgBtn">기관 등록</button>
+        </div>
+        <div class="cards" id="orgCards"></div>
+      </section>
+
+      <section class="view" id="view-calendar" aria-label="전체 캘린더">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2 class="panel-title">유지보수 캘린더</h2><p class="panel-sub">구글캘린더에는 ICS 파일 또는 일정 링크로 연동</p></div>
+            <button class="secondary" id="googleHelpBtn">구글 연동</button>
+          </div>
+          <div class="panel-body"><div id="mainCalendar" class="calendar-wrap"></div></div>
+        </section>
+      </section>
+
+      <section class="view" id="view-memo" aria-label="기술 메모">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2 class="panel-title">기술정보 메모</h2><p class="panel-sub">장비, 솔루션, 장애처리 이력 검색</p></div>
+            <button id="addMemoBtn">메모 추가</button>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="memoSearch" placeholder="키워드, 기관명, 제품명으로 검색"></div>
+            </div>
+            <div class="memo-list" id="memoList"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-settings" aria-label="연동 설정">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2 class="panel-title">연동 설정</h2><p class="panel-sub">카카오워크 알림, 구글캘린더, Tmap 연결 정보</p></div>
+          </div>
+          <div class="panel-body">
+            <div class="settings-grid">
+              <div class="field"><label>카카오워크 Incoming Webhook URL</label><input id="kakaoWebhook" placeholder="https://..."></div>
+              <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
+              <div class="field"><label>구글캘린더 ID</label><input id="googleCalendarId" placeholder="example@gmail.com 또는 캘린더 ID"></div>
+              <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
+            </div>
+            <div class="toolbar" style="margin-top:14px">
+              <button id="saveSettingsBtn">설정 저장</button>
+              <button class="secondary" id="testKakaoBtn">알림 테스트</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="주 메뉴">
+      <button class="nav-btn active" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg><span>대시보드</span></button>
+      <button class="nav-btn" data-view="orgs"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16"/><path d="M9 21v-6h4v6"/><path d="M8 7h1"/><path d="M12 7h1"/><path d="M8 11h1"/><path d="M12 11h1"/><path d="M19 21v-8h-2"/></svg><span>기관</span></button>
+      <button class="nav-btn" data-view="calendar"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg><span>캘린더</span></button>
+      <button class="nav-btn" data-view="memo"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg><span>메모</span></button>
+      <button class="nav-btn" data-view="settings"><svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.66 1.8 1.8 0 0 0-2 .36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.06a1.8 1.8 0 0 0 1.66-1.1 1.8 1.8 0 0 0-.36-2l-.04-.04A2.1 2.1 0 0 1 6.29 3.3l.04.04a1.8 1.8 0 0 0 2 .36h.01A1.8 1.8 0 0 0 9.44 2V2a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.66 1.8 1.8 0 0 0 2-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.66 1.1H21a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"/></svg><span>설정</span></button>
+    </nav>
+  </div>
+
+  <dialog id="orgDialog">
+    <form id="orgForm" method="dialog">
+      <div class="modal-body">
+        <h2 class="panel-title" id="orgDialogTitle">기관 등록</h2>
+        <div class="form-grid" style="margin-top:14px">
+          <input type="hidden" id="orgId">
+          <div class="field"><label>유지보수 지역명</label><input id="region" list="regionList" required placeholder="예: 전남 신안군 흑산도"></div>
+          <div class="field"><label>기관 타입</label><select id="orgType" required><option>도서관</option><option>대학교</option><option>고등학교</option><option>공공기관</option><option>협력사</option><option>공기업</option><option>기타</option></select></div>
+          <div class="field"><label>유지보수 기관명</label><input id="orgName" required placeholder="기관명"></div>
+          <div class="field"><label>계약업체</label><input id="contractor" placeholder="계약업체명"></div>
+          <div class="field"><label>점검 주기</label><select id="cycle"><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
+          <div class="field"><label>점검수단</label><select id="method"><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
+          <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date" required></div>
+          <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date" required></div>
+          <div class="field"><label>다음 점검일</label><input id="nextVisit" type="date" required></div>
+          <div class="field"><label>유지보수료 청구일</label><input id="billingDay" type="number" min="1" max="31" placeholder="매월 일자"></div>
+          <div class="field full"><label>솔루션 제품명</label><input id="solution" placeholder="제품명, 버전, 설치 구성"></div>
+          <div class="field full"><label>상세 주소</label><input id="address" placeholder="Tmap 목적지로 사용할 주소"></div>
+          <div class="field full"><label>담당자 정보</label><div id="contactRows"></div></div>
+          <div class="field full"><label>기관 비고</label><textarea id="orgNote" placeholder="계약 특이사항, 선박 이동 메모 등"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="addContactBtn">담당자 추가</button>
+        <button type="button" class="secondary" id="closeOrgDialogBtn">닫기</button>
+        <button type="submit">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="callDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">연락 방법 선택</h2>
+      <p class="panel-sub" id="callTarget"></p>
+      <div class="visit-actions" id="callOptions" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-actions"><button class="secondary" id="closeCallDialogBtn">닫기</button></div>
+  </dialog>
+
+  <dialog id="memoDialog">
+    <form id="memoForm" method="dialog">
+      <div class="modal-body">
+        <h2 class="panel-title">기술 메모</h2>
+        <div class="form-grid" style="margin-top:14px">
+          <input type="hidden" id="memoId">
+          <div class="field"><label>제목</label><input id="memoTitle" required></div>
+          <div class="field"><label>관련 기관/제품</label><input id="memoTags" placeholder="기관명, 제품명, 키워드"></div>
+          <div class="field full"><label>내용</label><textarea id="memoBody" required></textarea></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="closeMemoDialogBtn">닫기</button>
+        <button type="submit">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="infoDialog">
+    <div class="modal-body"><h2 class="panel-title" id="infoTitle"></h2><p id="infoBody" style="line-height:1.6"></p></div>
+    <div class="modal-actions"><button id="closeInfoDialogBtn">확인</button></div>
+  </dialog>
+
+  <datalist id="regionList"></datalist>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const islandRegions = [
+      "인천 강화군 교동도", "인천 강화군 석모도", "인천 옹진군 백령도", "인천 옹진군 대청도", "인천 옹진군 소청도", "인천 옹진군 연평도", "인천 옹진군 덕적도", "인천 옹진군 자월도", "인천 옹진군 영흥도",
+      "충남 보령시 원산도", "충남 보령시 삽시도", "충남 보령시 장고도", "충남 보령시 고대도", "충남 태안군 안면도", "충남 태안군 가의도", "충남 서산시 웅도", "충남 당진시 난지도",
+      "전북 군산시 선유도", "전북 군산시 무녀도", "전북 군산시 장자도", "전북 부안군 위도", "전북 부안군 식도",
+      "전남 신안군 흑산도", "전남 신안군 홍도", "전남 신안군 비금도", "전남 신안군 도초도", "전남 신안군 자은도", "전남 신안군 암태도", "전남 신안군 팔금도", "전남 신안군 안좌도", "전남 신안군 압해도", "전남 신안군 임자도", "전남 신안군 증도", "전남 신안군 하의도", "전남 신안군 신의도", "전남 신안군 장산도", "전남 신안군 가거도",
+      "전남 완도군 완도", "전남 완도군 청산도", "전남 완도군 보길도", "전남 완도군 노화도", "전남 완도군 소안도", "전남 완도군 금일도", "전남 완도군 생일도", "전남 완도군 금당도", "전남 완도군 고금도", "전남 완도군 약산도",
+      "전남 진도군 조도", "전남 진도군 관매도", "전남 진도군 가사도", "전남 여수시 돌산도", "전남 여수시 거문도", "전남 여수시 금오도", "전남 여수시 개도", "전남 여수시 낭도", "전남 여수시 하화도", "전남 고흥군 거금도", "전남 고흥군 나로도", "전남 고흥군 연홍도",
+      "경남 통영시 욕지도", "경남 통영시 한산도", "경남 통영시 사량도", "경남 통영시 연화도", "경남 통영시 비진도", "경남 거제시 외도", "경남 거제시 지심도", "경남 남해군 창선도", "경남 사천시 신수도",
+      "경북 울릉군 울릉도", "경북 울릉군 독도", "부산 강서구 가덕도", "부산 영도구 영도", "제주 제주시 제주도", "제주 제주시 우도", "제주 제주시 추자도", "제주 서귀포시 가파도", "제주 서귀포시 마라도"
+    ];
+
+    const seedOrgs = [
+      { id: uid(), region: "전남 신안군 흑산도", type: "공공기관", name: "흑산면 행정복지센터", contractor: "섬테크", cycle: "매월 점검", method: "직접점검", startDate: todayISO(-180), endDate: todayISO(180), nextVisit: todayISO(0), billingDay: 25, solution: "통합유지보수 솔루션 A", address: "전남 신안군 흑산면", note: "선박 시간 확인 후 출발", contacts: [{ name: "김담당", tel: "061-000-1000", mobile: "010-1234-5678", email: "manager@example.com", note: "주 담당" }] },
+      { id: uid(), region: "경남 통영시 욕지도", type: "도서관", name: "욕지도 작은도서관", contractor: "남해정보", cycle: "분기 점검", method: "협력업체점검", startDate: todayISO(-60), endDate: todayISO(300), nextVisit: todayISO(0), billingDay: 10, solution: "도서관리 시스템 B", address: "경남 통영시 욕지면", note: "", contacts: [{ name: "박사서", tel: "055-000-2000", mobile: "010-2222-3333", email: "library@example.com", note: "" }] },
+      { id: uid(), region: "인천 옹진군 백령도", type: "고등학교", name: "백령고등학교", contractor: "서해시스템", cycle: "반기 점검", method: "원격점검", startDate: todayISO(-30), endDate: todayISO(400), nextVisit: todayISO(1), billingDay: 5, solution: "학사 네트워크 장비", address: "인천 옹진군 백령면", note: "원격 우선", contacts: [{ name: "이정보", tel: "032-000-3000", mobile: "010-4444-5555", email: "school@example.com", note: "" }] }
+    ];
+
+    const state = {
+      orgs: load("maint_orgs", seedOrgs),
+      memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleCalendarId: "", tmapKey: "" }),
+      monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      draggedOrgId: null
+    };
+
+    function load(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+    function uid() {
+      if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+      return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    }
+    function save() {
+      localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
+      localStorage.setItem("maint_memos", JSON.stringify(state.memos));
+      localStorage.setItem("maint_settings", JSON.stringify(state.settings));
+    }
+    function todayISO(offset = 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return d.toISOString().slice(0, 10);
+    }
+    function addDaysISO(iso, offset) {
+      const d = new Date(iso + "T00:00:00");
+      d.setDate(d.getDate() + offset);
+      return d.toISOString().slice(0, 10);
+    }
+    function formatDate(iso) {
+      return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
+    }
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function icon(name) {
+      const icons = {
+        phone: '<svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.7.6 2.5a2 2 0 0 1-.5 2.1L8 9.5a16 16 0 0 0 6.5 6.5l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.6.5 2.5.6A2 2 0 0 1 22 16.9Z"/></svg>',
+        map: '<svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>',
+        edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+        trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
+      };
+      return icons[name] || "";
+    }
+
+    islandRegions.forEach(r => {
+      const option = document.createElement("option");
+      option.value = r;
+      document.getElementById("regionList").appendChild(option);
+    });
+
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => switchView(btn.dataset.view));
+    });
+    function switchView(view) {
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      document.getElementById("view-" + view).classList.add("active");
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+      render();
+    }
+
+    function sortedVisits(date) {
+      return state.orgs.filter(o => o.nextVisit === date && o.method !== "방문안함").sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    }
+    function billingThisMonth() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      return state.orgs.filter(o => {
+        if (!o.billingDay) return false;
+        const d = new Date(y, m, Number(o.billingDay));
+        return d.getMonth() === m;
+      });
+    }
+    function renderVisits(elId, date) {
+      const wrap = document.getElementById(elId);
+      const items = sortedVisits(date);
+      wrap.innerHTML = items.length ? items.map(o => visitCard(o)).join("") : '<div class="empty">방문 예정 기관이 없습니다.</div>';
+    }
+    function visitCard(o) {
+      const contact = o.contacts?.[0] || {};
+      return `<article class="visit-card">
+        <div class="visit-top">
+          <div><h3>${escapeHTML(o.name)}</h3><div class="visit-meta">${escapeHTML(o.region)} · ${escapeHTML(o.type)} · ${escapeHTML(o.method)}</div></div>
+          <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
+        </div>
+        <div class="visit-meta">주요 담당자: ${escapeHTML(contact.name || "미등록")} · ${escapeHTML(o.solution || "제품 미기입")}</div>
+        <div class="visit-actions">
+          <button class="icon good" title="담당자 전화" onclick="openCall('${o.id}')">${icon("phone")}</button>
+          <button class="icon warn" title="Tmap 길찾기" onclick="openTmap('${o.id}')">${icon("map")}</button>
+          <button class="secondary" onclick="openGoogleEvent('${o.id}')">구글 일정</button>
+        </div>
+      </article>`;
+    }
+    function renderOrgs() {
+      const q = document.getElementById("orgSearch").value.trim().toLowerCase();
+      const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      document.getElementById("orgCards").innerHTML = filtered.length ? filtered.map(o => `<article class="org-card">
+        <div><h3>${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)} · ${escapeHTML(o.solution || "솔루션 미기입")}</p></div>
+        <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
+        <p>기간 ${o.startDate} ~ ${o.endDate}<br>다음 점검 ${o.nextVisit} · 청구 매월 ${o.billingDay || "-"}일</p>
+        <div class="org-actions">
+          <button class="icon secondary" title="수정" onclick="editOrg('${o.id}')">${icon("edit")}</button>
+          <button class="icon danger" title="삭제" onclick="deleteOrg('${o.id}')">${icon("trash")}</button>
+          <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
+          <button class="icon warn" title="Tmap" onclick="openTmap('${o.id}')">${icon("map")}</button>
+        </div>
+      </article>`).join("") : '<div class="empty">검색 결과가 없습니다.</div>';
+    }
+    function renderCalendar(targetId, compact = false) {
+      const target = document.getElementById(targetId);
+      const cursor = state.monthCursor;
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const first = new Date(y, m, 1);
+      const start = new Date(y, m, 1 - first.getDay());
+      const cells = [];
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const iso = d.toISOString().slice(0, 10);
+        const events = state.orgs.filter(o => o.nextVisit === iso);
+        const classes = ["day-cell"];
+        if (d.getMonth() !== m) classes.push("muted");
+        if (iso === todayISO()) classes.push("today");
+        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" ondragover="event.preventDefault()" ondrop="dropEvent(event, '${iso}')">
+          <div class="day-number">${d.getDate()}</div>
+          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"}" draggable="true" title="좌우 스와이프로 하루 이동" onpointerdown="eventSwipeStart(event, '${o.id}')" onpointerup="eventSwipeEnd(event, '${o.id}')" ondragstart="dragEvent(event, '${o.id}')" onclick="eventPillClick(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
+          ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
+        </div>`);
+      }
+      target.innerHTML = `<div class="calendar-toolbar">
+        <button class="icon secondary" onclick="moveMonth(-1)" title="이전 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="calendar-title">${y}년 ${m + 1}월</div>
+        <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div><div class="calendar-grid">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}${cells.join("")}</div>`;
+      installSwipe(target);
+    }
+    function installSwipe(target) {
+      let startX = 0;
+      target.onpointerdown = e => { startX = e.clientX; };
+      target.onpointerup = e => {
+        const delta = e.clientX - startX;
+        if (Math.abs(delta) > 80) moveMonth(delta > 0 ? -1 : 1);
+      };
+    }
+    window.dragEvent = (event, id) => {
+      state.draggedOrgId = id;
+      event.dataTransfer.setData("text/plain", id);
+    };
+    window.eventSwipeStart = (event, id) => {
+      state.swipeEvent = { id, x: event.clientX, y: event.clientY, moved: false };
+    };
+    window.eventSwipeEnd = (event, id) => {
+      const swipe = state.swipeEvent;
+      if (!swipe || swipe.id !== id) return;
+      const dx = event.clientX - swipe.x;
+      const dy = event.clientY - swipe.y;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        const org = state.orgs.find(o => o.id === id);
+        if (org) {
+          org.nextVisit = addDaysISO(org.nextVisit, dx > 0 ? 1 : -1);
+          swipe.moved = true;
+          save();
+          render();
+          toast("일정을 " + formatDate(org.nextVisit) + "로 이동했습니다.");
+        }
+      }
+    };
+    window.eventPillClick = (event, id) => {
+      if (state.swipeEvent?.moved) {
+        event.preventDefault();
+        state.swipeEvent = null;
+        return;
+      }
+      editOrg(id);
+    };
+    window.dropEvent = (event, date) => {
+      const id = event.dataTransfer.getData("text/plain") || state.draggedOrgId;
+      const org = state.orgs.find(o => o.id === id);
+      if (org) {
+        org.nextVisit = date;
+        save();
+        render();
+        toast("일정을 " + formatDate(date) + "로 이동했습니다.");
+      }
+    };
+    window.moveMonth = step => {
+      state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
+      render();
+    };
+    function renderMemos() {
+      const q = document.getElementById("memoSearch").value.trim().toLowerCase();
+      const list = state.memos.filter(m => JSON.stringify(m).toLowerCase().includes(q));
+      document.getElementById("memoList").innerHTML = list.length ? list.map(m => `<article class="memo-card">
+        <h3>${escapeHTML(m.title)}</h3><p><b>${escapeHTML(m.tags || "")}</b></p><p>${escapeHTML(m.body)}</p>
+        <div class="toolbar" style="margin:10px 0 0"><button class="secondary" onclick="editMemo('${m.id}')">수정</button><button class="danger" onclick="deleteMemo('${m.id}')">삭제</button></div>
+      </article>`).join("") : '<div class="empty">저장된 기술 메모가 없습니다.</div>';
+    }
+    function renderSettings() {
+      kakaoWebhook.value = state.settings.kakaoWebhook || "";
+      billingNotice.value = state.settings.billingNotice || "3";
+      googleCalendarId.value = state.settings.googleCalendarId || "";
+      tmapKey.value = state.settings.tmapKey || "";
+    }
+    function render() {
+      todayDateTag.textContent = formatDate(todayISO());
+      tomorrowDateTag.textContent = formatDate(todayISO(1));
+      const todayVisits = sortedVisits(todayISO());
+      const tomorrowVisits = sortedVisits(todayISO(1));
+      todayCount.textContent = todayVisits.length;
+      tomorrowCount.textContent = tomorrowVisits.length;
+      billingCount.textContent = billingThisMonth().length;
+      orgCount.textContent = state.orgs.length;
+      renderVisits("todayVisits", todayISO());
+      renderVisits("tomorrowVisits", todayISO(1));
+      renderCalendar("miniCalendar", true);
+      renderCalendar("mainCalendar", false);
+      renderOrgs();
+      renderMemos();
+      renderSettings();
+    }
+    function clearOrgForm() {
+      orgForm.reset();
+      orgId.value = "";
+      startDate.value = todayISO();
+      endDate.value = todayISO(365);
+      nextVisit.value = todayISO();
+      billingDay.value = "25";
+      contactRows.innerHTML = "";
+      addContactRow();
+    }
+    function addContactRow(data = {}) {
+      const div = document.createElement("div");
+      div.className = "contact-row";
+      div.innerHTML = `<div class="field"><label>이름</label><input class="c-name" value="${escapeAttr(data.name || "")}"></div>
+        <div class="field"><label>전화번호</label><input class="c-tel" value="${escapeAttr(data.tel || "")}"></div>
+        <div class="field"><label>휴대전화</label><input class="c-mobile" value="${escapeAttr(data.mobile || "")}"></div>
+        <div class="field"><label>이메일주소</label><input class="c-email" type="email" value="${escapeAttr(data.email || "")}"></div>
+        <div class="field"><label>비고</label><input class="c-note" value="${escapeAttr(data.note || "")}"></div>
+        <button type="button" class="icon danger" title="담당자 삭제">${icon("trash")}</button>`;
+      div.querySelector("button").onclick = () => div.remove();
+      contactRows.appendChild(div);
+    }
+    function contactsFromForm() {
+      return [...document.querySelectorAll(".contact-row")].map(row => ({
+        name: row.querySelector(".c-name").value.trim(),
+        tel: row.querySelector(".c-tel").value.trim(),
+        mobile: row.querySelector(".c-mobile").value.trim(),
+        email: row.querySelector(".c-email").value.trim(),
+        note: row.querySelector(".c-note").value.trim()
+      })).filter(c => c.name || c.tel || c.mobile || c.email || c.note);
+    }
+    quickAddBtn.onclick = newOrgBtn.onclick = () => { clearOrgForm(); orgDialogTitle.textContent = "기관 등록"; orgDialog.showModal(); };
+    addContactBtn.onclick = () => addContactRow();
+    closeOrgDialogBtn.onclick = () => orgDialog.close();
+    orgForm.onsubmit = e => {
+      e.preventDefault();
+      const data = {
+        id: orgId.value || uid(), region: region.value.trim(), type: orgType.value, name: orgName.value.trim(),
+        contractor: contractor.value.trim(), cycle: cycle.value, method: method.value, startDate: startDate.value, endDate: endDate.value,
+        nextVisit: nextVisit.value, billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
+        note: orgNote.value.trim(), contacts: contactsFromForm()
+      };
+      const index = state.orgs.findIndex(o => o.id === data.id);
+      if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
+      save();
+      orgDialog.close();
+      render();
+      toast("기관 정보가 저장되었습니다.");
+    };
+    window.editOrg = id => {
+      const o = state.orgs.find(x => x.id === id);
+      if (!o) return;
+      clearOrgForm();
+      orgDialogTitle.textContent = "기관 수정";
+      orgId.value = o.id; region.value = o.region; orgType.value = o.type; orgName.value = o.name; contractor.value = o.contractor || "";
+      cycle.value = o.cycle; method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate; nextVisit.value = o.nextVisit;
+      billingDay.value = o.billingDay || ""; solution.value = o.solution || ""; address.value = o.address || ""; orgNote.value = o.note || "";
+      contactRows.innerHTML = "";
+      (o.contacts?.length ? o.contacts : [{}]).forEach(addContactRow);
+      orgDialog.showModal();
+    };
+    window.deleteOrg = id => {
+      if (!confirm("이 기관을 삭제할까요?")) return;
+      state.orgs = state.orgs.filter(o => o.id !== id);
+      save(); render(); toast("삭제되었습니다.");
+    };
+    window.openCall = id => {
+      const o = state.orgs.find(x => x.id === id);
+      const c = o?.contacts?.[0] || {};
+      callTarget.textContent = `${o?.name || ""} · ${c.name || "담당자 미등록"}`;
+      callOptions.innerHTML = "";
+      [["일반전화", c.tel], ["휴대전화", c.mobile]].forEach(([label, num]) => {
+        const btn = document.createElement("button");
+        btn.className = num ? "good" : "secondary";
+        btn.textContent = num ? `${label} ${num}` : `${label} 없음`;
+        btn.disabled = !num;
+        btn.onclick = () => { location.href = "tel:" + num.replace(/[^0-9+]/g, ""); };
+        callOptions.appendChild(btn);
+      });
+      callDialog.showModal();
+    };
+    closeCallDialogBtn.onclick = () => callDialog.close();
+    window.openTmap = id => {
+      const o = state.orgs.find(x => x.id === id);
+      const dest = encodeURIComponent(o.address || o.region || o.name);
+      window.open(`https://apis.openapi.sk.com/tmap/app/routes?name=${encodeURIComponent(o.name)}&lon=&lat=&appKey=${encodeURIComponent(state.settings.tmapKey || "")}&goalname=${dest}`, "_blank");
+    };
+    window.openGoogleEvent = id => {
+      const o = state.orgs.find(x => x.id === id);
+      const text = encodeURIComponent(`[유지보수] ${o.name}`);
+      const details = encodeURIComponent(`${o.region}\n${o.method} / ${o.cycle}\n솔루션: ${o.solution || ""}`);
+      const dates = o.nextVisit.replaceAll("-", "") + "/" + addDaysISO(o.nextVisit, 1).replaceAll("-", "");
+      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${encodeURIComponent(o.address || o.region)}`, "_blank");
+    };
+    googleHelpBtn.onclick = () => showInfo("구글캘린더 연동", "현재 시안은 구글 일정 등록 링크와 ICS 내보내기를 제공합니다. 운영 버전에서는 Google Calendar API OAuth 동의를 붙이면 양방향 동기화가 가능합니다.");
+    exportIcsBtn.onclick = () => {
+      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Island Maintenance//KR"].concat(state.orgs.map(o => [
+        "BEGIN:VEVENT",
+        "UID:" + o.id,
+        "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z",
+        "DTSTART;VALUE=DATE:" + o.nextVisit.replaceAll("-", ""),
+        "DTEND;VALUE=DATE:" + addDaysISO(o.nextVisit, 1).replaceAll("-", ""),
+        "SUMMARY:" + escapeICS("[유지보수] " + o.name),
+        "LOCATION:" + escapeICS(o.address || o.region),
+        "DESCRIPTION:" + escapeICS(`${o.method} / ${o.cycle}\\n${o.solution || ""}`),
+        "END:VEVENT"
+      ].join("\r\n"))).concat(["END:VCALENDAR"]).join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+      a.download = "maintenance-calendar.ics";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    addMemoBtn.onclick = () => { memoForm.reset(); memoId.value = ""; memoDialog.showModal(); };
+    closeMemoDialogBtn.onclick = () => memoDialog.close();
+    memoForm.onsubmit = e => {
+      e.preventDefault();
+      const m = { id: memoId.value || uid(), title: memoTitle.value.trim(), tags: memoTags.value.trim(), body: memoBody.value.trim() };
+      const index = state.memos.findIndex(x => x.id === m.id);
+      if (index >= 0) state.memos[index] = m; else state.memos.unshift(m);
+      save(); memoDialog.close(); render(); toast("메모가 저장되었습니다.");
+    };
+    window.editMemo = id => {
+      const m = state.memos.find(x => x.id === id);
+      memoId.value = m.id; memoTitle.value = m.title; memoTags.value = m.tags; memoBody.value = m.body;
+      memoDialog.showModal();
+    };
+    window.deleteMemo = id => {
+      if (!confirm("이 메모를 삭제할까요?")) return;
+      state.memos = state.memos.filter(m => m.id !== id);
+      save(); render(); toast("삭제되었습니다.");
+    };
+    saveSettingsBtn.onclick = () => {
+      state.settings = { kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleCalendarId: googleCalendarId.value.trim(), tmapKey: tmapKey.value.trim() };
+      save(); toast("연동 설정이 저장되었습니다.");
+    };
+    testKakaoBtn.onclick = () => {
+      showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
+    };
+    closeInfoDialogBtn.onclick = () => infoDialog.close();
+    orgSearch.oninput = renderOrgs;
+    memoSearch.oninput = renderMemos;
+    function showInfo(title, body) {
+      infoTitle.textContent = title;
+      infoBody.textContent = body;
+      infoDialog.showModal();
+    }
+    function escapeHTML(str = "") {
+      return String(str).replace(/[&<>"']/g, s => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s]));
+    }
+    function escapeAttr(str = "") { return escapeHTML(str); }
+    function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
+    render();
+  </script>
+</body>
+</html>
