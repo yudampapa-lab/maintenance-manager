@@ -300,6 +300,7 @@
     .day-cell.muted { background: #f7f9fb; color: #a0aab4; }
     .day-cell.today { box-shadow: inset 0 0 0 2px var(--teal); }
     .day-cell.drop-target { background: #e8f7f2; box-shadow: inset 0 0 0 2px var(--teal); }
+    .day-cell.range-select { background: #eef8ff; box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .38); }
     .day-number { font-size: 12px; font-weight: 800; }
     .event-pill {
       display: block;
@@ -745,7 +746,8 @@
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
           <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="org">기관 일정</option><option value="personal">개인 일정</option></select></div>
           <div class="field"><label>기관 표시</label><input id="scheduleOrgSearch" list="scheduleOrgList" placeholder="기관명 검색"></div>
-          <div class="field"><label>날짜</label><input id="scheduleDate" type="date" required></div>
+          <div class="field"><label>시작일</label><input id="scheduleDate" type="date" required></div>
+          <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
           <div class="field"><label>작업 종료시간</label><input id="scheduleEndTime" type="time"></div>
         </div>
@@ -855,6 +857,7 @@
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         date: schedule.date || todayISO(),
+        endDate: schedule.endDate || schedule.date || todayISO(),
         startTime: schedule.startTime || schedule.time || "",
         endTime: schedule.endTime || "",
         createdAt: schedule.createdAt || new Date().toISOString()
@@ -883,7 +886,7 @@
       return localDateISO(d);
     }
     function scheduleEndDate(schedule) {
-      return addDaysISO(schedule.date, 1);
+      return addDaysISO(schedule.endDate || schedule.date, 1);
     }
     function compactLocalDateTime(date) {
       const pad = value => String(value).padStart(2, "0");
@@ -905,8 +908,12 @@
       const end = scheduleEndTime(schedule);
       return `${schedule.startTime}${end ? " ~ " + end : ""}`;
     }
+    function scheduleDateLabel(schedule) {
+      const end = schedule.endDate || schedule.date;
+      return end === schedule.date ? schedule.date : `${schedule.date} ~ ${end}`;
+    }
     function scheduleEndDateTime(schedule) {
-      const end = new Date(`${schedule.date}T${scheduleEndTime(schedule)}:00`);
+      const end = new Date(`${schedule.endDate || schedule.date}T${scheduleEndTime(schedule)}:00`);
       if (scheduleEndTime(schedule) <= schedule.startTime) end.setDate(end.getDate() + 1);
       return end;
     }
@@ -978,12 +985,16 @@
     }
     function sortedSchedules(date) {
       return state.schedules
-        .filter(schedule => schedule.date === date)
+        .filter(schedule => scheduleIncludesDate(schedule, date))
         .sort((a, b) => {
           const timeCompare = (a.startTime || "99:99").localeCompare(b.startTime || "99:99");
           if (timeCompare) return timeCompare;
           return a.title.localeCompare(b.title, "ko");
         });
+    }
+    function scheduleIncludesDate(schedule, date) {
+      const end = schedule.endDate || schedule.date;
+      return schedule.date <= date && date <= end;
     }
     function billingThisMonth() {
       const now = new Date();
@@ -1005,7 +1016,7 @@
       if (!o) {
         return `<article class="visit-card">
           <div class="visit-top">
-            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
           </div>
           <div class="visit-actions">
@@ -1019,7 +1030,7 @@
       const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card">
         <div class="visit-top">
-          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
@@ -1059,7 +1070,7 @@
     function nextScheduleLabel(orgId) {
       const today = todayISO();
       const schedule = state.schedules
-        .filter(item => item.orgId === orgId && item.date >= today)
+        .filter(item => item.orgId === orgId && (item.endDate || item.date) >= today)
         .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0];
       return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-";
     }
@@ -1075,11 +1086,11 @@
         const d = new Date(start);
         d.setDate(start.getDate() + i);
         const iso = localDateISO(d);
-        const events = state.schedules.filter(schedule => schedule.date === iso);
+        const events = state.schedules.filter(schedule => scheduleIncludesDate(schedule, iso));
         const classes = ["day-cell"];
         if (d.getMonth() !== m) classes.push("muted");
         if (iso === todayISO()) classes.push("today");
-        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onclick="openScheduleForDate(event, '${iso}')">
+        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
           <div class="day-number">${d.getDate()}</div>
           ${events.slice(0, compact ? 2 : 4).map(schedule => {
             const org = orgForSchedule(schedule);
@@ -1108,6 +1119,20 @@
     }
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
+    }
+    function clearRangeSelection() {
+      document.querySelectorAll(".day-cell.range-select").forEach(cell => cell.classList.remove("range-select"));
+    }
+    function orderedDates(a, b) {
+      return a <= b ? [a, b] : [b, a];
+    }
+    function markRange(start, end) {
+      clearRangeSelection();
+      const [from, to] = orderedDates(start, end);
+      document.querySelectorAll(".day-cell[data-date]").forEach(cell => {
+        const date = cell.dataset.date;
+        if (from <= date && date <= to) cell.classList.add("range-select");
+      });
     }
     function dateCellFromPoint(x, y, draggedEl) {
       if (draggedEl) draggedEl.style.visibility = "hidden";
@@ -1167,8 +1192,44 @@
       clearDropTarget();
       state.calendarDrag = null;
     };
+    window.calendarRangeStart = (event, date) => {
+      if (event.target.closest(".event-pill")) return;
+      state.calendarRange = { start: date, end: date, moved: false };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    };
+    window.calendarRangeMove = event => {
+      const range = state.calendarRange;
+      if (!range || event.target.closest(".event-pill")) return;
+      const cell = dateCellFromPoint(event.clientX, event.clientY, null);
+      if (!cell?.dataset.date) return;
+      if (cell.dataset.date !== range.end) {
+        range.end = cell.dataset.date;
+        range.moved = true;
+        markRange(range.start, range.end);
+      }
+    };
+    window.calendarRangeEnd = event => {
+      const range = state.calendarRange;
+      if (!range) return;
+      state.calendarRange = null;
+      if (!range.moved) {
+        clearRangeSelection();
+        return;
+      }
+      const [from, to] = orderedDates(range.start, range.end);
+      clearRangeSelection();
+      state.suppressCalendarClick = true;
+      setTimeout(() => { state.suppressCalendarClick = false; }, 250);
+      openScheduleDialog({ date: from, endDate: to });
+    };
+    window.calendarRangeCancel = () => {
+      state.calendarRange = null;
+      clearRangeSelection();
+    };
     window.openScheduleForDate = (event, date) => {
       if (event.target.closest(".event-pill")) return;
+      if (state.suppressCalendarClick) return;
+      if (state.calendarRange?.moved) return;
       openScheduleDialog({ date });
     };
     function orgOptionLabel(org) {
@@ -1204,6 +1265,7 @@
       scheduleOrgSearch.value = org ? orgOptionLabel(org) : "";
       scheduleName.value = schedule.title || "";
       scheduleDate.value = schedule.date || todayISO();
+      scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
       scheduleEndTime.value = schedule.endTime || "";
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
@@ -1229,13 +1291,15 @@
         scheduleOrgSearch.focus();
         return false;
       }
-      if (!scheduleDate.value) return false;
+      if (!scheduleDate.value || !scheduleEndDate.value) return false;
+      const [date, endDate] = orderedDates(scheduleDate.value, scheduleEndDate.value);
       const data = {
         id: existing?.id || uid(),
         type,
         orgId,
         title,
-        date: scheduleDate.value,
+        date,
+        endDate,
         startTime: scheduleStartTime.value,
         endTime: scheduleEndTime.value,
         createdAt: existing?.createdAt || new Date().toISOString()
