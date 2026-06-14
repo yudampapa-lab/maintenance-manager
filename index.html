@@ -1111,12 +1111,8 @@
       installSwipe(target);
     }
     function installSwipe(target) {
-      let startX = 0;
-      target.onpointerdown = e => { startX = e.clientX; };
-      target.onpointerup = e => {
-        const delta = e.clientX - startX;
-        if (Math.abs(delta) > 80) moveMonth(delta > 0 ? -1 : 1);
-      };
+      target.onpointerdown = null;
+      target.onpointerup = null;
     }
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
@@ -1179,7 +1175,9 @@
       const targetDate = targetCell?.dataset.date;
       const schedule = state.schedules.find(item => item.id === id);
       if (schedule && targetDate) {
+        const duration = Math.max(0, Math.round((new Date((schedule.endDate || schedule.date) + "T00:00:00") - new Date(schedule.date + "T00:00:00")) / 86400000));
         schedule.date = targetDate;
+        schedule.endDate = addDaysISO(targetDate, duration);
         save();
         render();
         toast("일정을 " + formatDate(targetDate) + "로 이동했습니다.");
