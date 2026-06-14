@@ -865,6 +865,24 @@
       color: rgba(28, 28, 30, .78);
       font-weight: 750;
     }
+    button.color-swatch {
+      background: var(--swatch) !important;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 8px 18px rgba(22, 34, 45, .12);
+    }
+    button.color-swatch:hover,
+    button.color-swatch:focus-visible {
+      background: var(--swatch) !important;
+      filter: brightness(.98);
+    }
+    button.color-swatch:active {
+      transform: scale(.94);
+    }
+    button.color-swatch.active {
+      background: var(--swatch) !important;
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, .18), inset 0 0 0 1px rgba(255,255,255,.6), 0 10px 22px rgba(22, 34, 45, .16);
+      transform: scale(1.04);
+    }
     .org-suggestions {
       border-color: rgba(60, 60, 67, .1);
       background: rgba(255, 255, 255, .92);
@@ -1312,12 +1330,12 @@
             <label>일정 색상</label>
             <input type="hidden" id="scheduleColor" value="blue">
             <div class="color-picker" id="scheduleColorPicker" aria-label="일정 색상 선택">
-              <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑"></button>
-              <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록"></button>
-              <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라"></button>
-              <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황"></button>
-              <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강"></button>
-              <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색"></button>
+              <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑" onclick="selectScheduleColor('blue')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록" onclick="selectScheduleColor('green')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라" onclick="selectScheduleColor('purple')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황" onclick="selectScheduleColor('orange')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강" onclick="selectScheduleColor('red')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색" onclick="selectScheduleColor('gray')"></button>
             </div>
           </div>
         </div>
@@ -1584,18 +1602,21 @@
     }
     function selectScheduleColor(color, { persist = true } = {}) {
       const selected = safeScheduleColor(color);
-      scheduleColor.value = selected;
+      const colorInput = document.getElementById("scheduleColor");
+      const scheduleIdInput = document.getElementById("scheduleId");
+      if (colorInput) colorInput.value = selected;
       document.querySelectorAll("[data-schedule-color]").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.scheduleColor === selected);
         btn.setAttribute("aria-pressed", btn.dataset.scheduleColor === selected ? "true" : "false");
       });
-      if (!persist || !scheduleId?.value) return;
-      const schedule = state.schedules.find(item => item.id === scheduleId.value);
+      if (!persist || !scheduleIdInput?.value) return;
+      const schedule = state.schedules.find(item => item.id === scheduleIdInput.value);
       if (!schedule || schedule.color === selected) return;
       schedule.color = selected;
       schedule.updatedAt = new Date().toISOString();
       save();
       render();
+      if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
       toast("일정 색상을 변경했습니다.");
     }
 
@@ -2056,7 +2077,7 @@
         endDate,
         startTime: scheduleStartTime.value,
         endTime: scheduleEndTime.value,
-        color: safeScheduleColor(scheduleColor.value),
+        color: safeScheduleColor(document.getElementById("scheduleColor")?.value),
         createdAt: existing?.createdAt || new Date().toISOString()
       };
       if (existing) {
