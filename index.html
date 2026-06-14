@@ -288,6 +288,7 @@
     }
     .day-cell.muted { background: #f7f9fb; color: #a0aab4; }
     .day-cell.today { box-shadow: inset 0 0 0 2px var(--teal); }
+    .day-cell.drop-target { background: #e8f7f2; box-shadow: inset 0 0 0 2px var(--teal); }
     .day-number { font-size: 12px; font-weight: 800; }
     .event-pill {
       display: block;
@@ -302,6 +303,14 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       cursor: grab;
+      touch-action: none;
+    }
+    .event-pill.dragging {
+      position: relative;
+      z-index: 50;
+      opacity: .9;
+      cursor: grabbing;
+      box-shadow: 0 10px 22px rgba(22, 34, 45, .22);
     }
     .event-pill.visit { background: #e8f7f2; color: #0e6655; }
     .event-pill.remote { background: #f3eefc; color: #6d28d9; }
@@ -643,7 +652,6 @@
           <div class="field"><label>점검수단</label><select id="method"><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
           <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date" required></div>
           <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date" required></div>
-          <div class="field"><label>다음 점검일</label><input id="nextVisit" type="date" required></div>
           <div class="field"><label>유지보수료 청구일</label><input id="billingDay" type="number" min="1" max="31" placeholder="매월 일자"></div>
           <div class="field full"><label>솔루션 제품명</label><input id="solution" placeholder="제품명, 버전, 설치 구성"></div>
           <div class="field full"><label>상세 주소</label><input id="address" placeholder="Tmap 목적지로 사용할 주소"></div>
@@ -696,6 +704,23 @@
       <button class="secondary" id="addReportFromDialogBtn">사진 추가</button>
       <button id="closeReportDialogBtn">닫기</button>
     </div>
+  </dialog>
+
+  <dialog id="scheduleDialog">
+    <form id="scheduleForm" method="dialog">
+      <div class="modal-body">
+        <h2 class="panel-title" id="scheduleTitle">일정 등록</h2>
+        <p class="panel-sub" id="scheduleSub"></p>
+        <div class="field" style="margin-top:14px">
+          <label>기관 선택</label>
+          <select id="scheduleOrgSelect" required></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="closeScheduleDialogBtn">닫기</button>
+        <button type="submit">등록</button>
+      </div>
+    </form>
   </dialog>
 
   <dialog id="issueDialog">
@@ -875,7 +900,7 @@
         <div><h3 class="${isContractActive(o) ? "" : "expired-name"}">${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>다음 점검 ${o.nextVisit} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>캘린더 일정 ${o.nextVisit} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
         <div class="org-actions">
           <button class="icon secondary" title="수정" onclick="editOrg('${o.id}')">${icon("edit")}</button>
           <button class="icon danger" title="삭제" onclick="deleteOrg('${o.id}')">${icon("trash")}</button>
@@ -902,9 +927,9 @@
         const classes = ["day-cell"];
         if (d.getMonth() !== m) classes.push("muted");
         if (iso === todayISO()) classes.push("today");
-        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" ondragover="event.preventDefault()" ondrop="dropEvent(event, '${iso}')">
+        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onclick="openScheduleForDate(event, '${iso}')">
           <div class="day-number">${d.getDate()}</div>
-          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"} ${isContractActive(o) ? "" : "expired"}" draggable="true" title="좌우 스와이프로 하루 이동" onpointerdown="eventSwipeStart(event, '${o.id}')" onpointerup="eventSwipeEnd(event, '${o.id}')" ondragstart="dragEvent(event, '${o.id}')" onclick="eventPillClick(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
+          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"} ${isContractActive(o) ? "" : "expired"}" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${o.id}')" onpointermove="schedulePointerMove(event, '${o.id}')" onpointerup="schedulePointerEnd(event, '${o.id}')" onpointercancel="schedulePointerCancel(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
           ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
         </div>`);
       }
@@ -923,47 +948,90 @@
         if (Math.abs(delta) > 80) moveMonth(delta > 0 ? -1 : 1);
       };
     }
-    window.dragEvent = (event, id) => {
-      state.draggedOrgId = id;
-      event.dataTransfer.setData("text/plain", id);
+    function clearDropTarget() {
+      document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
+    }
+    function dateCellFromPoint(x, y, draggedEl) {
+      if (draggedEl) draggedEl.style.visibility = "hidden";
+      const cell = document.elementFromPoint(x, y)?.closest(".day-cell");
+      if (draggedEl) draggedEl.style.visibility = "";
+      return cell;
+    }
+    window.schedulePointerStart = (event, id) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const el = event.currentTarget;
+      el.setPointerCapture?.(event.pointerId);
+      state.calendarDrag = { id, el, startX: event.clientX, startY: event.clientY, moved: false };
+      el.classList.add("dragging");
     };
-    window.eventSwipeStart = (event, id) => {
-      state.swipeEvent = { id, x: event.clientX, y: event.clientY, moved: false };
+    window.schedulePointerMove = (event, id) => {
+      const drag = state.calendarDrag;
+      if (!drag || drag.id !== id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (Math.abs(dx) + Math.abs(dy) > 8) drag.moved = true;
+      if (!drag.moved) return;
+      drag.el.style.transform = `translate(${dx}px, ${dy}px)`;
+      clearDropTarget();
+      dateCellFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
     };
-    window.eventSwipeEnd = (event, id) => {
-      const swipe = state.swipeEvent;
-      if (!swipe || swipe.id !== id) return;
-      const dx = event.clientX - swipe.x;
-      const dy = event.clientY - swipe.y;
-      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-        const org = state.orgs.find(o => o.id === id);
-        if (org) {
-          org.nextVisit = addDaysISO(org.nextVisit, dx > 0 ? 1 : -1);
-          swipe.moved = true;
-          save();
-          render();
-          toast("일정을 " + formatDate(org.nextVisit) + "로 이동했습니다.");
-        }
-      }
-    };
-    window.eventPillClick = (event, id) => {
-      if (state.swipeEvent?.moved) {
-        event.preventDefault();
-        state.swipeEvent = null;
+    window.schedulePointerEnd = (event, id) => {
+      const drag = state.calendarDrag;
+      if (!drag || drag.id !== id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
+      drag.el.classList.remove("dragging");
+      drag.el.style.transform = "";
+      clearDropTarget();
+      state.calendarDrag = null;
+      if (!drag.moved) {
+        editOrg(id);
         return;
       }
-      editOrg(id);
-    };
-    window.dropEvent = (event, date) => {
-      const id = event.dataTransfer.getData("text/plain") || state.draggedOrgId;
+      const targetDate = targetCell?.dataset.date;
       const org = state.orgs.find(o => o.id === id);
-      if (org) {
-        org.nextVisit = date;
+      if (org && targetDate) {
+        org.nextVisit = targetDate;
         save();
         render();
-        toast("일정을 " + formatDate(date) + "로 이동했습니다.");
+        toast("일정을 " + formatDate(targetDate) + "로 이동했습니다.");
       }
     };
+    window.schedulePointerCancel = (event, id) => {
+      const drag = state.calendarDrag;
+      if (!drag || drag.id !== id) return;
+      drag.el.classList.remove("dragging");
+      drag.el.style.transform = "";
+      clearDropTarget();
+      state.calendarDrag = null;
+    };
+    window.openScheduleForDate = (event, date) => {
+      if (event.target.closest(".event-pill")) return;
+      state.scheduleDate = date;
+      scheduleTitle.textContent = "일정 등록";
+      scheduleSub.textContent = formatDate(date);
+      scheduleOrgSelect.innerHTML = state.orgs
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .map(org => `<option value="${org.id}">${escapeHTML(org.name)} · ${escapeHTML(org.region)}</option>`)
+        .join("");
+      scheduleDialog.showModal();
+    };
+    scheduleForm.onsubmit = e => {
+      e.preventDefault();
+      const org = state.orgs.find(o => o.id === scheduleOrgSelect.value);
+      if (!org || !state.scheduleDate) return;
+      org.nextVisit = state.scheduleDate;
+      save();
+      scheduleDialog.close();
+      render();
+      toast("일정을 " + formatDate(state.scheduleDate) + "로 등록했습니다.");
+    };
+    closeScheduleDialogBtn.onclick = () => scheduleDialog.close();
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -1005,7 +1073,6 @@
       contractDate.value = todayISO();
       startDate.value = todayISO();
       endDate.value = todayISO(365);
-      nextVisit.value = todayISO();
       billingDay.value = "25";
       contactRows.innerHTML = "";
       addContactRow();
@@ -1236,12 +1303,14 @@
       const data = {
         id: orgId.value || uid(), region: region.value.trim(), type: orgType.value, name: orgName.value.trim(),
         contractor: contractor.value.trim(), contractDate: contractDate.value, cycle: cycle.value, method: method.value, startDate: startDate.value, endDate: endDate.value,
-        nextVisit: nextVisit.value, billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
+        nextVisit: "", billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
         note: orgNote.value.trim(), contacts: contactsFromForm(), issues: []
       };
       const index = state.orgs.findIndex(o => o.id === data.id);
       const existingIssues = index >= 0 ? (state.orgs[index].issues || []) : [];
+      const existingNextVisit = index >= 0 ? state.orgs[index].nextVisit : "";
       data.issues = existingIssues;
+      data.nextVisit = existingNextVisit || startDate.value || todayISO();
       if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
       save();
       orgDialog.close();
@@ -1255,7 +1324,7 @@
       orgDialogTitle.textContent = "기관 수정";
       orgId.value = o.id; region.value = o.region; orgType.value = o.type; orgName.value = o.name; contractor.value = o.contractor || "";
       contractDate.value = o.contractDate || "";
-      cycle.value = o.cycle; method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate; nextVisit.value = o.nextVisit;
+      cycle.value = o.cycle; method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate;
       billingDay.value = o.billingDay || ""; solution.value = o.solution || ""; address.value = o.address || ""; orgNote.value = o.note || "";
       contactRows.innerHTML = "";
       (o.contacts?.length ? o.contacts : [{}]).forEach(addContactRow);
