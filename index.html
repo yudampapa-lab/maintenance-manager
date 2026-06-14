@@ -69,7 +69,7 @@
     .topbar {
       max-width: 1180px;
       margin: 0 auto;
-      padding: 12px 16px;
+      padding: 6px 16px;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -80,18 +80,8 @@
       gap: 10px;
       min-width: 0;
     }
-    .brand-mark {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #12324a, #0f766e);
-      display: grid;
-      place-items: center;
-      color: white;
-      flex: 0 0 auto;
-    }
-    .brand strong { display: block; font-size: 16px; white-space: nowrap; }
-    .brand span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .brand strong { display: block; font-size: 15px; white-space: nowrap; line-height: 1.25; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; line-height: 1.2; }
     .top-actions { margin-left: auto; display: flex; gap: 8px; }
     main {
       width: 100%;
@@ -201,6 +191,7 @@
       align-items: start;
     }
     .visit-top h3 { margin: 0; font-size: 15px; }
+    .expired-name { color: var(--rose); }
     .visit-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
     .visit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .solution-tile {
@@ -314,6 +305,7 @@
     }
     .event-pill.visit { background: #e8f7f2; color: #0e6655; }
     .event-pill.remote { background: #f3eefc; color: #6d28d9; }
+    .event-pill.expired { background: #fff1f2; color: #be123c; }
 
     .toolbar {
       display: flex;
@@ -495,7 +487,7 @@
       .contact-row { grid-template-columns: 1fr; border: 1px solid var(--line); padding: 10px; border-radius: 8px; }
     }
     @media (max-width: 640px) {
-      .topbar { padding: 10px 12px; }
+      .topbar { padding: 5px 12px; }
       .brand span { display: none; }
       main { padding: 12px 10px 88px; }
       .form-grid { grid-template-columns: 1fr; }
@@ -521,12 +513,10 @@
     <header>
       <div class="topbar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11c4-7 14-7 18 0"/><path d="M5 15c3-3 11-3 14 0"/><path d="M9 19h6"/><path d="M12 3v16"/></svg></div>
           <div><strong>유지보수 매니저</strong><span>방문, 청구, 담당자, 기술메모 관리</span></div>
         </div>
         <div class="top-actions">
           <button class="secondary" id="exportIcsBtn" title="캘린더 파일 내보내기">ICS</button>
-          <button id="quickAddBtn" title="기관 빠른 등록">등록</button>
         </div>
       </div>
     </header>
@@ -796,6 +786,10 @@
       d.setDate(d.getDate() + offset);
       return d.toISOString().slice(0, 10);
     }
+    function isContractActive(org) {
+      const today = todayISO();
+      return (!org.startDate || org.startDate <= today) && (!org.endDate || today <= org.endDate);
+    }
     function formatDate(iso) {
       return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
     }
@@ -832,6 +826,7 @@
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+      localStorage.setItem("maint_active_view", view);
       render();
     }
 
@@ -856,9 +851,10 @@
     function visitCard(o) {
       const contact = o.contacts?.[0] || {};
       const solution = escapeHTML(o.solution || "제품 미기입");
+      const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card">
         <div class="visit-top">
-          <div><h3>${escapeHTML(o.name)}</h3><div class="visit-meta">${escapeHTML(o.region)} · ${escapeHTML(o.type)} · ${escapeHTML(o.method)}</div></div>
+          <div><h3 class="${nameClass}">${escapeHTML(o.name)}</h3><div class="visit-meta">${escapeHTML(o.region)} · ${escapeHTML(o.type)} · ${escapeHTML(o.method)}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
@@ -876,7 +872,7 @@
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
       document.getElementById("orgCards").innerHTML = filtered.length ? filtered.map(o => `<article class="org-card">
-        <div><h3>${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
+        <div><h3 class="${isContractActive(o) ? "" : "expired-name"}">${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
         <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>다음 점검 ${o.nextVisit} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
@@ -908,7 +904,7 @@
         if (iso === todayISO()) classes.push("today");
         cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" ondragover="event.preventDefault()" ondrop="dropEvent(event, '${iso}')">
           <div class="day-number">${d.getDate()}</div>
-          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"}" draggable="true" title="좌우 스와이프로 하루 이동" onpointerdown="eventSwipeStart(event, '${o.id}')" onpointerup="eventSwipeEnd(event, '${o.id}')" ondragstart="dragEvent(event, '${o.id}')" onclick="eventPillClick(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
+          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"} ${isContractActive(o) ? "" : "expired"}" draggable="true" title="좌우 스와이프로 하루 이동" onpointerdown="eventSwipeStart(event, '${o.id}')" onpointerup="eventSwipeEnd(event, '${o.id}')" ondragstart="dragEvent(event, '${o.id}')" onclick="eventPillClick(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
           ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
         </div>`);
       }
@@ -1232,7 +1228,7 @@
       toast(existing ? "특이사항을 수정했습니다." : "특이사항을 추가했습니다.");
     };
     closeIssueDialogBtn.onclick = () => issueDialog.close();
-    quickAddBtn.onclick = newOrgBtn.onclick = () => { clearOrgForm(); orgDialogTitle.textContent = "기관 등록"; orgDialog.showModal(); };
+    newOrgBtn.onclick = () => { clearOrgForm(); orgDialogTitle.textContent = "기관 등록"; orgDialog.showModal(); };
     addContactBtn.onclick = () => addContactRow();
     closeOrgDialogBtn.onclick = () => orgDialog.close();
     orgForm.onsubmit = e => {
@@ -1420,7 +1416,12 @@
     }
     function escapeAttr(str = "") { return escapeHTML(str); }
     function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
-    render();
+    const savedView = localStorage.getItem("maint_active_view");
+    if (savedView && document.getElementById("view-" + savedView)) {
+      switchView(savedView);
+    } else {
+      render();
+    }
   </script>
 </body>
 </html>
