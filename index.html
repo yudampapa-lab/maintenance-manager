@@ -742,11 +742,12 @@
         <p class="panel-sub" id="scheduleSub"></p>
         <div class="form-grid" style="margin-top:14px">
           <input type="hidden" id="scheduleId">
-          <div class="field full"><label>제목</label><input id="scheduleName" required placeholder="캘린더에 표시할 제목"></div>
+          <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
           <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="org">기관 일정</option><option value="personal">개인 일정</option></select></div>
-          <div class="field"><label>기관 표시</label><select id="scheduleOrgSelect"></select></div>
+          <div class="field"><label>기관 표시</label><input id="scheduleOrgSearch" list="scheduleOrgList" placeholder="기관명 검색"></div>
           <div class="field"><label>날짜</label><input id="scheduleDate" type="date" required></div>
-          <div class="field"><label>시간</label><input id="scheduleTime" type="time"></div>
+          <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
+          <div class="field"><label>작업 종료시간</label><input id="scheduleEndTime" type="time"></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -782,6 +783,7 @@
   </dialog>
 
   <datalist id="regionList"></datalist>
+  <datalist id="scheduleOrgList"></datalist>
   <input id="reportCameraInput" type="file" accept="image/*" capture="environment" hidden>
   <div class="toast" id="toast" role="status"></div>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -853,7 +855,8 @@
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         date: schedule.date || todayISO(),
-        time: schedule.time || "",
+        startTime: schedule.startTime || schedule.time || "",
+        endTime: schedule.endTime || "",
         createdAt: schedule.createdAt || new Date().toISOString()
       }));
     }
@@ -886,24 +889,43 @@
       const pad = value => String(value).padStart(2, "0");
       return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
     }
-    function googleScheduleDates(schedule) {
-      if (!schedule.time) return schedule.date.replaceAll("-", "") + "/" + scheduleEndDate(schedule).replaceAll("-", "");
-      const start = schedule.date.replaceAll("-", "") + "T" + schedule.time.replace(":", "") + "00";
-      const endDate = new Date(`${schedule.date}T${schedule.time}:00`);
+    function scheduleHasTime(schedule) {
+      return Boolean(schedule.startTime);
+    }
+    function scheduleEndTime(schedule) {
+      if (schedule.endTime) return schedule.endTime;
+      if (!schedule.startTime) return "";
+      const endDate = new Date(`${schedule.date}T${schedule.startTime}:00`);
       endDate.setHours(endDate.getHours() + 1);
+      const pad = value => String(value).padStart(2, "0");
+      return `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+    }
+    function scheduleTimeLabel(schedule) {
+      if (!scheduleHasTime(schedule)) return "하루종일";
+      const end = scheduleEndTime(schedule);
+      return `${schedule.startTime}${end ? " ~ " + end : ""}`;
+    }
+    function scheduleEndDateTime(schedule) {
+      const end = new Date(`${schedule.date}T${scheduleEndTime(schedule)}:00`);
+      if (scheduleEndTime(schedule) <= schedule.startTime) end.setDate(end.getDate() + 1);
+      return end;
+    }
+    function googleScheduleDates(schedule) {
+      if (!scheduleHasTime(schedule)) return schedule.date.replaceAll("-", "") + "/" + scheduleEndDate(schedule).replaceAll("-", "");
+      const start = schedule.date.replaceAll("-", "") + "T" + schedule.startTime.replace(":", "") + "00";
+      const endDate = scheduleEndDateTime(schedule);
       const end = compactLocalDateTime(endDate);
       return start + "/" + end;
     }
     function icsDateLines(schedule) {
-      if (!schedule.time) {
+      if (!scheduleHasTime(schedule)) {
         return [
           "DTSTART;VALUE=DATE:" + schedule.date.replaceAll("-", ""),
           "DTEND;VALUE=DATE:" + scheduleEndDate(schedule).replaceAll("-", "")
         ];
       }
-      const start = schedule.date.replaceAll("-", "") + "T" + schedule.time.replace(":", "") + "00";
-      const endDate = new Date(`${schedule.date}T${schedule.time}:00`);
-      endDate.setHours(endDate.getHours() + 1);
+      const start = schedule.date.replaceAll("-", "") + "T" + schedule.startTime.replace(":", "") + "00";
+      const endDate = scheduleEndDateTime(schedule);
       const end = compactLocalDateTime(endDate);
       return ["DTSTART:" + start, "DTEND:" + end];
     }
@@ -958,7 +980,7 @@
       return state.schedules
         .filter(schedule => schedule.date === date)
         .sort((a, b) => {
-          const timeCompare = (a.time || "99:99").localeCompare(b.time || "99:99");
+          const timeCompare = (a.startTime || "99:99").localeCompare(b.startTime || "99:99");
           if (timeCompare) return timeCompare;
           return a.title.localeCompare(b.title, "ko");
         });
@@ -983,7 +1005,7 @@
       if (!o) {
         return `<article class="visit-card">
           <div class="visit-top">
-            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정${schedule.time ? " · " + escapeHTML(schedule.time) : ""}</div></div>
+            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
           </div>
           <div class="visit-actions">
@@ -997,7 +1019,7 @@
       const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card">
         <div class="visit-top">
-          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)}${schedule.time ? " · " + escapeHTML(schedule.time) : ""}</div></div>
+          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
@@ -1038,8 +1060,8 @@
       const today = todayISO();
       const schedule = state.schedules
         .filter(item => item.orgId === orgId && item.date >= today)
-        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
-      return schedule ? `${schedule.date}${schedule.time ? " " + schedule.time : ""}` : "-";
+        .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0];
+      return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-";
     }
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
@@ -1063,7 +1085,7 @@
             const org = orgForSchedule(schedule);
             const pillType = schedule.type === "personal" ? "remote" : (org?.method === "원격점검" ? "remote" : "visit");
             const expired = org && !isContractActive(org) ? "expired" : "";
-            const label = `${schedule.time ? schedule.time + " " : ""}${schedule.title}`;
+            const label = `${scheduleHasTime(schedule) ? scheduleTimeLabel(schedule) + " " : ""}${schedule.title}`;
             return `<span class="event-pill ${pillType} ${expired}" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
           }).join("")}
           ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
@@ -1149,18 +1171,28 @@
       if (event.target.closest(".event-pill")) return;
       openScheduleDialog({ date });
     };
-    function fillScheduleOrgOptions(selectedId = "") {
-      scheduleOrgSelect.innerHTML = state.orgs
+    function orgOptionLabel(org) {
+      return `${org.name} · ${org.region}`;
+    }
+    function refreshScheduleOrgOptions() {
+      scheduleOrgList.innerHTML = state.orgs
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name, "ko"))
-        .map(org => `<option value="${org.id}">${escapeHTML(org.name)} · ${escapeHTML(org.region)}</option>`)
+        .map(org => `<option value="${escapeAttr(orgOptionLabel(org))}"></option>`)
         .join("");
-      if (selectedId) scheduleOrgSelect.value = selectedId;
+    }
+    function orgIdFromScheduleInput() {
+      const value = scheduleOrgSearch.value.trim();
+      const exact = state.orgs.find(org => orgOptionLabel(org) === value);
+      if (exact) return exact.id;
+      const byName = state.orgs.find(org => org.name === value);
+      return byName?.id || "";
     }
     function syncScheduleType() {
       const isPersonal = scheduleType.value === "personal";
-      scheduleOrgSelect.disabled = isPersonal;
-      scheduleOrgSelect.required = !isPersonal;
+      scheduleOrgSearch.disabled = isPersonal;
+      scheduleOrgSearch.required = !isPersonal;
+      if (isPersonal) scheduleOrgSearch.value = "";
     }
     function openScheduleDialog(schedule = {}) {
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
@@ -1168,14 +1200,12 @@
       scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
       scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
       scheduleType.value = schedule.type || "org";
-      fillScheduleOrgOptions(schedule.orgId || "");
-      scheduleName.value = schedule.title || org?.name || "";
-      if (!scheduleName.value && scheduleType.value === "org") {
-        const firstOrg = state.orgs.find(item => item.id === scheduleOrgSelect.value);
-        scheduleName.value = firstOrg?.name || "";
-      }
+      refreshScheduleOrgOptions();
+      scheduleOrgSearch.value = org ? orgOptionLabel(org) : "";
+      scheduleName.value = schedule.title || "";
       scheduleDate.value = schedule.date || todayISO();
-      scheduleTime.value = schedule.time || "";
+      scheduleStartTime.value = schedule.startTime || schedule.time || "";
+      scheduleEndTime.value = schedule.endTime || "";
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
       syncScheduleType();
       scheduleDialog.showModal();
@@ -1188,19 +1218,26 @@
       const existing = state.schedules.find(item => item.id === scheduleId.value);
       const type = scheduleType.value;
       let title = scheduleName.value.trim();
-      if (!title && type === "org") {
-        const org = state.orgs.find(item => item.id === scheduleOrgSelect.value);
-        title = org?.name || "";
-        scheduleName.value = title;
+      if (!title) {
+        toast("제목을 입력해주세요.");
+        scheduleName.focus();
+        return false;
       }
-      if (!title || !scheduleDate.value) return false;
+      const orgId = type === "org" ? orgIdFromScheduleInput() : "";
+      if (type === "org" && !orgId) {
+        toast("기관을 검색해서 선택해주세요.");
+        scheduleOrgSearch.focus();
+        return false;
+      }
+      if (!scheduleDate.value) return false;
       const data = {
         id: existing?.id || uid(),
         type,
-        orgId: type === "org" ? scheduleOrgSelect.value : "",
+        orgId,
         title,
         date: scheduleDate.value,
-        time: scheduleTime.value,
+        startTime: scheduleStartTime.value,
+        endTime: scheduleEndTime.value,
         createdAt: existing?.createdAt || new Date().toISOString()
       };
       if (existing) {
@@ -1229,12 +1266,6 @@
       toast("일정을 삭제했습니다.");
     };
     scheduleType.onchange = syncScheduleType;
-    scheduleOrgSelect.onchange = () => {
-      if (!scheduleName.value.trim() && scheduleType.value === "org") {
-        const org = state.orgs.find(item => item.id === scheduleOrgSelect.value);
-        scheduleName.value = org?.name || "";
-      }
-    };
     deleteScheduleBtn.onclick = () => {
       if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
@@ -1588,10 +1619,9 @@
     }
     async function insertGoogleCalendarEvent(schedule) {
       const calendarId = encodeURIComponent(state.settings.googleCalendarId || "primary");
-      const bodyStart = schedule.time ? { dateTime: `${schedule.date}T${schedule.time}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
-      const bodyEnd = schedule.time ? (() => {
-        const end = new Date(`${schedule.date}T${schedule.time}:00`);
-        end.setHours(end.getHours() + 1);
+      const bodyStart = scheduleHasTime(schedule) ? { dateTime: `${schedule.date}T${schedule.startTime}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
+      const bodyEnd = scheduleHasTime(schedule) ? (() => {
+        const end = scheduleEndDateTime(schedule);
         const pad = value => String(value).padStart(2, "0");
         const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}:00`;
         return { dateTime: local, timeZone: "Asia/Seoul" };
