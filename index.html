@@ -885,7 +885,7 @@
       d.setDate(d.getDate() + offset);
       return localDateISO(d);
     }
-    function scheduleEndDate(schedule) {
+    function scheduleEndDateISO(schedule) {
       return addDaysISO(schedule.endDate || schedule.date, 1);
     }
     function compactLocalDateTime(date) {
@@ -895,7 +895,7 @@
     function scheduleHasTime(schedule) {
       return Boolean(schedule.startTime);
     }
-    function scheduleEndTime(schedule) {
+    function getScheduleEndTime(schedule) {
       if (schedule.endTime) return schedule.endTime;
       if (!schedule.startTime) return "";
       const endDate = new Date(`${schedule.date}T${schedule.startTime}:00`);
@@ -905,7 +905,7 @@
     }
     function scheduleTimeLabel(schedule) {
       if (!scheduleHasTime(schedule)) return "하루종일";
-      const end = scheduleEndTime(schedule);
+      const end = getScheduleEndTime(schedule);
       return `${schedule.startTime}${end ? " ~ " + end : ""}`;
     }
     function scheduleDateLabel(schedule) {
@@ -913,12 +913,13 @@
       return end === schedule.date ? schedule.date : `${schedule.date} ~ ${end}`;
     }
     function scheduleEndDateTime(schedule) {
-      const end = new Date(`${schedule.endDate || schedule.date}T${scheduleEndTime(schedule)}:00`);
-      if (scheduleEndTime(schedule) <= schedule.startTime) end.setDate(end.getDate() + 1);
+      const endTime = getScheduleEndTime(schedule);
+      const end = new Date(`${schedule.endDate || schedule.date}T${endTime}:00`);
+      if (endTime <= schedule.startTime) end.setDate(end.getDate() + 1);
       return end;
     }
     function googleScheduleDates(schedule) {
-      if (!scheduleHasTime(schedule)) return schedule.date.replaceAll("-", "") + "/" + scheduleEndDate(schedule).replaceAll("-", "");
+      if (!scheduleHasTime(schedule)) return schedule.date.replaceAll("-", "") + "/" + scheduleEndDateISO(schedule).replaceAll("-", "");
       const start = schedule.date.replaceAll("-", "") + "T" + schedule.startTime.replace(":", "") + "00";
       const endDate = scheduleEndDateTime(schedule);
       const end = compactLocalDateTime(endDate);
@@ -928,7 +929,7 @@
       if (!scheduleHasTime(schedule)) {
         return [
           "DTSTART;VALUE=DATE:" + schedule.date.replaceAll("-", ""),
-          "DTEND;VALUE=DATE:" + scheduleEndDate(schedule).replaceAll("-", "")
+          "DTEND;VALUE=DATE:" + scheduleEndDateISO(schedule).replaceAll("-", "")
         ];
       }
       const start = schedule.date.replaceAll("-", "") + "T" + schedule.startTime.replace(":", "") + "00";
@@ -1211,6 +1212,11 @@
     window.calendarRangeEnd = event => {
       const range = state.calendarRange;
       if (!range) return;
+      const endCell = dateCellFromPoint(event.clientX, event.clientY, null);
+      if (endCell?.dataset.date) {
+        range.end = endCell.dataset.date;
+        if (range.end !== range.start) range.moved = true;
+      }
       state.calendarRange = null;
       if (!range.moved) {
         clearRangeSelection();
@@ -1689,7 +1695,7 @@
         const pad = value => String(value).padStart(2, "0");
         const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}:00`;
         return { dateTime: local, timeZone: "Asia/Seoul" };
-      })() : { date: scheduleEndDate(schedule) };
+      })() : { date: scheduleEndDateISO(schedule) };
       const body = {
         summary: schedule.title,
         location: scheduleLocation(schedule),
