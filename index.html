@@ -711,14 +711,19 @@
       <div class="modal-body">
         <h2 class="panel-title" id="scheduleTitle">일정 등록</h2>
         <p class="panel-sub" id="scheduleSub"></p>
-        <div class="field" style="margin-top:14px">
-          <label>기관 선택</label>
-          <select id="scheduleOrgSelect" required></select>
+        <div class="form-grid" style="margin-top:14px">
+          <input type="hidden" id="scheduleId">
+          <div class="field full"><label>제목</label><input id="scheduleName" required placeholder="캘린더에 표시할 제목"></div>
+          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="org">기관 일정</option><option value="personal">개인 일정</option></select></div>
+          <div class="field"><label>기관 표시</label><select id="scheduleOrgSelect"></select></div>
+          <div class="field"><label>날짜</label><input id="scheduleDate" type="date" required></div>
+          <div class="field"><label>시간</label><input id="scheduleTime" type="time"></div>
         </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="secondary" id="closeScheduleDialogBtn">닫기</button>
-        <button type="submit">등록</button>
+        <button type="button" class="danger" id="deleteScheduleBtn">삭제</button>
+        <button type="submit" id="saveScheduleBtn">저장</button>
       </div>
     </form>
   </dialog>
@@ -773,6 +778,7 @@
 
     const state = {
       orgs: load("maint_orgs", seedOrgs),
+      schedules: load("maint_schedules", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -782,6 +788,8 @@
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     normalizeOrgs();
+    normalizeSchedules();
+    if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
@@ -795,9 +803,36 @@
         if (!Array.isArray(org.issues)) org.issues = [];
       });
     }
+    function seedSchedulesFromOrgs() {
+      state.schedules = state.orgs
+        .filter(org => org.nextVisit)
+        .map(org => ({
+          id: uid(),
+          type: "org",
+          orgId: org.id,
+          title: org.name,
+          date: org.nextVisit,
+          time: "",
+          createdAt: new Date().toISOString()
+        }));
+      localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+    }
+    function normalizeSchedules() {
+      state.schedules = (state.schedules || []).map(schedule => ({
+        id: schedule.id || uid(),
+        type: schedule.type || (schedule.orgId ? "org" : "personal"),
+        orgId: schedule.orgId || "",
+        title: schedule.title || "일정",
+        date: schedule.date || todayISO(),
+        time: schedule.time || "",
+        createdAt: schedule.createdAt || new Date().toISOString()
+      }));
+    }
     function save() {
       normalizeOrgs();
+      normalizeSchedules();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
+      localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
       localStorage.setItem("maint_settings", JSON.stringify(state.settings));
     }
@@ -810,6 +845,34 @@
       const d = new Date(iso + "T00:00:00");
       d.setDate(d.getDate() + offset);
       return d.toISOString().slice(0, 10);
+    }
+    function scheduleEndDate(schedule) {
+      return addDaysISO(schedule.date, 1);
+    }
+    function compactLocalDateTime(date) {
+      const pad = value => String(value).padStart(2, "0");
+      return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+    }
+    function googleScheduleDates(schedule) {
+      if (!schedule.time) return schedule.date.replaceAll("-", "") + "/" + scheduleEndDate(schedule).replaceAll("-", "");
+      const start = schedule.date.replaceAll("-", "") + "T" + schedule.time.replace(":", "") + "00";
+      const endDate = new Date(`${schedule.date}T${schedule.time}:00`);
+      endDate.setHours(endDate.getHours() + 1);
+      const end = compactLocalDateTime(endDate);
+      return start + "/" + end;
+    }
+    function icsDateLines(schedule) {
+      if (!schedule.time) {
+        return [
+          "DTSTART;VALUE=DATE:" + schedule.date.replaceAll("-", ""),
+          "DTEND;VALUE=DATE:" + scheduleEndDate(schedule).replaceAll("-", "")
+        ];
+      }
+      const start = schedule.date.replaceAll("-", "") + "T" + schedule.time.replace(":", "") + "00";
+      const endDate = new Date(`${schedule.date}T${schedule.time}:00`);
+      endDate.setHours(endDate.getHours() + 1);
+      const end = compactLocalDateTime(endDate);
+      return ["DTSTART:" + start, "DTEND:" + end];
     }
     function isContractActive(org) {
       const today = todayISO();
@@ -855,8 +918,17 @@
       render();
     }
 
-    function sortedVisits(date) {
-      return state.orgs.filter(o => o.nextVisit === date && o.method !== "방문안함").sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    function orgForSchedule(schedule) {
+      return state.orgs.find(org => org.id === schedule.orgId);
+    }
+    function sortedSchedules(date) {
+      return state.schedules
+        .filter(schedule => schedule.date === date)
+        .sort((a, b) => {
+          const timeCompare = (a.time || "99:99").localeCompare(b.time || "99:99");
+          if (timeCompare) return timeCompare;
+          return a.title.localeCompare(b.title, "ko");
+        });
     }
     function billingThisMonth() {
       const now = new Date();
@@ -870,16 +942,29 @@
     }
     function renderVisits(elId, date) {
       const wrap = document.getElementById(elId);
-      const items = sortedVisits(date);
-      wrap.innerHTML = items.length ? items.map(o => visitCard(o)).join("") : '<div class="empty">방문 예정 기관이 없습니다.</div>';
+      const items = sortedSchedules(date);
+      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule)).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
     }
-    function visitCard(o) {
+    function scheduleCard(schedule) {
+      const o = orgForSchedule(schedule);
+      if (!o) {
+        return `<article class="visit-card">
+          <div class="visit-top">
+            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정${schedule.time ? " · " + escapeHTML(schedule.time) : ""}</div></div>
+            <span class="tag gray">개인</span>
+          </div>
+          <div class="visit-actions">
+            <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
+            <button class="icon danger" title="일정 삭제" onclick="deleteSchedule('${schedule.id}')">${icon("trash")}</button>
+          </div>
+        </article>`;
+      }
       const contact = o.contacts?.[0] || {};
       const solution = escapeHTML(o.solution || "제품 미기입");
       const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card">
         <div class="visit-top">
-          <div><h3 class="${nameClass}">${escapeHTML(o.name)}</h3><div class="visit-meta">${escapeHTML(o.region)} · ${escapeHTML(o.type)} · ${escapeHTML(o.method)}</div></div>
+          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)}${schedule.time ? " · " + escapeHTML(schedule.time) : ""}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
@@ -889,7 +974,8 @@
           <button class="icon warn" title="Tmap 길찾기" onclick="openTmap('${o.id}')">${icon("map")}</button>
           <button class="icon secondary" title="레포트 촬영" onclick="captureReport('${o.id}')">${icon("camera")}</button>
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
-          <button class="secondary" onclick="openGoogleEvent('${o.id}')">구글 일정</button>
+          <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
+          <button class="secondary" onclick="openGoogleEvent('${schedule.id}')">구글 일정</button>
         </div>
       </article>`;
     }
@@ -900,7 +986,7 @@
         <div><h3 class="${isContractActive(o) ? "" : "expired-name"}">${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>캘린더 일정 ${o.nextVisit} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>캘린더 일정 ${nextScheduleLabel(o.id)} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
         <div class="org-actions">
           <button class="icon secondary" title="수정" onclick="editOrg('${o.id}')">${icon("edit")}</button>
           <button class="icon danger" title="삭제" onclick="deleteOrg('${o.id}')">${icon("trash")}</button>
@@ -910,6 +996,13 @@
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
         </div>
       </article>`).join("") : '<div class="empty">검색 결과가 없습니다.</div>';
+    }
+    function nextScheduleLabel(orgId) {
+      const today = todayISO();
+      const schedule = state.schedules
+        .filter(item => item.orgId === orgId && item.date >= today)
+        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
+      return schedule ? `${schedule.date}${schedule.time ? " " + schedule.time : ""}` : "-";
     }
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
@@ -923,13 +1016,19 @@
         const d = new Date(start);
         d.setDate(start.getDate() + i);
         const iso = d.toISOString().slice(0, 10);
-        const events = state.orgs.filter(o => o.nextVisit === iso);
+        const events = state.schedules.filter(schedule => schedule.date === iso);
         const classes = ["day-cell"];
         if (d.getMonth() !== m) classes.push("muted");
         if (iso === todayISO()) classes.push("today");
         cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onclick="openScheduleForDate(event, '${iso}')">
           <div class="day-number">${d.getDate()}</div>
-          ${events.slice(0, compact ? 2 : 4).map(o => `<span class="event-pill ${o.method === "원격점검" ? "remote" : "visit"} ${isContractActive(o) ? "" : "expired"}" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${o.id}')" onpointermove="schedulePointerMove(event, '${o.id}')" onpointerup="schedulePointerEnd(event, '${o.id}')" onpointercancel="schedulePointerCancel(event, '${o.id}')">${escapeHTML(o.name)}</span>`).join("")}
+          ${events.slice(0, compact ? 2 : 4).map(schedule => {
+            const org = orgForSchedule(schedule);
+            const pillType = schedule.type === "personal" ? "remote" : (org?.method === "원격점검" ? "remote" : "visit");
+            const expired = org && !isContractActive(org) ? "expired" : "";
+            const label = `${schedule.time ? schedule.time + " " : ""}${schedule.title}`;
+            return `<span class="event-pill ${pillType} ${expired}" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
+          }).join("")}
           ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
         </div>`);
       }
@@ -989,13 +1088,13 @@
       clearDropTarget();
       state.calendarDrag = null;
       if (!drag.moved) {
-        editOrg(id);
+        openScheduleEditor(id);
         return;
       }
       const targetDate = targetCell?.dataset.date;
-      const org = state.orgs.find(o => o.id === id);
-      if (org && targetDate) {
-        org.nextVisit = targetDate;
+      const schedule = state.schedules.find(item => item.id === id);
+      if (schedule && targetDate) {
+        schedule.date = targetDate;
         save();
         render();
         toast("일정을 " + formatDate(targetDate) + "로 이동했습니다.");
@@ -1011,25 +1110,85 @@
     };
     window.openScheduleForDate = (event, date) => {
       if (event.target.closest(".event-pill")) return;
-      state.scheduleDate = date;
-      scheduleTitle.textContent = "일정 등록";
-      scheduleSub.textContent = formatDate(date);
+      openScheduleDialog({ date });
+    };
+    function fillScheduleOrgOptions(selectedId = "") {
       scheduleOrgSelect.innerHTML = state.orgs
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name, "ko"))
         .map(org => `<option value="${org.id}">${escapeHTML(org.name)} · ${escapeHTML(org.region)}</option>`)
         .join("");
+      if (selectedId) scheduleOrgSelect.value = selectedId;
+    }
+    function syncScheduleType() {
+      const isPersonal = scheduleType.value === "personal";
+      scheduleOrgSelect.disabled = isPersonal;
+      scheduleOrgSelect.required = !isPersonal;
+    }
+    function openScheduleDialog(schedule = {}) {
+      const org = schedule.orgId ? orgForSchedule(schedule) : null;
+      scheduleId.value = schedule.id || "";
+      scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
+      scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
+      scheduleType.value = schedule.type || "org";
+      fillScheduleOrgOptions(schedule.orgId || "");
+      scheduleName.value = schedule.title || org?.name || "";
+      if (!scheduleName.value && scheduleType.value === "org") {
+        const firstOrg = state.orgs.find(item => item.id === scheduleOrgSelect.value);
+        scheduleName.value = firstOrg?.name || "";
+      }
+      scheduleDate.value = schedule.date || todayISO();
+      scheduleTime.value = schedule.time || "";
+      deleteScheduleBtn.style.display = schedule.id ? "" : "none";
+      syncScheduleType();
       scheduleDialog.showModal();
+    }
+    window.openScheduleEditor = id => {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (schedule) openScheduleDialog(schedule);
     };
     scheduleForm.onsubmit = e => {
       e.preventDefault();
-      const org = state.orgs.find(o => o.id === scheduleOrgSelect.value);
-      if (!org || !state.scheduleDate) return;
-      org.nextVisit = state.scheduleDate;
+      const existing = state.schedules.find(item => item.id === scheduleId.value);
+      const type = scheduleType.value;
+      const data = {
+        id: existing?.id || uid(),
+        type,
+        orgId: type === "org" ? scheduleOrgSelect.value : "",
+        title: scheduleName.value.trim(),
+        date: scheduleDate.value,
+        time: scheduleTime.value,
+        createdAt: existing?.createdAt || new Date().toISOString()
+      };
+      if (existing) {
+        Object.assign(existing, data, { updatedAt: new Date().toISOString() });
+      } else {
+        state.schedules.push(data);
+      }
       save();
       scheduleDialog.close();
       render();
-      toast("일정을 " + formatDate(state.scheduleDate) + "로 등록했습니다.");
+      toast(existing ? "일정을 수정했습니다." : "일정을 등록했습니다.");
+    };
+    window.deleteSchedule = id => {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
+      if (!confirm("이 일정을 삭제할까요?")) return;
+      state.schedules = state.schedules.filter(item => item.id !== id);
+      save();
+      if (scheduleDialog.open) scheduleDialog.close();
+      render();
+      toast("일정을 삭제했습니다.");
+    };
+    scheduleType.onchange = syncScheduleType;
+    scheduleOrgSelect.onchange = () => {
+      if (!scheduleName.value.trim() && scheduleType.value === "org") {
+        const org = state.orgs.find(item => item.id === scheduleOrgSelect.value);
+        scheduleName.value = org?.name || "";
+      }
+    };
+    deleteScheduleBtn.onclick = () => {
+      if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
     closeScheduleDialogBtn.onclick = () => scheduleDialog.close();
     window.moveMonth = step => {
@@ -1054,8 +1213,8 @@
     function render() {
       todayDateTag.textContent = formatDate(todayISO());
       tomorrowDateTag.textContent = formatDate(todayISO(1));
-      const todayVisits = sortedVisits(todayISO());
-      const tomorrowVisits = sortedVisits(todayISO(1));
+      const todayVisits = sortedSchedules(todayISO());
+      const tomorrowVisits = sortedSchedules(todayISO(1));
       todayCount.textContent = todayVisits.length;
       tomorrowCount.textContent = tomorrowVisits.length;
       billingCount.textContent = billingThisMonth().length;
@@ -1356,20 +1515,37 @@
       const dest = encodeURIComponent(o.address || o.region || o.name);
       window.open(`https://apis.openapi.sk.com/tmap/app/routes?name=${encodeURIComponent(o.name)}&lon=&lat=&appKey=${encodeURIComponent(state.settings.tmapKey || "")}&goalname=${dest}`, "_blank");
     };
-    function fallbackGoogleEvent(o) {
-      const text = encodeURIComponent(`[유지보수] ${o.name}`);
-      const details = encodeURIComponent(`${o.region}\n${o.method} / ${o.cycle}\n솔루션: ${o.solution || ""}`);
-      const dates = o.nextVisit.replaceAll("-", "") + "/" + addDaysISO(o.nextVisit, 1).replaceAll("-", "");
-      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${encodeURIComponent(o.address || o.region)}`, "_blank");
+    function scheduleDetails(schedule) {
+      const org = orgForSchedule(schedule);
+      if (!org) return "개인 일정";
+      return `${org.name}\n${org.region}\n${org.method} / ${org.cycle}\n솔루션: ${org.solution || ""}`;
     }
-    async function insertGoogleCalendarEvent(o) {
+    function scheduleLocation(schedule) {
+      const org = orgForSchedule(schedule);
+      return org ? (org.address || org.region) : "";
+    }
+    function fallbackGoogleEvent(schedule) {
+      const text = encodeURIComponent(schedule.title);
+      const details = encodeURIComponent(scheduleDetails(schedule));
+      const dates = googleScheduleDates(schedule);
+      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${encodeURIComponent(scheduleLocation(schedule))}`, "_blank");
+    }
+    async function insertGoogleCalendarEvent(schedule) {
       const calendarId = encodeURIComponent(state.settings.googleCalendarId || "primary");
+      const bodyStart = schedule.time ? { dateTime: `${schedule.date}T${schedule.time}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
+      const bodyEnd = schedule.time ? (() => {
+        const end = new Date(`${schedule.date}T${schedule.time}:00`);
+        end.setHours(end.getHours() + 1);
+        const pad = value => String(value).padStart(2, "0");
+        const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}:00`;
+        return { dateTime: local, timeZone: "Asia/Seoul" };
+      })() : { date: scheduleEndDate(schedule) };
       const body = {
-        summary: `[유지보수] ${o.name}`,
-        location: o.address || o.region,
-        description: `${o.region}\n${o.method} / ${o.cycle}\n솔루션: ${o.solution || ""}\n계약업체: ${o.contractor || ""}`,
-        start: { date: o.nextVisit },
-        end: { date: addDaysISO(o.nextVisit, 1) }
+        summary: schedule.title,
+        location: scheduleLocation(schedule),
+        description: scheduleDetails(schedule),
+        start: bodyStart,
+        end: bodyEnd
       };
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
         method: "POST",
@@ -1386,14 +1562,14 @@
       return response.json();
     }
     window.openGoogleEvent = async id => {
-      const o = state.orgs.find(x => x.id === id);
-      if (!o) return;
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
       if (!state.googleAccessToken) {
-        fallbackGoogleEvent(o);
+        fallbackGoogleEvent(schedule);
         return;
       }
       try {
-        await insertGoogleCalendarEvent(o);
+        await insertGoogleCalendarEvent(schedule);
         toast("구글캘린더에 일정을 등록했습니다.");
       } catch (error) {
         console.warn(error);
@@ -1402,15 +1578,14 @@
     };
     googleHelpBtn.onclick = () => connectGoogleCalendar();
     exportIcsBtn.onclick = () => {
-      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Island Maintenance//KR"].concat(state.orgs.map(o => [
+      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Island Maintenance//KR"].concat(state.schedules.map(schedule => [
         "BEGIN:VEVENT",
-        "UID:" + o.id,
+        "UID:" + schedule.id,
         "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z",
-        "DTSTART;VALUE=DATE:" + o.nextVisit.replaceAll("-", ""),
-        "DTEND;VALUE=DATE:" + addDaysISO(o.nextVisit, 1).replaceAll("-", ""),
-        "SUMMARY:" + escapeICS("[유지보수] " + o.name),
-        "LOCATION:" + escapeICS(o.address || o.region),
-        "DESCRIPTION:" + escapeICS(`${o.method} / ${o.cycle}\\n${o.solution || ""}`),
+        ...icsDateLines(schedule),
+        "SUMMARY:" + escapeICS(schedule.title),
+        "LOCATION:" + escapeICS(scheduleLocation(schedule)),
+        "DESCRIPTION:" + escapeICS(scheduleDetails(schedule)),
         "END:VEVENT"
       ].join("\r\n"))).concat(["END:VCALENDAR"]).join("\r\n");
       const a = document.createElement("a");
