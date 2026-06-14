@@ -331,6 +331,11 @@
     .event-pill.visit { background: #e8f7f2; color: #0e6655; }
     .event-pill.remote { background: #f3eefc; color: #6d28d9; }
     .event-pill.expired { background: #fff1f2; color: #be123c; }
+    .event-pill.has-color {
+      background: var(--event-bg);
+      color: var(--event-fg);
+      box-shadow: inset 0 0 0 1px var(--event-border);
+    }
 
     .toolbar {
       display: flex;
@@ -399,6 +404,85 @@
     }
     textarea { min-height: 92px; resize: vertical; }
     .full { grid-column: 1 / -1; }
+    .color-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      align-items: center;
+    }
+    .color-swatch {
+      width: 38px;
+      min-height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      background: var(--swatch);
+      color: white;
+      display: inline-grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.48), 0 8px 18px rgba(22, 34, 45, .12);
+      position: relative;
+    }
+    .color-swatch::after {
+      content: "";
+      width: 12px;
+      height: 7px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(-45deg) translateY(-1px);
+      opacity: 0;
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    .color-swatch.active {
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, .16), inset 0 0 0 1px rgba(255,255,255,.56), 0 8px 18px rgba(22, 34, 45, .14);
+    }
+    .color-swatch.active::after {
+      opacity: 1;
+      transform: rotate(-45deg) translateY(-1px) scale(1.05);
+    }
+    .org-autocomplete {
+      position: relative;
+    }
+    .org-suggestions {
+      display: none;
+      gap: 6px;
+      margin-top: 6px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      box-shadow: var(--shadow);
+      max-height: 220px;
+      overflow: auto;
+      z-index: 5;
+    }
+    .org-suggestions.show {
+      display: grid;
+    }
+    .org-suggestion {
+      min-height: 42px;
+      border-radius: 8px;
+      padding: 8px 10px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      box-shadow: none;
+      text-align: left;
+      display: grid;
+      gap: 2px;
+    }
+    .org-suggestion strong {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+    .org-suggestion span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .org-suggestion:hover, .org-suggestion:focus-visible {
+      background: rgba(118, 118, 128, .12);
+      box-shadow: none;
+    }
     .contact-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr 1.2fr 1.4fr auto;
@@ -433,6 +517,31 @@
       gap: 10px;
       max-height: min(62vh, 620px);
       overflow: auto;
+    }
+    .day-schedule-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .day-schedule-item {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--event-fg);
+      border-radius: 8px;
+      background: #fff;
+      padding: 11px 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .day-schedule-item h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+    .day-schedule-item p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
     }
     .report-card {
       display: grid;
@@ -684,6 +793,14 @@
       transform: translateY(-1px);
       box-shadow: 0 14px 32px rgba(22, 28, 38, .09);
     }
+    .day-schedule-item {
+      background: rgba(255, 255, 255, .78);
+      border-color: rgba(60, 60, 67, .1);
+      box-shadow: var(--shadow-soft);
+    }
+    .visit-card.schedule-accent {
+      border-left: 4px solid var(--event-fg);
+    }
     .environment-chip {
       min-height: 46px;
       background: rgba(255,255,255,.62);
@@ -748,6 +865,27 @@
       color: rgba(28, 28, 30, .78);
       font-weight: 750;
     }
+    .org-suggestions {
+      border-color: rgba(60, 60, 67, .1);
+      background: rgba(255, 255, 255, .92);
+      box-shadow: 0 14px 32px rgba(22, 28, 38, .12);
+      backdrop-filter: blur(20px) saturate(150%);
+      -webkit-backdrop-filter: blur(20px) saturate(150%);
+    }
+    .org-suggestion {
+      background: transparent;
+      color: var(--ink);
+      box-shadow: none;
+      text-align: left;
+      justify-content: start;
+    }
+    .org-suggestion:hover, .org-suggestion:focus-visible {
+      background: rgba(0, 122, 255, .09);
+      box-shadow: none;
+    }
+    .org-suggestion:active {
+      transform: scale(.99);
+    }
 
     .calendar-toolbar {
       background: rgba(255,255,255,.6);
@@ -811,6 +949,11 @@
     .event-pill.visit { background: rgba(0, 168, 137, .13); color: #006f5c; }
     .event-pill.remote { background: rgba(175, 82, 222, .13); color: #8e24aa; }
     .event-pill.expired { background: rgba(255, 59, 48, .12); color: #d70015; }
+    .event-pill.has-color {
+      background: var(--event-bg);
+      color: var(--event-fg);
+      box-shadow: inset 0 0 0 1px var(--event-border);
+    }
 
     .bottom-nav {
       left: 50%;
@@ -1155,11 +1298,28 @@
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
           <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="org">기관 일정</option><option value="personal">개인 일정</option></select></div>
-          <div class="field"><label>기관 표시</label><input id="scheduleOrgSearch" list="scheduleOrgList" placeholder="기관명 검색"></div>
+          <div class="field org-autocomplete">
+            <label>기관명</label>
+            <input type="hidden" id="scheduleOrgId">
+            <input id="scheduleOrgSearch" autocomplete="off" placeholder="기관명 일부만 입력">
+            <div class="org-suggestions" id="scheduleOrgSuggestions"></div>
+          </div>
           <div class="field"><label>시작일</label><input id="scheduleDate" type="date" required></div>
           <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
           <div class="field"><label>작업 종료시간</label><input id="scheduleEndTime" type="time"></div>
+          <div class="field full">
+            <label>일정 색상</label>
+            <input type="hidden" id="scheduleColor" value="blue">
+            <div class="color-picker" id="scheduleColorPicker" aria-label="일정 색상 선택">
+              <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑"></button>
+              <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록"></button>
+              <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라"></button>
+              <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황"></button>
+              <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강"></button>
+              <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색"></button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-actions">
@@ -1167,6 +1327,24 @@
         <button type="submit" id="saveScheduleBtn">저장</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="dayScheduleDialog">
+    <div class="modal-body">
+      <div class="modal-title-row">
+        <div>
+          <h2 class="panel-title" id="dayScheduleTitle">일정</h2>
+          <p class="panel-sub" id="dayScheduleSub"></p>
+        </div>
+        <button type="button" class="icon good" id="addDayScheduleBtn" title="일정 추가" aria-label="일정 추가">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+      </div>
+      <div class="day-schedule-list" id="dayScheduleList"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeDayScheduleDialogBtn">닫기</button>
+    </div>
   </dialog>
 
   <dialog id="issueDialog">
@@ -1380,6 +1558,46 @@
       };
       return icons[name] || "";
     }
+    const scheduleColors = {
+      blue: { bg: "rgba(0, 122, 255, .14)", fg: "#0057b8", border: "rgba(0, 122, 255, .16)" },
+      green: { bg: "rgba(0, 168, 137, .15)", fg: "#006f5c", border: "rgba(0, 168, 137, .18)" },
+      purple: { bg: "rgba(175, 82, 222, .14)", fg: "#8e24aa", border: "rgba(175, 82, 222, .18)" },
+      orange: { bg: "rgba(255, 159, 10, .16)", fg: "#9a5a00", border: "rgba(255, 159, 10, .2)" },
+      red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
+      gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
+    };
+    function safeScheduleColor(color) {
+      return scheduleColors[color] ? color : "blue";
+    }
+    function defaultScheduleColor(schedule = {}) {
+      if (schedule.color) return safeScheduleColor(schedule.color);
+      if (schedule.type === "personal") return "purple";
+      const org = schedule.orgId ? orgForSchedule(schedule) : null;
+      return org?.method === "원격점검" ? "purple" : "green";
+    }
+    function scheduleColorStyle(schedule = {}) {
+      const color = scheduleColors[defaultScheduleColor(schedule)];
+      return `--event-bg:${color.bg};--event-fg:${color.fg};--event-border:${color.border};`;
+    }
+    function scheduleColorStyleAttr(schedule = {}) {
+      return `style="${scheduleColorStyle(schedule)}"`;
+    }
+    function selectScheduleColor(color, { persist = true } = {}) {
+      const selected = safeScheduleColor(color);
+      scheduleColor.value = selected;
+      document.querySelectorAll("[data-schedule-color]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.scheduleColor === selected);
+        btn.setAttribute("aria-pressed", btn.dataset.scheduleColor === selected ? "true" : "false");
+      });
+      if (!persist || !scheduleId?.value) return;
+      const schedule = state.schedules.find(item => item.id === scheduleId.value);
+      if (!schedule || schedule.color === selected) return;
+      schedule.color = selected;
+      schedule.updatedAt = new Date().toISOString();
+      save();
+      render();
+      toast("일정 색상을 변경했습니다.");
+    }
 
     islandRegions.forEach(r => {
       const option = document.createElement("option");
@@ -1389,6 +1607,17 @@
 
     document.querySelectorAll(".nav-btn").forEach(btn => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
+    });
+    document.querySelectorAll("[data-schedule-color]").forEach(btn => {
+      btn.addEventListener("click", () => selectScheduleColor(btn.dataset.scheduleColor));
+    });
+    scheduleOrgSearch.addEventListener("input", () => {
+      scheduleOrgId.value = "";
+      renderScheduleOrgSuggestions(true);
+    });
+    scheduleOrgSearch.addEventListener("focus", () => renderScheduleOrgSuggestions(true));
+    scheduleOrgSearch.addEventListener("blur", () => {
+      setTimeout(() => renderScheduleOrgSuggestions(false), 160);
     });
     function switchView(view) {
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
@@ -1429,10 +1658,36 @@
       const items = sortedSchedules(date);
       wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule)).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
     }
+    function dayScheduleItem(schedule) {
+      const org = orgForSchedule(schedule);
+      const meta = org ? `${org.name} · ${org.region}` : "개인 일정";
+      return `<article class="day-schedule-item" ${scheduleColorStyleAttr(schedule)}>
+        <div>
+          <h3>${escapeHTML(schedule.title)}</h3>
+          <p>${escapeHTML(meta)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</p>
+        </div>
+        <div class="visit-actions">
+          <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
+          <button class="icon danger" title="일정 삭제" onclick="deleteSchedule('${schedule.id}')">${icon("trash")}</button>
+          ${org ? `<button class="icon warn" title="Tmap" onclick="openTmap('${org.id}')">${icon("map")}</button>` : ""}
+        </div>
+      </article>`;
+    }
+    function renderDayScheduleDialog(date) {
+      state.selectedCalendarDate = date;
+      const items = sortedSchedules(date);
+      dayScheduleTitle.textContent = formatDate(date);
+      dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
+      dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
+    }
+    function openDayScheduleDialog(date) {
+      renderDayScheduleDialog(date);
+      dayScheduleDialog.showModal();
+    }
     function scheduleCard(schedule) {
       const o = orgForSchedule(schedule);
       if (!o) {
-        return `<article class="visit-card">
+        return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
@@ -1446,7 +1701,7 @@
       const contact = o.contacts?.[0] || {};
       const solution = escapeHTML(o.solution || "제품 미기입");
       const nameClass = isContractActive(o) ? "" : "expired-name";
-      return `<article class="visit-card">
+      return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
@@ -1515,9 +1770,9 @@
             const pillType = schedule.type === "personal" ? "remote" : (org?.method === "원격점검" ? "remote" : "visit");
             const expired = org && !isContractActive(org) ? "expired" : "";
             const label = `${scheduleHasTime(schedule) ? scheduleTimeLabel(schedule) + " " : ""}${schedule.title}`;
-            return `<span class="event-pill ${pillType} ${expired}" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
+            return `<span class="event-pill has-color ${pillType} ${expired}" ${scheduleColorStyleAttr(schedule)} title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
           }).join("")}
-          ${events.length > (compact ? 2 : 4) ? `<span class="event-pill">+${events.length - (compact ? 2 : 4)}</span>` : ""}
+          ${events.length > (compact ? 2 : 4) ? `<span class="event-pill event-more">+${events.length - (compact ? 2 : 4)}</span>` : ""}
         </div>`);
       }
       target.innerHTML = `<div class="calendar-toolbar">
@@ -1553,6 +1808,16 @@
       const cell = document.elementFromPoint(x, y)?.closest(".day-cell");
       if (draggedEl) draggedEl.style.visibility = "";
       return cell;
+    }
+    function isSchedulePillTarget(event) {
+      const pill = event.target.closest(".event-pill");
+      return Boolean(pill && !pill.classList.contains("event-more"));
+    }
+    function clearCalendarLongPress(range = state.calendarRange) {
+      if (range?.longPressTimer) {
+        clearTimeout(range.longPressTimer);
+        range.longPressTimer = null;
+      }
     }
     window.schedulePointerStart = (event, id) => {
       event.preventDefault();
@@ -1609,30 +1874,50 @@
       state.calendarDrag = null;
     };
     window.calendarRangeStart = (event, date) => {
-      if (event.target.closest(".event-pill")) return;
-      state.calendarRange = { start: date, end: date, moved: false };
+      if (isSchedulePillTarget(event)) return;
+      clearCalendarLongPress();
+      const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, longPressFired: false };
+      range.longPressTimer = setTimeout(() => {
+        if (state.calendarRange !== range || range.moved) return;
+        range.longPressFired = true;
+        state.calendarRange = null;
+        clearRangeSelection();
+        state.suppressCalendarClick = true;
+        setTimeout(() => { state.suppressCalendarClick = false; }, 300);
+        openScheduleDialog({ date, endDate: date });
+      }, 560);
+      state.calendarRange = range;
       event.currentTarget.setPointerCapture?.(event.pointerId);
     };
     window.calendarRangeMove = event => {
       const range = state.calendarRange;
-      if (!range || event.target.closest(".event-pill")) return;
+      if (!range || isSchedulePillTarget(event)) return;
+      const dx = Math.abs(event.clientX - range.startX);
+      const dy = Math.abs(event.clientY - range.startY);
+      if (dx + dy > 12) clearCalendarLongPress(range);
       const cell = dateCellFromPoint(event.clientX, event.clientY, null);
       if (!cell?.dataset.date) return;
       if (cell.dataset.date !== range.end) {
         range.end = cell.dataset.date;
         range.moved = true;
+        clearCalendarLongPress(range);
         markRange(range.start, range.end);
       }
     };
     window.calendarRangeEnd = event => {
       const range = state.calendarRange;
       if (!range) return;
+      clearCalendarLongPress(range);
       const endCell = dateCellFromPoint(event.clientX, event.clientY, null);
       if (endCell?.dataset.date) {
         range.end = endCell.dataset.date;
         if (range.end !== range.start) range.moved = true;
       }
       state.calendarRange = null;
+      if (range.longPressFired) {
+        clearRangeSelection();
+        return;
+      }
       if (!range.moved) {
         clearRangeSelection();
         return;
@@ -1644,17 +1929,32 @@
       openScheduleDialog({ date: from, endDate: to });
     };
     window.calendarRangeCancel = () => {
+      clearCalendarLongPress();
       state.calendarRange = null;
       clearRangeSelection();
     };
     window.openScheduleForDate = (event, date) => {
-      if (event.target.closest(".event-pill")) return;
+      if (isSchedulePillTarget(event)) return;
       if (state.suppressCalendarClick) return;
       if (state.calendarRange?.moved) return;
-      openScheduleDialog({ date });
+      openDayScheduleDialog(date);
     };
     function orgOptionLabel(org) {
       return `${org.name} · ${org.region}`;
+    }
+    function normalizeOrgKeyword(value = "") {
+      return String(value).toLowerCase().replace(/\s+/g, "");
+    }
+    function orgSearchText(org) {
+      return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address].filter(Boolean).join(" "));
+    }
+    function matchingScheduleOrgs(value = "", limit = 8) {
+      const keyword = normalizeOrgKeyword(value);
+      return state.orgs
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .filter(org => !keyword || orgSearchText(org).includes(keyword))
+        .slice(0, limit);
     }
     function refreshScheduleOrgOptions() {
       scheduleOrgList.innerHTML = state.orgs
@@ -1662,33 +1962,66 @@
         .sort((a, b) => a.name.localeCompare(b.name, "ko"))
         .map(org => `<option value="${escapeAttr(orgOptionLabel(org))}"></option>`)
         .join("");
+      renderScheduleOrgSuggestions(false);
+    }
+    function renderScheduleOrgSuggestions(show = true) {
+      if (!show || scheduleType.value === "personal") {
+        scheduleOrgSuggestions.classList.remove("show");
+        scheduleOrgSuggestions.innerHTML = "";
+        return;
+      }
+      const matches = matchingScheduleOrgs(scheduleOrgSearch.value);
+      scheduleOrgSuggestions.innerHTML = matches.length ? matches.map(org => `<button type="button" class="org-suggestion" onclick="selectScheduleOrg('${org.id}')">
+        <strong>${escapeHTML(org.name)}</strong>
+        <span>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.type || "타입 미입력")}</span>
+      </button>`).join("") : '<div class="empty">검색된 기관이 없습니다.</div>';
+      scheduleOrgSuggestions.classList.add("show");
+    }
+    window.selectScheduleOrg = id => {
+      const org = state.orgs.find(item => item.id === id);
+      if (!org) return;
+      scheduleOrgId.value = org.id;
+      scheduleOrgSearch.value = org.name;
+      scheduleOrgSuggestions.classList.remove("show");
+      scheduleOrgSuggestions.innerHTML = "";
     }
     function orgIdFromScheduleInput() {
       const value = scheduleOrgSearch.value.trim();
+      const selected = state.orgs.find(org => org.id === scheduleOrgId.value);
+      if (selected && selected.name === value) return selected.id;
       const exact = state.orgs.find(org => orgOptionLabel(org) === value);
       if (exact) return exact.id;
       const byName = state.orgs.find(org => org.name === value);
-      return byName?.id || "";
+      if (byName) return byName.id;
+      const matches = matchingScheduleOrgs(value, state.orgs.length);
+      return matches.length === 1 ? matches[0].id : "";
     }
     function syncScheduleType() {
       const isPersonal = scheduleType.value === "personal";
       scheduleOrgSearch.disabled = isPersonal;
       scheduleOrgSearch.required = !isPersonal;
-      if (isPersonal) scheduleOrgSearch.value = "";
+      if (isPersonal) {
+        scheduleOrgId.value = "";
+        scheduleOrgSearch.value = "";
+        renderScheduleOrgSuggestions(false);
+      }
     }
     function openScheduleDialog(schedule = {}) {
+      if (dayScheduleDialog.open) dayScheduleDialog.close();
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
       scheduleId.value = schedule.id || "";
       scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
       scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
       scheduleType.value = schedule.type || "org";
       refreshScheduleOrgOptions();
-      scheduleOrgSearch.value = org ? orgOptionLabel(org) : "";
+      scheduleOrgId.value = org?.id || "";
+      scheduleOrgSearch.value = org ? org.name : "";
       scheduleName.value = schedule.title || "";
       scheduleDate.value = schedule.date || todayISO();
       scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
       scheduleEndTime.value = schedule.endTime || "";
+      selectScheduleColor(defaultScheduleColor(schedule), { persist: false });
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
       syncScheduleType();
       scheduleDialog.showModal();
@@ -1723,6 +2056,7 @@
         endDate,
         startTime: scheduleStartTime.value,
         endTime: scheduleEndTime.value,
+        color: safeScheduleColor(scheduleColor.value),
         createdAt: existing?.createdAt || new Date().toISOString()
       };
       if (existing) {
@@ -1748,6 +2082,7 @@
       save();
       if (scheduleDialog.open) scheduleDialog.close();
       render();
+      if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
       toast("일정을 삭제했습니다.");
     };
     scheduleType.onchange = syncScheduleType;
@@ -1755,6 +2090,12 @@
       if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
     closeScheduleDialogBtn.onclick = () => scheduleDialog.close();
+    addDayScheduleBtn.onclick = () => {
+      const date = state.selectedCalendarDate || todayISO();
+      dayScheduleDialog.close();
+      openScheduleDialog({ date, endDate: date });
+    };
+    closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
     scheduleDialog.addEventListener("click", event => {
       if (event.target !== scheduleDialog) return;
       const rect = scheduleDialog.getBoundingClientRect();
