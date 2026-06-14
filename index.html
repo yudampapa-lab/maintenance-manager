@@ -847,6 +847,12 @@
       background: rgba(248, 248, 250, .94);
       box-shadow: 0 34px 80px rgba(0, 0, 0, .22);
       overflow: hidden;
+      max-height: min(88dvh, 760px);
+    }
+    dialog > form {
+      display: flex;
+      flex-direction: column;
+      max-height: min(88dvh, 760px);
     }
     dialog[open] {
       animation: dialogIn .26s cubic-bezier(.2, .85, .2, 1);
@@ -860,11 +866,24 @@
       from { opacity: 0; transform: translateY(16px) scale(.96); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
-    .modal-body { padding: 18px; }
+    .modal-body {
+      padding: 18px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    dialog > .modal-body {
+      max-height: calc(min(88dvh, 760px) - 66px);
+    }
+    dialog > form .modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
     .modal-actions {
       background: rgba(255,255,255,.62);
       border-top-color: rgba(60, 60, 67, .1);
       padding: 12px 18px 16px;
+      flex: 0 0 auto;
     }
     .toast {
       bottom: 94px;
@@ -909,6 +928,13 @@
       dialog {
         width: min(560px, calc(100vw - 18px));
         border-radius: 18px;
+        max-height: calc(100dvh - 20px);
+      }
+      dialog > form {
+        max-height: calc(100dvh - 20px);
+      }
+      dialog > .modal-body {
+        max-height: calc(100dvh - 92px);
       }
       .modal-actions {
         position: sticky;
@@ -1054,7 +1080,7 @@
           <input type="hidden" id="orgId">
           <div class="field"><label>유지보수 기관명</label><input id="orgName" required placeholder="기관명"></div>
           <div class="field"><label>기관 타입</label><select id="orgType" required><option>도서관</option><option>대학교</option><option>고등학교</option><option>공공기관</option><option>협력사</option><option>공기업</option><option>기타</option></select></div>
-          <div class="field"><label>유지보수 지역명</label><input id="region" list="regionList" required placeholder="예: 전남 신안군 흑산도"></div>
+          <div class="field"><label>유지보수 지역명</label><input id="region" required placeholder="예: 전남 신안군 흑산도"></div>
           <div class="field"><label>계약업체</label><input id="contractor" placeholder="계약업체명"></div>
           <div class="field"><label>유지보수 계약일</label><input id="contractDate" type="date"></div>
           <div class="field"><label>점검 주기</label><select id="cycle"><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
@@ -1262,6 +1288,14 @@
       const d = new Date();
       d.setDate(d.getDate() + offset);
       return localDateISO(d);
+    }
+    function currentYearStartISO() {
+      const year = new Date().getFullYear();
+      return `${year}-01-01`;
+    }
+    function currentYearEndISO() {
+      const year = new Date().getFullYear();
+      return `${year}-12-31`;
     }
     function addDaysISO(iso, offset) {
       const d = new Date(iso + "T00:00:00");
@@ -1768,8 +1802,8 @@
       orgForm.reset();
       orgId.value = "";
       contractDate.value = todayISO();
-      startDate.value = todayISO();
-      endDate.value = todayISO(365);
+      startDate.value = currentYearStartISO();
+      endDate.value = currentYearEndISO();
       billingDay.value = "25";
       contactRows.innerHTML = "";
       addContactRow();
@@ -2048,10 +2082,64 @@
       callDialog.showModal();
     };
     closeCallDialogBtn.onclick = () => callDialog.close();
-    window.openTmap = id => {
+    function pickTmapCoordinate(raw = {}) {
+      const lon = raw.newLon || raw.lon || raw.frontLon || raw.noorLon;
+      const lat = raw.newLat || raw.lat || raw.frontLat || raw.noorLat;
+      if (!lon || !lat) return null;
+      return { lon: String(lon), lat: String(lat) };
+    }
+    async function fetchTmapCoordinates(address, appKey) {
+      const headers = { appKey, Accept: "application/json" };
+      const fullAddressUrl = `https://apis.openapi.sk.com/tmap/geo/fullAddrGeo?version=1&format=json&coordType=WGS84GEO&fullAddr=${encodeURIComponent(address)}`;
+      const fullAddressResponse = await fetch(fullAddressUrl, { headers });
+      if (fullAddressResponse.ok) {
+        const data = await fullAddressResponse.json();
+        const candidates = data.coordinateInfo?.coordinate || [];
+        const coordinate = candidates.map(pickTmapCoordinate).find(Boolean);
+        if (coordinate) return coordinate;
+      }
+
+      const poiUrl = `https://apis.openapi.sk.com/tmap/pois?version=1&format=json&searchKeyword=${encodeURIComponent(address)}&count=1&resCoordType=WGS84GEO&reqCoordType=WGS84GEO`;
+      const poiResponse = await fetch(poiUrl, { headers });
+      if (!poiResponse.ok) throw new Error("Tmap POI search failed");
+      const poiData = await poiResponse.json();
+      const poi = poiData.searchPoiInfo?.pois?.poi?.[0];
+      const coordinate = pickTmapCoordinate(poi);
+      if (!coordinate) throw new Error("No Tmap coordinate found");
+      return coordinate;
+    }
+    function openTmapRoute(org, address, coordinate) {
+      const params = new URLSearchParams({
+        name: org.name || address,
+        lon: coordinate.lon,
+        lat: coordinate.lat,
+        goalname: address,
+        appKey: state.settings.tmapKey || ""
+      });
+      window.open(`https://apis.openapi.sk.com/tmap/app/routes?${params.toString()}`, "_blank");
+    }
+    window.openTmap = async id => {
       const o = state.orgs.find(x => x.id === id);
-      const dest = encodeURIComponent(o.address || o.region || o.name);
-      window.open(`https://apis.openapi.sk.com/tmap/app/routes?name=${encodeURIComponent(o.name)}&lon=&lat=&appKey=${encodeURIComponent(state.settings.tmapKey || "")}&goalname=${dest}`, "_blank");
+      if (!o) return;
+      const address = (o.address || o.region || o.name || "").trim();
+      if (!address) {
+        showInfo("Tmap 길찾기", "기관 주소 또는 지역명을 먼저 입력해주세요.");
+        return;
+      }
+      const appKey = (state.settings.tmapKey || "").trim();
+      if (!appKey) {
+        window.open(`https://www.tmap.co.kr/search?keyword=${encodeURIComponent(address)}`, "_blank");
+        toast("Tmap 앱키가 없어 주소 검색으로 열었습니다.");
+        return;
+      }
+      try {
+        toast("Tmap 목적지를 찾고 있습니다.");
+        const coordinate = await fetchTmapCoordinates(address, appKey);
+        openTmapRoute(o, address, coordinate);
+      } catch (error) {
+        console.warn(error);
+        showInfo("Tmap 길찾기", "주소를 Tmap 좌표로 변환하지 못했습니다. 상세 주소를 도로명/지번까지 조금 더 정확하게 입력하거나 Tmap 앱키 설정을 확인해주세요.");
+      }
     };
     function scheduleDetails(schedule) {
       const org = orgForSchedule(schedule);
