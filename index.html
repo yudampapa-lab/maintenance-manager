@@ -1184,15 +1184,21 @@
       const schedule = state.schedules.find(item => item.id === id);
       if (schedule) openScheduleDialog(schedule);
     };
-    scheduleForm.onsubmit = e => {
-      e.preventDefault();
+    function saveScheduleFromForm({ closeAfter = true } = {}) {
       const existing = state.schedules.find(item => item.id === scheduleId.value);
       const type = scheduleType.value;
+      let title = scheduleName.value.trim();
+      if (!title && type === "org") {
+        const org = state.orgs.find(item => item.id === scheduleOrgSelect.value);
+        title = org?.name || "";
+        scheduleName.value = title;
+      }
+      if (!title || !scheduleDate.value) return false;
       const data = {
         id: existing?.id || uid(),
         type,
         orgId: type === "org" ? scheduleOrgSelect.value : "",
-        title: scheduleName.value.trim(),
+        title,
         date: scheduleDate.value,
         time: scheduleTime.value,
         createdAt: existing?.createdAt || new Date().toISOString()
@@ -1203,9 +1209,14 @@
         state.schedules.push(data);
       }
       save();
-      scheduleDialog.close();
+      if (closeAfter) scheduleDialog.close();
       render();
       toast(existing ? "일정을 수정했습니다." : "일정을 등록했습니다.");
+      return true;
+    }
+    scheduleForm.onsubmit = e => {
+      e.preventDefault();
+      saveScheduleFromForm();
     };
     window.deleteSchedule = id => {
       const schedule = state.schedules.find(item => item.id === id);
@@ -1228,6 +1239,14 @@
       if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
     closeScheduleDialogBtn.onclick = () => scheduleDialog.close();
+    scheduleDialog.addEventListener("click", event => {
+      if (event.target !== scheduleDialog) return;
+      const rect = scheduleDialog.getBoundingClientRect();
+      const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+      if (inside) return;
+      saveScheduleFromForm({ closeAfter: false });
+      scheduleDialog.close();
+    });
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
