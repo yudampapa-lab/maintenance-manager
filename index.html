@@ -202,6 +202,29 @@
       gap: 10px;
       align-items: start;
     }
+    .visit-title-text { min-width: 0; }
+    .copy-schedule-list { display: grid; gap: 8px; margin-top: 12px; }
+    .copy-schedule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,.72);
+      padding: 10px;
+    }
+    .copy-schedule-item input {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: var(--blue);
+      appearance: auto;
+      -webkit-appearance: checkbox;
+      box-shadow: none;
+    }
+    .copy-schedule-item strong { display: block; font-size: 14px; }
+    .copy-schedule-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
     .visit-top h3 { margin: 0; font-size: 15px; }
     .expired-name { color: var(--rose); }
     .visit-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
@@ -269,18 +292,29 @@
     }
     .calendar-title { font-weight: 800; }
     .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      display: block;
       border: 1px solid var(--line);
       border-radius: 8px;
       overflow: hidden;
       background: white;
+    }
+    .calendar-day-names,
+    .calendar-week {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .calendar-week {
+      --event-rows: 1;
+      position: relative;
+      min-height: calc(76px + var(--event-rows) * 30px);
+      border-top: 1px solid var(--line);
     }
     .day-name, .day-cell {
       min-width: 0;
       border-right: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
     }
+    .calendar-week:last-child .day-cell { border-bottom: 0; }
     .day-name:nth-child(7n), .day-cell:nth-child(7n) { border-right: 0; }
     .day-name {
       padding: 8px 4px;
@@ -291,12 +325,24 @@
       color: var(--muted);
     }
     .day-cell {
-      min-height: 94px;
+      min-height: inherit;
       padding: 6px;
       display: flex;
       flex-direction: column;
       gap: 5px;
       background: #fff;
+    }
+    .week-events {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 32px;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-auto-rows: minmax(24px, auto);
+      gap: 5px 0;
+      padding: 0 4px;
+      pointer-events: none;
     }
     .day-cell.muted { background: #f7f9fb; color: #a0aab4; }
     .day-cell.today { box-shadow: inset 0 0 0 2px var(--teal); }
@@ -320,6 +366,17 @@
       -webkit-box-orient: vertical;
       cursor: grab;
       touch-action: none;
+    }
+    .event-pill.calendar-bar {
+      width: auto;
+      min-height: 24px;
+      margin: 0 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      -webkit-line-clamp: 1;
+      pointer-events: auto;
     }
     .event-pill.dragging {
       position: relative;
@@ -921,15 +978,23 @@
       background: rgba(255,255,255,.62);
       box-shadow: var(--shadow-soft);
     }
+    .calendar-week {
+      min-height: calc(82px + var(--event-rows) * 31px);
+    }
     .day-name {
       background: rgba(248, 248, 250, .86);
       color: rgba(60, 60, 67, .68);
       letter-spacing: 0;
     }
     .day-cell {
-      min-height: 112px;
       background: rgba(255,255,255,.72);
       transition: background .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+    .calendar-week .day-cell { min-height: inherit; }
+    .week-events {
+      top: 34px;
+      grid-auto-rows: minmax(25px, auto);
+      gap: 6px 0;
     }
     .day-cell.muted { background: rgba(248, 248, 250, .62); }
     .day-cell.today {
@@ -958,6 +1023,10 @@
       -webkit-line-clamp: 3;
       box-shadow: inset 0 0 0 1px rgba(0, 122, 255, .08);
       transition: transform .16s cubic-bezier(.2, .8, .2, 1), box-shadow .16s ease, background .16s ease;
+    }
+    .event-pill.calendar-bar {
+      border-radius: 7px;
+      font-weight: 750;
     }
     .event-pill:active { transform: scale(.98); }
     .event-pill.dragging {
@@ -1070,9 +1139,15 @@
       .brand strong { font-size: 15px; }
       .panel-body { padding: 12px; }
       .visit-actions, .org-actions { gap: 7px; }
-      .day-cell {
-        min-height: 108px;
+      .calendar-week { min-height: calc(74px + var(--event-rows) * 29px); }
+      .calendar-week .day-cell {
+        min-height: inherit;
         padding: 5px;
+      }
+      .week-events {
+        top: 31px;
+        grid-auto-rows: minmax(23px, auto);
+        gap: 5px 0;
       }
       .event-pill {
         font-size: 11px;
@@ -1363,6 +1438,18 @@
     </div>
   </dialog>
 
+  <dialog id="todayCopyDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">오늘 할일 복사</h2>
+      <p class="panel-sub" id="todayCopySub"></p>
+      <div class="copy-schedule-list" id="todayCopyList"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeTodayCopyDialogBtn">닫기</button>
+      <button type="button" id="copySelectedTodayBtn">복사</button>
+    </div>
+  </dialog>
+
   <dialog id="issueDialog">
     <form id="issueForm" method="dialog">
       <div class="modal-body">
@@ -1419,6 +1506,7 @@
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
+      todayCopySelections: {},
       googleAccessToken: "",
       googleAutoSyncTimer: null,
       googleAutoSyncInterval: null,
@@ -1685,18 +1773,31 @@
       const end = schedule.endDate || schedule.date;
       return schedule.date <= date && date <= end;
     }
+    function isMultiDaySchedule(schedule) {
+      return (schedule.endDate || schedule.date) !== schedule.date;
+    }
+    function calendarScheduleLabel(schedule) {
+      const time = scheduleHasTime(schedule) ? `${scheduleTimeLabel(schedule)} ` : "";
+      return `${time}${schedule.title}`;
+    }
     function messengerDateLabel(iso) {
       const date = new Date(iso + "T00:00:00");
       return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
     }
-    function todayOrgScheduleNames() {
+    function scheduleCopyName(schedule) {
+      const org = orgForSchedule(schedule);
+      return org ? org.name : schedule.title;
+    }
+    function todaySelectedScheduleNames() {
       return sortedSchedules(todayISO())
-        .filter(schedule => schedule.type === "org" && orgForSchedule(schedule))
-        .map(schedule => orgForSchedule(schedule).name);
+        .filter(schedule => state.todayCopySelections[schedule.id] !== false)
+        .map(scheduleCopyName)
+        .filter(Boolean);
     }
     function todayMessengerText() {
-      const names = todayOrgScheduleNames();
-      const body = names.length ? `${names.join(", ")} 다녀오겠습니다.` : "금일 예정된 기관 일정이 없습니다.";
+      const names = todaySelectedScheduleNames();
+      if (!names.length) return "";
+      const body = `${names.join(", ")} 다녀오겠습니다.`;
       return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n【방문 점검】\n${body}`;
     }
     async function copyTextToClipboard(text) {
@@ -1716,12 +1817,43 @@
     }
     async function copyTodayMessengerText() {
       try {
-        await copyTextToClipboard(todayMessengerText());
+        const text = todayMessengerText();
+        if (!text) {
+          toast("복사할 일정을 선택해주세요.");
+          return false;
+        }
+        await copyTextToClipboard(text);
         toast("오늘 유지보수 일정이 복사되었습니다.");
+        return true;
       } catch (error) {
         console.warn(error);
         showInfo("클립보드 복사 실패", "브라우저 권한 때문에 자동 복사가 되지 않았습니다. HTTPS 주소에서 다시 시도해주세요.");
+        return false;
       }
+    }
+    function todayCopySchedules() {
+      return sortedSchedules(todayISO());
+    }
+    function renderTodayCopyDialog() {
+      const items = todayCopySchedules();
+      todayCopySub.textContent = items.length ? `${items.length}개 일정` : "등록된 오늘 일정이 없습니다.";
+      todayCopyList.innerHTML = items.length ? items.map(schedule => {
+        const org = orgForSchedule(schedule);
+        const checked = state.todayCopySelections[schedule.id] !== false ? "checked" : "";
+        const main = scheduleCopyName(schedule);
+        const meta = org ? `${schedule.title} · ${org.region} · ${scheduleTimeLabel(schedule)}` : `개인 일정 · ${scheduleTimeLabel(schedule)}`;
+        return `<label class="copy-schedule-item" ${scheduleColorStyleAttr(schedule)}>
+          <input type="checkbox" ${checked} onchange="toggleTodayCopySchedule('${schedule.id}', this.checked)">
+          <div><strong>${escapeHTML(main)}</strong><span>${escapeHTML(meta)}</span></div>
+        </label>`;
+      }).join("") : '<div class="empty">복사할 일정이 없습니다.</div>';
+    }
+    function openTodayCopyDialog() {
+      const items = todayCopySchedules();
+      state.todayCopySelections = {};
+      items.forEach(schedule => { state.todayCopySelections[schedule.id] = true; });
+      renderTodayCopyDialog();
+      todayCopyDialog.showModal();
     }
     function installLongPressCopy(el) {
       let timer = null;
@@ -1738,7 +1870,7 @@
         clear();
         timer = setTimeout(() => {
           timer = null;
-          copyTodayMessengerText();
+          openTodayCopyDialog();
         }, 650);
       });
       el.addEventListener("pointermove", event => {
@@ -1756,6 +1888,9 @@
         return d.getMonth() === m;
       });
     }
+    window.toggleTodayCopySchedule = (id, checked) => {
+      state.todayCopySelections[id] = checked;
+    };
     function renderVisits(elId, date) {
       const wrap = document.getElementById(elId);
       const items = sortedSchedules(date);
@@ -1792,7 +1927,7 @@
       if (!o) {
         return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
-            <div><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+            <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
           </div>
           <div class="visit-actions">
@@ -1806,7 +1941,7 @@
       const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
-          <div><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+          <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
@@ -1850,6 +1985,41 @@
         .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0];
       return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-";
     }
+    function daysBetweenISO(start, end) {
+      return Math.round((new Date(end + "T00:00:00") - new Date(start + "T00:00:00")) / 86400000);
+    }
+    function scheduleOverlapsRange(schedule, start, end) {
+      return schedule.date <= end && (schedule.endDate || schedule.date) >= start;
+    }
+    function calendarWeekSegments(weekDates) {
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      const rowEnds = [];
+      return state.schedules
+        .filter(schedule => scheduleOverlapsRange(schedule, weekStart, weekEnd))
+        .sort((a, b) => {
+          const startCompare = Math.max(0, daysBetweenISO(weekStart, a.date)) - Math.max(0, daysBetweenISO(weekStart, b.date));
+          if (startCompare) return startCompare;
+          const aEnd = Math.min(6, daysBetweenISO(weekStart, a.endDate || a.date));
+          const bEnd = Math.min(6, daysBetweenISO(weekStart, b.endDate || b.date));
+          if (aEnd !== bEnd) return bEnd - aEnd;
+          const timeCompare = (a.startTime || "99:99").localeCompare(b.startTime || "99:99");
+          if (timeCompare) return timeCompare;
+          return a.title.localeCompare(b.title, "ko");
+        })
+        .map(schedule => {
+          const startIndex = Math.max(0, daysBetweenISO(weekStart, schedule.date));
+          const endIndex = Math.min(6, daysBetweenISO(weekStart, schedule.endDate || schedule.date));
+          let row = rowEnds.findIndex(lastEnd => startIndex > lastEnd);
+          if (row < 0) {
+            row = rowEnds.length;
+            rowEnds.push(endIndex);
+          } else {
+            rowEnds[row] = endIndex;
+          }
+          return { schedule, startIndex, endIndex, row };
+        });
+    }
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -1857,31 +2027,38 @@
       const m = cursor.getMonth();
       const first = new Date(y, m, 1);
       const start = new Date(y, m, 1 - first.getDay());
-      const cells = [];
-      for (let i = 0; i < 42; i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        const iso = localDateISO(d);
-        const events = state.schedules.filter(schedule => scheduleIncludesDate(schedule, iso));
-        const classes = ["day-cell"];
-        if (d.getMonth() !== m) classes.push("muted");
-        if (iso === todayISO()) classes.push("today");
-        cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
-          <div class="day-number">${d.getDate()}</div>
-          ${events.slice(0, compact ? 2 : 4).map(schedule => {
+      const weeks = [];
+      for (let w = 0; w < 6; w++) {
+        const weekDates = [];
+        const cells = [];
+        for (let dIndex = 0; dIndex < 7; dIndex++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + w * 7 + dIndex);
+          const iso = localDateISO(d);
+          weekDates.push(iso);
+          const classes = ["day-cell"];
+          if (d.getMonth() !== m) classes.push("muted");
+          if (iso === todayISO()) classes.push("today");
+          cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
+            <div class="day-number">${d.getDate()}</div>
+          </div>`);
+        }
+        const segments = calendarWeekSegments(weekDates);
+        const rowCount = Math.max(1, ...segments.map(segment => segment.row + 1));
+        const bars = segments.map(({ schedule, startIndex, endIndex, row }) => {
             const org = orgForSchedule(schedule);
             const expired = org && !isContractActive(org) ? "expired" : "";
-            const label = `${scheduleHasTime(schedule) ? scheduleTimeLabel(schedule) + " " : ""}${schedule.title}`;
-            return `<span class="event-pill has-color ${expired}" ${scheduleColorStyleAttr(schedule)} title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
-          }).join("")}
-          ${events.length > (compact ? 2 : 4) ? `<span class="event-pill event-more">+${events.length - (compact ? 2 : 4)}</span>` : ""}
-        </div>`);
+            const multi = isMultiDaySchedule(schedule) ? "multi-day" : "";
+            const span = endIndex - startIndex + 1;
+            return `<span class="event-pill calendar-bar has-color ${expired} ${multi}" style="${scheduleColorStyle(schedule)}grid-column:${startIndex + 1} / span ${span};grid-row:${row + 1};" title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(calendarScheduleLabel(schedule))}</span>`;
+          }).join("");
+        weeks.push(`<div class="calendar-week" style="--event-rows:${rowCount}">${cells.join("")}<div class="week-events">${bars}</div></div>`);
       }
       target.innerHTML = `<div class="calendar-toolbar">
         <button class="icon secondary" onclick="moveMonth(-1)" title="이전 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
         <div class="calendar-title">${y}년 ${m + 1}월</div>
         <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-      </div><div class="calendar-grid">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}${cells.join("")}</div>`;
+      </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
     }
     function installSwipe(target) {
@@ -2207,6 +2384,10 @@
       openScheduleDialog({ date, endDate: date });
     };
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
+    closeTodayCopyDialogBtn.onclick = () => todayCopyDialog.close();
+    copySelectedTodayBtn.onclick = async () => {
+      if (await copyTodayMessengerText()) todayCopyDialog.close();
+    };
     function isDialogOutsideClick(dialog, event) {
       if (event.target !== dialog) return false;
       const rect = dialog.getBoundingClientRect();
@@ -2220,7 +2401,7 @@
       });
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
-    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, todayCopyDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
