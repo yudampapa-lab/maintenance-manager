@@ -1152,7 +1152,7 @@
           <div class="grid">
             <section class="panel">
               <div class="panel-head">
-                <div><h2 class="panel-title">오늘 할일</h2><p class="panel-sub">가나다순 자동 정렬, 연락과 Tmap 바로가기</p></div>
+                <div><h2 class="panel-title" id="todayTaskTitle">오늘 할일</h2><p class="panel-sub">가나다순 자동 정렬, 연락과 Tmap 바로가기</p></div>
                 <span class="tag" id="todayDateTag"></span>
               </div>
               <div class="panel-body"><div class="visit-list" id="todayVisits"></div></div>
@@ -1179,8 +1179,7 @@
       <section class="view" id="view-calendar" aria-label="전체 캘린더">
         <section class="panel">
           <div class="panel-head">
-            <div><h2 class="panel-title">유지보수 캘린더</h2><p class="panel-sub">구글캘린더에는 ICS 파일 또는 일정 링크로 연동</p></div>
-            <button class="secondary" id="googleHelpBtn">구글 연동</button>
+            <div><h2 class="panel-title">캘린더</h2><p class="panel-sub">앱 일정과 구글캘린더 양방향 동기화</p></div>
           </div>
           <div class="panel-body"><div id="mainCalendar" class="calendar-wrap"></div></div>
         </section>
@@ -1216,7 +1215,6 @@
             </div>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
-              <button class="secondary" id="connectGoogleBtn">구글 연결</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
             </div>
           </div>
@@ -1330,12 +1328,12 @@
             <label>일정 색상</label>
             <input type="hidden" id="scheduleColor" value="blue">
             <div class="color-picker" id="scheduleColorPicker" aria-label="일정 색상 선택">
-              <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑" onclick="selectScheduleColor('blue')"></button>
-              <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록" onclick="selectScheduleColor('green')"></button>
-              <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라" onclick="selectScheduleColor('purple')"></button>
-              <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황" onclick="selectScheduleColor('orange')"></button>
-              <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강" onclick="selectScheduleColor('red')"></button>
-              <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색" onclick="selectScheduleColor('gray')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑" onclick="window.selectScheduleColor('blue')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록" onclick="window.selectScheduleColor('green')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라" onclick="window.selectScheduleColor('purple')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황" onclick="window.selectScheduleColor('orange')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강" onclick="window.selectScheduleColor('red')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색" onclick="window.selectScheduleColor('gray')"></button>
             </div>
           </div>
         </div>
@@ -1421,10 +1419,15 @@
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
-      googleAccessToken: ""
+      googleAccessToken: "",
+      googleAutoSyncTimer: null,
+      googleAutoSyncInterval: null,
+      googleSyncInProgress: false,
+      googleSyncPending: false
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
+    state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     normalizeOrgs();
     normalizeSchedules();
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
@@ -1465,7 +1468,13 @@
         endDate: schedule.endDate || schedule.date || todayISO(),
         startTime: schedule.startTime || schedule.time || "",
         endTime: schedule.endTime || "",
-        createdAt: schedule.createdAt || new Date().toISOString()
+        color: ["blue", "green", "purple", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
+        googleEventId: schedule.googleEventId || "",
+        googleUpdated: schedule.googleUpdated || "",
+        googleHtmlLink: schedule.googleHtmlLink || "",
+        googleSyncedAt: schedule.googleSyncedAt || "",
+        createdAt: schedule.createdAt || new Date().toISOString(),
+        updatedAt: schedule.updatedAt || ""
       }));
     }
     function save() {
@@ -1600,25 +1609,39 @@
     function scheduleColorStyleAttr(schedule = {}) {
       return `style="${scheduleColorStyle(schedule)}"`;
     }
-    function selectScheduleColor(color, { persist = true } = {}) {
+    function paintScheduleColorPicker(color) {
       const selected = safeScheduleColor(color);
+      state.editingScheduleColor = selected;
       const colorInput = document.getElementById("scheduleColor");
-      const scheduleIdInput = document.getElementById("scheduleId");
       if (colorInput) colorInput.value = selected;
       document.querySelectorAll("[data-schedule-color]").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.scheduleColor === selected);
         btn.setAttribute("aria-pressed", btn.dataset.scheduleColor === selected ? "true" : "false");
       });
-      if (!persist || !scheduleIdInput?.value) return;
+      return selected;
+    }
+    function persistOpenScheduleColor(selected) {
+      const scheduleIdInput = document.getElementById("scheduleId");
+      if (!scheduleIdInput?.value) return false;
       const schedule = state.schedules.find(item => item.id === scheduleIdInput.value);
-      if (!schedule || schedule.color === selected) return;
+      if (!schedule) return false;
       schedule.color = selected;
+      state.editingScheduleColor = selected;
       schedule.updatedAt = new Date().toISOString();
       save();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
-      toast("일정 색상을 변경했습니다.");
+      scheduleGoogleAutoSync("color-change");
+      return true;
     }
+    window.selectScheduleColor = (color, { persist = true } = {}) => {
+      const selected = paintScheduleColorPicker(color);
+      if (!persist) return;
+      if (persistOpenScheduleColor(selected)) {
+        paintScheduleColorPicker(selected);
+        toast("일정 색상을 변경했습니다.");
+      }
+    };
 
     islandRegions.forEach(r => {
       const option = document.createElement("option");
@@ -1629,9 +1652,6 @@
     document.querySelectorAll(".nav-btn").forEach(btn => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
     });
-    document.querySelectorAll("[data-schedule-color]").forEach(btn => {
-      btn.addEventListener("click", () => selectScheduleColor(btn.dataset.scheduleColor));
-    });
     scheduleOrgSearch.addEventListener("input", () => {
       scheduleOrgId.value = "";
       renderScheduleOrgSuggestions(true);
@@ -1640,6 +1660,7 @@
     scheduleOrgSearch.addEventListener("blur", () => {
       setTimeout(() => renderScheduleOrgSuggestions(false), 160);
     });
+    installLongPressCopy(document.getElementById("todayTaskTitle"));
     function switchView(view) {
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
@@ -1663,6 +1684,67 @@
     function scheduleIncludesDate(schedule, date) {
       const end = schedule.endDate || schedule.date;
       return schedule.date <= date && date <= end;
+    }
+    function messengerDateLabel(iso) {
+      const date = new Date(iso + "T00:00:00");
+      return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+    function todayOrgScheduleNames() {
+      return sortedSchedules(todayISO())
+        .filter(schedule => schedule.type === "org" && orgForSchedule(schedule))
+        .map(schedule => orgForSchedule(schedule).name);
+    }
+    function todayMessengerText() {
+      const names = todayOrgScheduleNames();
+      const body = names.length ? `${names.join(", ")} 다녀오겠습니다.` : "금일 예정된 기관 일정이 없습니다.";
+      return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n【방문 점검】\n${body}`;
+    }
+    async function copyTextToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    async function copyTodayMessengerText() {
+      try {
+        await copyTextToClipboard(todayMessengerText());
+        toast("오늘 유지보수 일정이 복사되었습니다.");
+      } catch (error) {
+        console.warn(error);
+        showInfo("클립보드 복사 실패", "브라우저 권한 때문에 자동 복사가 되지 않았습니다. HTTPS 주소에서 다시 시도해주세요.");
+      }
+    }
+    function installLongPressCopy(el) {
+      let timer = null;
+      let startX = 0;
+      let startY = 0;
+      const clear = () => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+      };
+      el.addEventListener("pointerdown", event => {
+        if (event.button && event.button !== 0) return;
+        startX = event.clientX;
+        startY = event.clientY;
+        clear();
+        timer = setTimeout(() => {
+          timer = null;
+          copyTodayMessengerText();
+        }, 650);
+      });
+      el.addEventListener("pointermove", event => {
+        if (Math.abs(event.clientX - startX) + Math.abs(event.clientY - startY) > 12) clear();
+      });
+      ["pointerup", "pointercancel", "pointerleave"].forEach(name => el.addEventListener(name, clear));
     }
     function billingThisMonth() {
       const now = new Date();
@@ -1788,10 +1870,9 @@
           <div class="day-number">${d.getDate()}</div>
           ${events.slice(0, compact ? 2 : 4).map(schedule => {
             const org = orgForSchedule(schedule);
-            const pillType = schedule.type === "personal" ? "remote" : (org?.method === "원격점검" ? "remote" : "visit");
             const expired = org && !isContractActive(org) ? "expired" : "";
             const label = `${scheduleHasTime(schedule) ? scheduleTimeLabel(schedule) + " " : ""}${schedule.title}`;
-            return `<span class="event-pill has-color ${pillType} ${expired}" ${scheduleColorStyleAttr(schedule)} title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
+            return `<span class="event-pill has-color ${expired}" ${scheduleColorStyleAttr(schedule)} title="끌어서 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(label)}</span>`;
           }).join("")}
           ${events.length > (compact ? 2 : 4) ? `<span class="event-pill event-more">+${events.length - (compact ? 2 : 4)}</span>` : ""}
         </div>`);
@@ -1881,9 +1962,11 @@
         const duration = Math.max(0, Math.round((new Date((schedule.endDate || schedule.date) + "T00:00:00") - new Date(schedule.date + "T00:00:00")) / 86400000));
         schedule.date = targetDate;
         schedule.endDate = addDaysISO(targetDate, duration);
+        schedule.updatedAt = new Date().toISOString();
         save();
         render();
         toast("일정을 " + formatDate(targetDate) + "로 이동했습니다.");
+        scheduleGoogleAutoSync("date-change");
       }
     };
     window.schedulePointerCancel = (event, id) => {
@@ -2042,7 +2125,8 @@
       scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
       scheduleEndTime.value = schedule.endTime || "";
-      selectScheduleColor(defaultScheduleColor(schedule), { persist: false });
+      state.editingScheduleColor = defaultScheduleColor(schedule);
+      selectScheduleColor(state.editingScheduleColor, { persist: false });
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
       syncScheduleType();
       scheduleDialog.showModal();
@@ -2077,11 +2161,12 @@
         endDate,
         startTime: scheduleStartTime.value,
         endTime: scheduleEndTime.value,
-        color: safeScheduleColor(document.getElementById("scheduleColor")?.value),
-        createdAt: existing?.createdAt || new Date().toISOString()
+        color: safeScheduleColor(state.editingScheduleColor || document.getElementById("scheduleColor")?.value),
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       if (existing) {
-        Object.assign(existing, data, { updatedAt: new Date().toISOString() });
+        Object.assign(existing, data);
       } else {
         state.schedules.push(data);
       }
@@ -2089,6 +2174,7 @@
       if (closeAfter) scheduleDialog.close();
       render();
       toast(existing ? "일정을 수정했습니다." : "일정을 등록했습니다.");
+      scheduleGoogleAutoSync("schedule-save");
       return true;
     }
     scheduleForm.onsubmit = e => {
@@ -2099,12 +2185,16 @@
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
       if (!confirm("이 일정을 삭제할까요?")) return;
+      if (schedule.googleEventId) {
+        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), schedule.googleEventId])];
+      }
       state.schedules = state.schedules.filter(item => item.id !== id);
       save();
       if (scheduleDialog.open) scheduleDialog.close();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
       toast("일정을 삭제했습니다.");
+      scheduleGoogleAutoSync("schedule-delete");
     };
     scheduleType.onchange = syncScheduleType;
     deleteScheduleBtn.onclick = () => {
@@ -2411,10 +2501,15 @@
       data.issues = existingIssues;
       data.nextVisit = existingNextVisit || startDate.value || todayISO();
       if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
+      const now = new Date().toISOString();
+      state.schedules.forEach(schedule => {
+        if (schedule.orgId === data.id) schedule.updatedAt = now;
+      });
       save();
       orgDialog.close();
       render();
       toast("기관 정보가 저장되었습니다.");
+      scheduleGoogleAutoSync("org-save");
     };
     window.editOrg = id => {
       const o = state.orgs.find(x => x.id === id);
@@ -2518,14 +2613,10 @@
       const org = orgForSchedule(schedule);
       return org ? (org.address || org.region) : "";
     }
-    function fallbackGoogleEvent(schedule) {
-      const text = encodeURIComponent(schedule.title);
-      const details = encodeURIComponent(scheduleDetails(schedule));
-      const dates = googleScheduleDates(schedule);
-      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${encodeURIComponent(scheduleLocation(schedule))}`, "_blank");
+    function googleColorId(schedule) {
+      return ({ blue: "9", green: "10", purple: "3", orange: "6", red: "11", gray: "8" })[defaultScheduleColor(schedule)] || "9";
     }
-    async function insertGoogleCalendarEvent(schedule) {
-      const calendarId = encodeURIComponent(state.settings.googleCalendarId || "primary");
+    function scheduleGoogleBody(schedule) {
       const bodyStart = scheduleHasTime(schedule) ? { dateTime: `${schedule.date}T${schedule.startTime}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
       const bodyEnd = scheduleHasTime(schedule) ? (() => {
         const end = scheduleEndDateTime(schedule);
@@ -2533,26 +2624,262 @@
         const local = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}:00`;
         return { dateTime: local, timeZone: "Asia/Seoul" };
       })() : { date: scheduleEndDateISO(schedule) };
-      const body = {
+      return {
         summary: schedule.title,
         location: scheduleLocation(schedule),
         description: scheduleDetails(schedule),
         start: bodyStart,
-        end: bodyEnd
+        end: bodyEnd,
+        colorId: googleColorId(schedule),
+        extendedProperties: {
+          private: {
+            maintenanceManagerId: schedule.id,
+            maintenanceManagerType: schedule.type || "",
+            maintenanceManagerOrgId: schedule.orgId || ""
+          }
+        }
       };
-      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
-        method: "POST",
+    }
+    async function googleApiFetch(path, options = {}) {
+      const calendarId = encodeURIComponent(state.settings.googleCalendarId || "primary");
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}${path}`, {
+        ...options,
         headers: {
           Authorization: `Bearer ${state.googleAccessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        }
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(text || "Google Calendar API error");
+        throw new Error(`${response.status} ${text || "Google Calendar API error"}`);
       }
-      return response.json();
+      return response.status === 204 ? null : response.json();
+    }
+    function fallbackGoogleEvent(schedule) {
+      const text = encodeURIComponent(schedule.title);
+      const details = encodeURIComponent(scheduleDetails(schedule));
+      const dates = googleScheduleDates(schedule);
+      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${encodeURIComponent(scheduleLocation(schedule))}`, "_blank");
+    }
+    async function insertGoogleCalendarEvent(schedule) {
+      const event = await googleApiFetch("/events?sendUpdates=none", {
+        method: "POST",
+        body: JSON.stringify(scheduleGoogleBody(schedule))
+      });
+      schedule.googleEventId = event.id || "";
+      schedule.googleUpdated = event.updated || "";
+      schedule.googleHtmlLink = event.htmlLink || "";
+      schedule.googleSyncedAt = new Date().toISOString();
+      return event;
+    }
+    async function patchGoogleCalendarEvent(schedule) {
+      if (!schedule.googleEventId) return insertGoogleCalendarEvent(schedule);
+      try {
+        const event = await googleApiFetch(`/events/${encodeURIComponent(schedule.googleEventId)}?sendUpdates=none`, {
+          method: "PATCH",
+          body: JSON.stringify(scheduleGoogleBody(schedule))
+        });
+        schedule.googleUpdated = event.updated || "";
+        schedule.googleHtmlLink = event.htmlLink || "";
+        schedule.googleSyncedAt = new Date().toISOString();
+        return event;
+      } catch (error) {
+        if (String(error.message || "").includes("404")) return insertGoogleCalendarEvent(schedule);
+        throw error;
+      }
+    }
+    async function deleteGoogleCalendarEvent(eventId) {
+      if (!eventId) return;
+      try {
+        await googleApiFetch(`/events/${encodeURIComponent(eventId)}?sendUpdates=none`, { method: "DELETE" });
+      } catch (error) {
+        if (!String(error.message || "").includes("404")) throw error;
+      }
+    }
+    function googleDateToLocalISO(value) {
+      if (!value) return todayISO();
+      return value.length === 10 ? value : localDateISO(new Date(value));
+    }
+    function googleTimeToLocal(value) {
+      if (!value || value.length === 10) return "";
+      const d = new Date(value);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+    function scheduleFromGoogleEvent(event) {
+      const privateProps = event.extendedProperties?.private || {};
+      const org = privateProps.maintenanceManagerOrgId ? state.orgs.find(item => item.id === privateProps.maintenanceManagerOrgId) : null;
+      const startRaw = event.start?.dateTime || event.start?.date;
+      const endRaw = event.end?.dateTime || event.end?.date || startRaw;
+      const isAllDay = Boolean(event.start?.date);
+      const date = googleDateToLocalISO(startRaw);
+      const endDate = isAllDay ? addDaysISO(googleDateToLocalISO(endRaw), -1) : googleDateToLocalISO(endRaw);
+      const safeEndDate = endDate < date ? date : endDate;
+      return {
+        id: privateProps.maintenanceManagerId || `google-${event.id}`,
+        type: org ? "org" : "personal",
+        orgId: org?.id || "",
+        title: event.summary || "(제목 없음)",
+        date,
+        endDate: safeEndDate,
+        startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
+        endTime: isAllDay ? "" : googleTimeToLocal(endRaw),
+        color: googleEventColorToScheduleColor(event.colorId),
+        googleEventId: event.id,
+        googleUpdated: event.updated || "",
+        googleHtmlLink: event.htmlLink || "",
+        googleSyncedAt: new Date().toISOString(),
+        createdAt: event.created || new Date().toISOString(),
+        updatedAt: event.updated || new Date().toISOString()
+      };
+    }
+    function googleEventColorToScheduleColor(colorId) {
+      return ({ "9": "blue", "10": "green", "3": "purple", "6": "orange", "11": "red", "8": "gray" })[colorId] || "blue";
+    }
+    function googleSyncWindow() {
+      const now = new Date();
+      return {
+        timeMin: new Date(now.getFullYear() - 1, 0, 1).toISOString(),
+        timeMax: new Date(now.getFullYear() + 2, 0, 1).toISOString()
+      };
+    }
+    async function listGoogleCalendarEvents() {
+      const windowRange = googleSyncWindow();
+      const params = new URLSearchParams({
+        singleEvents: "true",
+        showDeleted: "true",
+        orderBy: "startTime",
+        maxResults: "2500",
+        timeMin: windowRange.timeMin,
+        timeMax: windowRange.timeMax
+      });
+      const events = [];
+      let pageToken = "";
+      do {
+        if (pageToken) params.set("pageToken", pageToken);
+        const data = await googleApiFetch(`/events?${params.toString()}`, { method: "GET" });
+        events.push(...(data.items || []));
+        pageToken = data.nextPageToken || "";
+      } while (pageToken);
+      return events;
+    }
+    function findLocalScheduleForGoogleEvent(event) {
+      const privateId = event.extendedProperties?.private?.maintenanceManagerId;
+      return state.schedules.find(schedule => (privateId && schedule.id === privateId) || (event.id && schedule.googleEventId === event.id));
+    }
+    function mergeGoogleEventsIntoLocal(events) {
+      let imported = 0;
+      let updated = 0;
+      let removed = 0;
+      events.forEach(event => {
+        const local = findLocalScheduleForGoogleEvent(event);
+        if (event.status === "cancelled") {
+          if (local) {
+            state.schedules = state.schedules.filter(schedule => schedule.id !== local.id);
+            removed++;
+          }
+          return;
+        }
+        const fromGoogle = scheduleFromGoogleEvent(event);
+        if (!local) {
+          state.schedules.push(fromGoogle);
+          imported++;
+          return;
+        }
+        const localChangedAt = new Date(local.updatedAt || local.createdAt || 0).getTime();
+        const lastGoogleSeenAt = new Date(local.googleUpdated || 0).getTime();
+        const googleChangedAt = new Date(event.updated || 0).getTime();
+        const localChangedAfterLastSync = localChangedAt > lastGoogleSeenAt;
+        const googleChangedAfterLastSync = googleChangedAt > lastGoogleSeenAt;
+        if (googleChangedAfterLastSync && (!localChangedAfterLastSync || googleChangedAt >= localChangedAt)) {
+          Object.assign(local, fromGoogle, { id: local.id, createdAt: local.createdAt || fromGoogle.createdAt });
+          updated++;
+        } else {
+          local.googleEventId = event.id;
+          local.googleUpdated = event.updated || local.googleUpdated || "";
+          local.googleHtmlLink = event.htmlLink || local.googleHtmlLink || "";
+        }
+      });
+      return { imported, updated, removed };
+    }
+    async function pushLocalSchedulesToGoogle() {
+      let inserted = 0;
+      let updated = 0;
+      for (const schedule of state.schedules) {
+        const localChangedAt = new Date(schedule.updatedAt || schedule.createdAt || 0).getTime();
+        const googleSeenAt = new Date(schedule.googleUpdated || 0).getTime();
+        if (!schedule.googleEventId) {
+          await insertGoogleCalendarEvent(schedule);
+          inserted++;
+        } else if (localChangedAt > googleSeenAt) {
+          await patchGoogleCalendarEvent(schedule);
+          updated++;
+        }
+      }
+      return { inserted, updated };
+    }
+    async function pushDeletedSchedulesToGoogle() {
+      const ids = [...new Set(state.settings.googleDeletedEventIds || [])];
+      let deleted = 0;
+      for (const id of ids) {
+        await deleteGoogleCalendarEvent(id);
+        deleted++;
+      }
+      state.settings.googleDeletedEventIds = [];
+      return deleted;
+    }
+    function canAutoSyncGoogle() {
+      return Boolean(state.googleAccessToken) && location.protocol !== "file:";
+    }
+    function scheduleGoogleAutoSync(reason = "change", delay = 1400) {
+      if (!canAutoSyncGoogle()) return;
+      if (state.googleAutoSyncTimer) clearTimeout(state.googleAutoSyncTimer);
+      state.googleAutoSyncTimer = setTimeout(() => runGoogleAutoSync(reason), delay);
+    }
+    function startGoogleAutoSync({ immediate = false } = {}) {
+      if (!canAutoSyncGoogle()) return;
+      if (!state.googleAutoSyncInterval) {
+        state.googleAutoSyncInterval = setInterval(() => scheduleGoogleAutoSync("interval", 500), 2 * 60 * 1000);
+      }
+      if (immediate) scheduleGoogleAutoSync("connect", 500);
+    }
+    async function runGoogleAutoSync(reason = "auto") {
+      if (!canAutoSyncGoogle()) return null;
+      try {
+        return await syncGoogleCalendar({ silent: true, reason });
+      } catch (error) {
+        console.warn(error);
+        return null;
+      }
+    }
+    async function syncGoogleCalendar({ silent = false } = {}) {
+      if (state.googleSyncInProgress) {
+        state.googleSyncPending = true;
+        if (!silent) toast("동기화가 진행 중입니다. 잠시 뒤 다시 반영됩니다.");
+        return null;
+      }
+      state.googleSyncInProgress = true;
+      try {
+        await ensureGoogleAccess();
+        startGoogleAutoSync();
+        if (!silent) toast("구글캘린더와 동기화 중입니다.");
+        const deleted = await pushDeletedSchedulesToGoogle();
+        const googleEvents = await listGoogleCalendarEvents();
+        const pulled = mergeGoogleEventsIntoLocal(googleEvents);
+        const pushed = await pushLocalSchedulesToGoogle();
+        state.settings.googleLastSync = new Date().toISOString();
+        save();
+        render();
+        const result = { deleted, pulled, pushed };
+        if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed}건`);
+        return result;
+      } finally {
+        state.googleSyncInProgress = false;
+        if (state.googleSyncPending) {
+          state.googleSyncPending = false;
+          scheduleGoogleAutoSync("pending", 2500);
+        }
+      }
     }
     window.openGoogleEvent = async id => {
       const schedule = state.schedules.find(item => item.id === id);
@@ -2562,14 +2889,15 @@
         return;
       }
       try {
-        await insertGoogleCalendarEvent(schedule);
+        await patchGoogleCalendarEvent(schedule);
+        save();
+        startGoogleAutoSync();
         toast("구글캘린더에 일정을 등록했습니다.");
       } catch (error) {
         console.warn(error);
         showInfo("구글캘린더 등록 실패", "권한이 만료되었거나 캘린더 ID가 맞지 않습니다. 설정에서 구글 연결을 다시 누른 뒤 시도해주세요.");
       }
     };
-    googleHelpBtn.onclick = () => connectGoogleCalendar();
     exportIcsBtn.onclick = () => {
       const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Island Maintenance//KR"].concat(state.schedules.map(schedule => [
         "BEGIN:VEVENT",
@@ -2606,37 +2934,83 @@
       state.memos = state.memos.filter(m => m.id !== id);
       save(); render(); toast("삭제되었습니다.");
     };
+    async function connectGoogleFromSettingsSave() {
+      if (location.protocol === "file:" || !window.google?.accounts?.oauth2) return;
+      try {
+        await requestGoogleAccessToken("");
+        startGoogleAutoSync({ immediate: true });
+      } catch (error) {
+        console.warn(error);
+      }
+    }
     saveSettingsBtn.onclick = () => {
-      state.settings = { kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleClientId: googleClientId.value.trim() || defaultGoogleClientId, googleCalendarId: googleCalendarId.value.trim() || "primary", tmapKey: tmapKey.value.trim() };
-      save(); toast("연동 설정이 저장되었습니다.");
+      state.settings = { ...state.settings, kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleClientId: googleClientId.value.trim() || defaultGoogleClientId, googleCalendarId: googleCalendarId.value.trim() || "primary", tmapKey: tmapKey.value.trim() };
+      save();
+      scheduleGoogleAutoSync("settings", 700);
+      connectGoogleFromSettingsSave();
+      toast("연동 설정이 저장되었습니다.");
     };
-    function connectGoogleCalendar() {
+    function prepareGoogleSettings() {
       state.settings.googleClientId = googleClientId.value.trim() || defaultGoogleClientId;
       state.settings.googleCalendarId = googleCalendarId.value.trim() || "primary";
       save();
       if (location.protocol === "file:") {
         showInfo("구글 연결은 HTTPS에서 가능", "현재 파일로 직접 열려 있어서 Google OAuth 연결이 차단될 수 있습니다. GitHub Pages 주소에서 열면 구글 연결 버튼이 정상 동작합니다.");
-        return;
+        return false;
       }
       if (!window.google?.accounts?.oauth2) {
         showInfo("구글 연결 준비 중", "구글 인증 스크립트를 아직 불러오는 중입니다. 잠시 뒤 다시 눌러주세요.");
-        return;
+        return false;
       }
-      const tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: state.settings.googleClientId,
-        scope: "https://www.googleapis.com/auth/calendar.events",
-        callback: response => {
-          if (response.error) {
-            showInfo("구글 연결 실패", "Google OAuth Client ID 또는 승인된 JavaScript 원본 설정을 확인해주세요.");
-            return;
-          }
-          state.googleAccessToken = response.access_token;
-          toast("구글캘린더 연결이 완료되었습니다.");
-        }
-      });
-      tokenClient.requestAccessToken({ prompt: "consent" });
+      return true;
     }
-    connectGoogleBtn.onclick = () => connectGoogleCalendar();
+    function requestGoogleAccessToken(prompt = "") {
+      return new Promise((resolve, reject) => {
+        if (!prepareGoogleSettings()) {
+          reject(new Error("Google OAuth is not ready"));
+          return;
+        }
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: state.settings.googleClientId,
+          scope: "https://www.googleapis.com/auth/calendar.events",
+          callback: response => {
+            if (response.error) {
+              reject(new Error(response.error));
+              return;
+            }
+            state.googleAccessToken = response.access_token;
+            resolve(response.access_token);
+          }
+        });
+        tokenClient.requestAccessToken(prompt ? { prompt } : {});
+      });
+    }
+    async function ensureGoogleAccess() {
+      if (state.googleAccessToken) return state.googleAccessToken;
+      return requestGoogleAccessToken("");
+    }
+    async function connectGoogleCalendar() {
+      try {
+        await requestGoogleAccessToken("consent");
+        startGoogleAutoSync({ immediate: true });
+        toast("구글캘린더 연결이 완료되었습니다.");
+      } catch (error) {
+        console.warn(error);
+        if (location.protocol !== "file:") showInfo("구글 연결 실패", "Google OAuth Client ID, 승인된 JavaScript 원본, 캘린더 권한 설정을 확인해주세요.");
+      }
+    }
+    document.getElementById("googleHelpBtn")?.addEventListener("click", () => connectGoogleCalendar());
+    document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
+    const manualGoogleSync = () => syncGoogleCalendar().catch(error => {
+      console.warn(error);
+      showInfo("구글 동기화 실패", "권한이 만료되었거나 캘린더 ID가 맞지 않습니다. 구글 연결 후 다시 동기화해주세요.");
+    });
+    document.getElementById("syncGoogleBtn")?.addEventListener("click", manualGoogleSync);
+    document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) scheduleGoogleAutoSync("visible", 800);
+    });
+    window.addEventListener("focus", () => scheduleGoogleAutoSync("focus", 800));
     testKakaoBtn.onclick = () => {
       showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
     };
