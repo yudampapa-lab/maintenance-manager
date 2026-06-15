@@ -403,6 +403,9 @@
       color: var(--event-fg);
       box-shadow: inset 0 0 0 1px var(--event-border);
     }
+    #scheduleDialog.time-input-guard input[type="time"] {
+      pointer-events: none;
+    }
 
     .toolbar {
       display: flex;
@@ -659,6 +662,22 @@
       display: block;
     }
     .file-hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .photo-source-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .photo-source-btn {
+      justify-content: flex-start;
+      min-height: 52px;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+    .photo-source-btn svg {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+    }
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1292,7 +1311,7 @@
           <div class="grid">
             <section class="panel">
               <div class="panel-head">
-                <div><h2 class="panel-title" id="todayTaskTitle">오늘 할일</h2><p class="panel-sub">가나다순 자동 정렬, 연락과 Tmap 바로가기</p></div>
+                <div><h2 class="panel-title" id="todayTaskTitle">오늘 할일</h2></div>
                 <span class="tag" id="todayDateTag"></span>
               </div>
               <div class="panel-body"><div class="visit-list" id="todayVisits"></div></div>
@@ -1319,7 +1338,7 @@
       <section class="view" id="view-calendar" aria-label="전체 캘린더">
         <section class="panel">
           <div class="panel-head">
-            <div><h2 class="panel-title">캘린더</h2><p class="panel-sub">앱 일정과 구글캘린더 양방향 동기화</p></div>
+            <div><h2 class="panel-title">캘린더</h2></div>
           </div>
           <div class="panel-body"><div id="mainCalendar" class="calendar-wrap"></div></div>
         </section>
@@ -1356,6 +1375,9 @@
         <section class="panel">
           <div class="panel-head">
             <div><h2 class="panel-title">연동 설정</h2><p class="panel-sub">카카오워크 알림, 구글캘린더, Tmap 연결 정보</p></div>
+            <button type="button" class="icon tiny secondary" id="closeSettingsBtn" title="닫기" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
           </div>
           <div class="panel-body">
             <div class="settings-grid">
@@ -1431,7 +1453,7 @@
           <div class="field"><label>제목</label><input id="memoTitle" required></div>
           <div class="field"><label>관련 기관/제품</label><input id="memoTags" placeholder="기관명, 제품명, 키워드"></div>
           <div class="field full"><label>내용</label><textarea id="memoBody" required></textarea></div>
-          <div class="field full"><label>사진 첨부</label><input id="memoPhotoInput" type="file" accept="image/*" multiple><div class="file-hint" id="memoPhotoHint">선택한 사진은 저장 후 백그라운드에서 압축됩니다.</div></div>
+          <div class="field full"><label>사진 첨부</label><button type="button" class="secondary" id="memoPhotoPickBtn">카메라/갤러리/파일 선택</button><div class="file-hint" id="memoPhotoHint">사진을 선택하면 저장 후 백그라운드에서 압축됩니다.</div></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -1527,7 +1549,7 @@
           <div class="field"><label>구분</label><select id="vehicleRecordType"><option>차점검</option><option>수리</option><option>소모품 교체</option><option>보험/검사</option><option>기타</option></select></div>
           <div class="field"><label>비용</label><input id="vehicleRecordCost" type="number" min="0" placeholder="원"></div>
           <div class="field full"><label>내용</label><textarea id="vehicleRecordBody" required placeholder="예: 엔진오일 교체, 앞타이어 위치교환"></textarea></div>
-          <div class="field full"><label>수리내역서 사진</label><input id="vehiclePhotoInput" type="file" accept="image/*" multiple><div class="file-hint" id="vehiclePhotoHint">사진은 저장 후 백그라운드에서 압축됩니다.</div></div>
+          <div class="field full"><label>수리내역서 사진</label><button type="button" class="secondary" id="vehiclePhotoPickBtn">카메라/갤러리/파일 선택</button><div class="file-hint" id="vehiclePhotoHint">사진을 선택하면 저장 후 백그라운드에서 압축됩니다.</div></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -1573,9 +1595,24 @@
     <div class="modal-actions"><button id="closeInfoDialogBtn">확인</button></div>
   </dialog>
 
+  <dialog id="photoSourceDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">사진 가져오기</h2>
+      <p class="panel-sub">모바일에서는 갤러리를 먼저 추천하고, 필요하면 카메라나 파일에서 선택할 수 있습니다.</p>
+      <div class="photo-source-grid">
+        <button type="button" class="secondary photo-source-btn" id="photoCameraBtn"><svg viewBox="0 0 24 24"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3Z"/><circle cx="12" cy="13" r="3"/></svg><span>카메라로 촬영</span></button>
+        <button type="button" class="secondary photo-source-btn" id="photoGalleryBtn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span>갤러리에서 선택</span></button>
+        <button type="button" class="secondary photo-source-btn" id="photoFileBtn"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg><span>파일에서 선택</span></button>
+      </div>
+    </div>
+    <div class="modal-actions"><button type="button" class="secondary" id="closePhotoSourceDialogBtn">닫기</button></div>
+  </dialog>
+
   <datalist id="regionList"></datalist>
   <datalist id="scheduleOrgList"></datalist>
-  <input id="reportCameraInput" type="file" accept="image/*" capture="environment" hidden>
+  <input id="photoCameraInput" type="file" accept="image/*" capture="environment" hidden>
+  <input id="photoGalleryInput" type="file" accept="image/*" multiple hidden>
+  <input id="photoFileInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" multiple hidden>
   <div class="toast" id="toast" role="status"></div>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -1611,6 +1648,7 @@
       todayCopySelections: {},
       pendingMemoFiles: [],
       pendingVehicleFiles: [],
+      photoPickTarget: null,
       attachmentQueue: [],
       attachmentWorkerRunning: false,
       googleAccessToken: "",
@@ -1619,7 +1657,8 @@
       googleAutoSyncInterval: null,
       googleAutoSyncIntervalMs: 0,
       googleSyncInProgress: false,
-      googleSyncPending: false
+      googleSyncPending: false,
+      scheduleTimeGuardUntil: 0
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -1856,6 +1895,7 @@
       btn.addEventListener("click", () => switchView(btn.dataset.view));
     });
     dashboardSettingsBtn.onclick = () => switchView("settings");
+    closeSettingsBtn.onclick = () => switchView("dashboard");
     function hapticTap(pattern = 10) {
       if ("vibrate" in navigator) navigator.vibrate(pattern);
     }
@@ -2412,6 +2452,30 @@
         renderScheduleOrgSuggestions(false);
       }
     }
+    function guardScheduleTimeInputs(duration = 450) {
+      state.scheduleTimeGuardUntil = Date.now() + duration;
+      scheduleDialog.classList.add("time-input-guard");
+      setTimeout(() => {
+        if (Date.now() >= state.scheduleTimeGuardUntil) {
+          scheduleDialog.classList.remove("time-input-guard");
+        }
+      }, duration + 30);
+    }
+    function isScheduleTimeGuardActive() {
+      return Date.now() < state.scheduleTimeGuardUntil;
+    }
+    [scheduleStartTime, scheduleEndTime].forEach(input => {
+      ["pointerdown", "click"].forEach(type => {
+        input.addEventListener(type, event => {
+          if (!isScheduleTimeGuardActive()) return;
+          event.preventDefault();
+          event.stopPropagation();
+        }, true);
+      });
+      input.addEventListener("focus", () => {
+        if (isScheduleTimeGuardActive()) input.blur();
+      });
+    });
     function openScheduleDialog(schedule = {}) {
       if (dayScheduleDialog.open) dayScheduleDialog.close();
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
@@ -2431,6 +2495,7 @@
       selectScheduleColor(state.editingScheduleColor, { persist: false });
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
       syncScheduleType();
+      guardScheduleTimeInputs();
       scheduleDialog.showModal();
     }
     window.openScheduleEditor = id => {
@@ -2526,7 +2591,7 @@
       });
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
-    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog, photoSourceDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -2560,7 +2625,7 @@
       vehicleRecordId.value = "";
       vehicleRecordDate.value = todayISO();
       state.pendingVehicleFiles = [];
-      vehiclePhotoHint.textContent = "사진은 저장 후 백그라운드에서 압축됩니다.";
+      updateVehiclePhotoHint();
     }
     function openVehicleRecordDialog(record = {}) {
       clearVehicleRecordForm();
@@ -2797,10 +2862,59 @@
         </div>
       </article>`).join("") : '<div class="empty">아직 저장된 레포트 사진이 없습니다.</div>';
     }
+    function resetPhotoPickerInputs() {
+      photoCameraInput.value = "";
+      photoGalleryInput.value = "";
+      photoFileInput.value = "";
+    }
+    function openPhotoSourcePicker(target) {
+      state.photoPickTarget = target;
+      resetPhotoPickerInputs();
+      photoSourceDialog.showModal();
+    }
+    function isPickedImage(file) {
+      return file?.type?.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file?.name || "");
+    }
+    function updateMemoPhotoHint() {
+      memoPhotoHint.textContent = state.pendingMemoFiles.length ? `${state.pendingMemoFiles.length}장 선택됨` : "사진을 선택하면 저장 후 백그라운드에서 압축됩니다.";
+    }
+    function updateVehiclePhotoHint() {
+      vehiclePhotoHint.textContent = state.pendingVehicleFiles.length ? `${state.pendingVehicleFiles.length}장 선택됨` : "사진을 선택하면 저장 후 백그라운드에서 압축됩니다.";
+    }
+    function handlePickedPhotos(fileList) {
+      const target = state.photoPickTarget;
+      const files = [...(fileList || [])].filter(isPickedImage);
+      if (!target || !files.length) {
+        if (fileList?.length) toast("이미지 파일만 선택할 수 있습니다.");
+        return;
+      }
+      if (target.type === "report") {
+        const org = state.orgs.find(o => o.id === target.orgId);
+        if (!org) return;
+        enqueueImageTask({
+          kind: "report",
+          file: files[0],
+          meta: { orgId: org.id, orgName: org.name, visitDate: org.nextVisit || todayISO() },
+          onDone: async () => { if (reportDialog.open) await renderReportList(org.id); }
+        });
+        toast("레포트 사진을 백그라운드에서 압축 저장합니다.");
+      } else if (target.type === "memo") {
+        state.pendingMemoFiles.push(...files);
+        updateMemoPhotoHint();
+      } else if (target.type === "vehicle") {
+        state.pendingVehicleFiles.push(...files);
+        updateVehiclePhotoHint();
+      }
+    }
+    function pickPhotoFrom(input, useMultiple = true) {
+      input.multiple = useMultiple;
+      photoSourceDialog.close();
+      input.value = "";
+      input.click();
+    }
     window.captureReport = id => {
       state.currentReportOrgId = id;
-      reportCameraInput.value = "";
-      reportCameraInput.click();
+      openPhotoSourcePicker({ type: "report", orgId: id, multiple: false });
     };
     window.openReports = async id => {
       state.currentReportOrgId = id;
@@ -2822,17 +2936,13 @@
       await renderReportList(orgId);
       toast("레포트 사진을 삭제했습니다.");
     };
-    reportCameraInput.onchange = async () => {
-      const file = reportCameraInput.files?.[0];
-      const org = state.orgs.find(o => o.id === state.currentReportOrgId);
-      if (!file || !org) return;
-      enqueueImageTask({
-        kind: "report",
-        file,
-        meta: { orgId: org.id, orgName: org.name, visitDate: org.nextVisit || todayISO() },
-        onDone: async () => { if (reportDialog.open) await renderReportList(org.id); }
-      });
-    };
+    closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
+    photoCameraBtn.onclick = () => pickPhotoFrom(photoCameraInput, false);
+    photoGalleryBtn.onclick = () => pickPhotoFrom(photoGalleryInput, state.photoPickTarget?.multiple !== false);
+    photoFileBtn.onclick = () => pickPhotoFrom(photoFileInput, state.photoPickTarget?.multiple !== false);
+    photoCameraInput.onchange = () => handlePickedPhotos(photoCameraInput.files);
+    photoGalleryInput.onchange = () => handlePickedPhotos(photoGalleryInput.files);
+    photoFileInput.onchange = () => handlePickedPhotos(photoFileInput.files);
     closeReportDialogBtn.onclick = () => reportDialog.close();
     addReportFromDialogBtn.onclick = () => {
       if (state.currentReportOrgId) captureReport(state.currentReportOrgId);
@@ -3338,11 +3448,8 @@
       a.click();
       URL.revokeObjectURL(a.href);
     };
-    addMemoBtn.onclick = () => { memoForm.reset(); memoId.value = ""; state.pendingMemoFiles = []; memoPhotoHint.textContent = "선택한 사진은 저장 후 백그라운드에서 압축됩니다."; memoDialog.showModal(); };
-    memoPhotoInput.onchange = () => {
-      state.pendingMemoFiles = [...(memoPhotoInput.files || [])];
-      memoPhotoHint.textContent = state.pendingMemoFiles.length ? `${state.pendingMemoFiles.length}장 선택됨` : "선택한 사진은 저장 후 백그라운드에서 압축됩니다.";
-    };
+    addMemoBtn.onclick = () => { memoForm.reset(); memoId.value = ""; state.pendingMemoFiles = []; updateMemoPhotoHint(); memoDialog.showModal(); };
+    memoPhotoPickBtn.onclick = () => openPhotoSourcePicker({ type: "memo", multiple: true });
     closeMemoDialogBtn.onclick = () => memoDialog.close();
     memoForm.onsubmit = e => {
       e.preventDefault();
@@ -3358,7 +3465,6 @@
       const m = state.memos.find(x => x.id === id);
       memoId.value = m.id; memoTitle.value = m.title; memoTags.value = m.tags; memoBody.value = m.body;
       state.pendingMemoFiles = [];
-      memoPhotoInput.value = "";
       memoPhotoHint.textContent = "추가할 사진을 선택하면 저장 후 백그라운드에서 압축됩니다.";
       memoDialog.showModal();
     };
@@ -3368,10 +3474,7 @@
       save(); render(); toast("삭제되었습니다.");
     };
     addVehicleRecordBtn.onclick = () => openVehicleRecordDialog();
-    vehiclePhotoInput.onchange = () => {
-      state.pendingVehicleFiles = [...(vehiclePhotoInput.files || [])];
-      vehiclePhotoHint.textContent = state.pendingVehicleFiles.length ? `${state.pendingVehicleFiles.length}장 선택됨` : "사진은 저장 후 백그라운드에서 압축됩니다.";
-    };
+    vehiclePhotoPickBtn.onclick = () => openPhotoSourcePicker({ type: "vehicle", multiple: true });
     closeVehicleRecordDialogBtn.onclick = () => vehicleRecordDialog.close();
     vehicleRecordForm.onsubmit = e => {
       e.preventDefault();
