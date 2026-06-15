@@ -2117,14 +2117,20 @@
       openScheduleDialog({ date, endDate: date });
     };
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
-    scheduleDialog.addEventListener("click", event => {
-      if (event.target !== scheduleDialog) return;
-      const rect = scheduleDialog.getBoundingClientRect();
-      const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-      if (inside) return;
-      saveScheduleFromForm({ closeAfter: false });
-      scheduleDialog.close();
-    });
+    function isDialogOutsideClick(dialog, event) {
+      if (event.target !== dialog) return false;
+      const rect = dialog.getBoundingClientRect();
+      return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+    }
+    function closeOnOutsideClick(dialog, onBeforeClose) {
+      dialog.addEventListener("click", event => {
+        if (!isDialogOutsideClick(dialog, event)) return;
+        onBeforeClose?.();
+        dialog.close();
+      });
+    }
+    closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
+    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
