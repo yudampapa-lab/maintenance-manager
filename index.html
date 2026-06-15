@@ -505,6 +505,13 @@
     .calendar-search-result .search-action {
       justify-self: start;
     }
+    .day-note-field {
+      margin-top: 12px;
+    }
+    .day-note-field textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
     .calendar-jump-dialog {
       width: min(640px, calc(100vw - 28px));
       margin: auto auto max(14px, env(safe-area-inset-bottom));
@@ -847,9 +854,40 @@
     }
     .contact-row {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1.2fr 1.4fr auto;
+      grid-template-columns: .7fr 1fr 1fr 1fr 1.2fr 1.4fr auto;
       gap: 8px;
       align-items: end;
+    }
+    .contact-primary {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .contact-primary input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
+    }
+    .call-contact-card {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.78);
+      padding: 11px;
+      display: grid;
+      gap: 8px;
+    }
+    .call-contact-card strong {
+      font-size: 14px;
+    }
+    .call-contact-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
     }
     .memo-list { display: grid; gap: 10px; }
     .memo-card {
@@ -1496,6 +1534,35 @@
       gap: 6px 0;
     }
     .day-cell.muted { background: rgba(248, 248, 250, .62); }
+    .day-cell.sunday .day-number,
+    .day-cell.holiday .day-number {
+      color: #d70015;
+    }
+    .day-cell.saturday .day-number {
+      color: rgba(90, 120, 140, .48);
+    }
+    .lunar-label {
+      position: absolute;
+      top: 27px;
+      left: 6px;
+      color: rgba(60, 60, 67, .38);
+      font-size: 10px;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .holiday-label {
+      position: absolute;
+      top: 42px;
+      left: 6px;
+      right: 6px;
+      color: #d70015;
+      font-size: 9.5px;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
     .day-cell.today {
       box-shadow: inset 0 0 0 2px rgba(0, 122, 255, .68);
       background: rgba(0, 122, 255, .04);
@@ -1943,6 +2010,19 @@
     </div>
   </dialog>
 
+  <dialog id="photoSourceDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">사진 추가</h2>
+      <p class="panel-sub">레포트 사진을 가져올 방법을 선택하세요.</p>
+      <div class="visit-actions" style="margin-top:12px">
+        <button type="button" class="good" id="photoCameraBtn">카메라</button>
+        <button type="button" class="secondary" id="photoGalleryBtn">내 파일</button>
+        <button type="button" class="secondary" id="photoFileBtn">파일</button>
+      </div>
+    </div>
+    <div class="modal-actions"><button type="button" class="secondary" id="closePhotoSourceDialogBtn">닫기</button></div>
+  </dialog>
+
   <dialog id="scheduleDialog">
     <form id="scheduleForm" method="dialog">
       <div class="modal-body">
@@ -1956,7 +2036,7 @@
         <div class="form-grid" style="margin-top:14px">
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
-          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="org">기관 일정</option><option value="personal">개인 일정</option></select></div>
+          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option><option value="personal">개인일정</option></select></div>
           <div class="field org-autocomplete">
             <label>기관명</label>
             <input type="hidden" id="scheduleOrgId">
@@ -2000,6 +2080,10 @@
         </button>
       </div>
       <div class="day-schedule-list" id="dayScheduleList"></div>
+      <div class="field full day-note-field">
+        <label>특이사항</label>
+        <textarea id="dayScheduleNote" placeholder="이 날짜에 있었던 특이사항을 적어두세요."></textarea>
+      </div>
     </div>
     <div class="modal-actions">
       <button type="button" class="secondary" id="closeDayScheduleDialogBtn">닫기</button>
@@ -2116,6 +2200,8 @@
   <datalist id="regionList"></datalist>
   <datalist id="scheduleOrgList"></datalist>
   <input id="reportCameraInput" type="file" accept="image/*" capture="environment" hidden>
+  <input id="reportGalleryInput" type="file" accept="image/*" hidden>
+  <input id="reportFileInput" type="file" accept="image/*" hidden>
   <button type="button" class="ai-command-fab" id="aiCommandFab" title="AI 등록" aria-label="AI 등록">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3.2"/>
@@ -2157,6 +2243,7 @@
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
+      dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -2193,6 +2280,8 @@
     function normalizeOrgs() {
       state.orgs.forEach(org => {
         if (!Array.isArray(org.issues)) org.issues = [];
+        if (!Array.isArray(org.contacts)) org.contacts = [];
+        if (org.contacts.length && !org.contacts.some(contact => contact.primary)) org.contacts[0].primary = true;
       });
     }
     function seedSchedulesFromOrgs() {
@@ -2212,7 +2301,7 @@
     function normalizeSchedules() {
       state.schedules = (state.schedules || []).map(schedule => ({
         id: schedule.id || uid(),
-        type: schedule.type || (schedule.orgId ? "org" : "personal"),
+        type: schedule.type === "org" ? "visit" : (schedule.type || (schedule.orgId ? "visit" : "personal")),
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         date: schedule.date || todayISO(),
@@ -2239,6 +2328,7 @@
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
+      localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
       localStorage.setItem("maint_vehicle", JSON.stringify(state.vehicle));
       localStorage.setItem("maint_settings", JSON.stringify(state.settings));
     }
@@ -2358,6 +2448,8 @@
     }
     function defaultScheduleColor(schedule = {}) {
       if (schedule.color) return safeScheduleColor(schedule.color);
+      if (schedule.type === "remote") return "purple";
+      if (schedule.type === "team") return "blue";
       if (schedule.type === "personal") return "purple";
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
       return org?.method === "원격점검" ? "purple" : "green";
@@ -2424,7 +2516,8 @@
       }
       const hiddenHeight = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop);
       const activeInDialog = document.activeElement?.closest?.("dialog");
-      const lift = activeInDialog ? Math.min(190, Math.round(hiddenHeight * 0.45)) : 0;
+      const excluded = activeInDialog && (activeInDialog.id === "orgDialog" || activeInDialog.id === "scheduleDialog");
+      const lift = activeInDialog && !excluded ? Math.min(190, Math.round(hiddenHeight * 0.45)) : 0;
       document.documentElement.style.setProperty("--dialog-lift", `${lift}px`);
     }
     if (window.visualViewport) {
@@ -2459,6 +2552,16 @@
     function orgForSchedule(schedule) {
       return state.orgs.find(org => org.id === schedule.orgId);
     }
+    function scheduleNeedsOrg(typeOrSchedule) {
+      const type = typeof typeOrSchedule === "string" ? typeOrSchedule : typeOrSchedule?.type;
+      return type === "visit" || type === "remote" || type === "org";
+    }
+    function scheduleTypeLabel(schedule = {}) {
+      if (schedule.type === "remote") return "원격일정";
+      if (schedule.type === "team") return "팀 일정";
+      if (schedule.type === "personal") return "개인일정";
+      return "방문일정";
+    }
     function sortedSchedules(date) {
       return state.schedules
         .filter(schedule => scheduleIncludesDate(schedule, date))
@@ -2487,17 +2590,25 @@
       const org = orgForSchedule(schedule);
       return org ? org.name : schedule.title;
     }
-    function todaySelectedScheduleNames() {
-      return sortedSchedules(todayISO())
-        .filter(schedule => state.todayCopySelections[schedule.id] !== false)
-        .map(scheduleCopyName)
-        .filter(Boolean);
+    function selectedTodaySchedules() {
+      return todayCopySchedules()
+        .filter(schedule => state.todayCopySelections[schedule.id] !== false);
     }
     function todayMessengerText() {
-      const names = todaySelectedScheduleNames();
-      if (!names.length) return "";
-      const body = `${names.join(", ")} 다녀오겠습니다.`;
-      return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n【방문 점검】\n${body}`;
+      const schedules = selectedTodaySchedules();
+      if (!schedules.length) return "";
+      const visitNames = schedules
+        .filter(schedule => schedule.type !== "remote")
+        .map(scheduleCopyName)
+        .filter(Boolean);
+      const remoteNames = schedules
+        .filter(schedule => schedule.type === "remote")
+        .map(scheduleCopyName)
+        .filter(Boolean);
+      const sections = [];
+      if (visitNames.length) sections.push(`【방문 일정】\n${visitNames.join(", ")} 다녀오겠습니다.`);
+      if (remoteNames.length) sections.push(`【원격 일정】\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
+      return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}`;
     }
     async function copyTextToClipboard(text) {
       if (navigator.clipboard && window.isSecureContext) {
@@ -2531,7 +2642,7 @@
       }
     }
     function todayCopySchedules() {
-      return sortedSchedules(todayISO());
+      return sortedSchedules(todayISO()).filter(schedule => schedule.type !== "personal" && schedule.type !== "team");
     }
     function renderTodayCopyDialog() {
       const items = todayCopySchedules();
@@ -2540,7 +2651,7 @@
         const org = orgForSchedule(schedule);
         const checked = state.todayCopySelections[schedule.id] !== false ? "checked" : "";
         const main = scheduleCopyName(schedule);
-        const meta = org ? `${schedule.title} · ${org.region} · ${scheduleTimeLabel(schedule)}` : `개인 일정 · ${scheduleTimeLabel(schedule)}`;
+        const meta = org ? `${scheduleTypeLabel(schedule)} · ${schedule.title} · ${org.region} · ${scheduleTimeLabel(schedule)}` : `${scheduleTypeLabel(schedule)} · ${scheduleTimeLabel(schedule)}`;
         return `<label class="copy-schedule-item" ${scheduleColorStyleAttr(schedule)}>
           <input type="checkbox" ${checked} onchange="toggleTodayCopySchedule('${schedule.id}', this.checked)">
           <div><strong>${escapeHTML(main)}</strong><span>${escapeHTML(meta)}</span></div>
@@ -2628,7 +2739,7 @@
     }
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
-      const meta = org ? `${org.name} · ${org.region}` : "개인 일정";
+      const meta = org ? `${scheduleTypeLabel(schedule)} · ${org.name} · ${org.region}` : scheduleTypeLabel(schedule);
       return `<article class="day-schedule-item" ${scheduleColorStyleAttr(schedule)}>
         <div>
           <h3>${escapeHTML(schedule.title)}</h3>
@@ -2648,6 +2759,7 @@
       dayScheduleTitle.dataset.date = date;
       dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
       dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
+      dayScheduleNote.value = state.dayNotes?.[date] || "";
     }
     function openDayScheduleDialog(date) {
       renderDayScheduleDialog(date);
@@ -2678,7 +2790,7 @@
       if (!o) {
         return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
-            <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">개인 일정 · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+            <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
           </div>
           <div class="visit-actions">
@@ -2700,7 +2812,7 @@
         <div class="visit-actions">
           <button class="icon good" title="담당자 전화" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap 길찾기" onclick="openTmap('${o.id}')">${icon("map")}</button>
-          <button class="icon secondary" title="레포트 촬영" onclick="captureReport('${o.id}')">${icon("camera")}</button>
+          <button class="icon secondary" title="레포트 사진 추가" onclick="captureReport('${o.id}')">${icon("image")}</button>
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
           <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
           ${options.hideGoogleButton ? "" : `<button class="secondary" onclick="openGoogleEvent('${schedule.id}')">구글 일정</button>`}
@@ -2785,7 +2897,7 @@
         </article>`),
         resultSection("캘린더", scheduleMatches, "검색된 일정이 없습니다.", schedule => {
           const org = orgForSchedule(schedule);
-          const meta = org ? `${org.name} · ${org.region}` : "개인 일정";
+          const meta = org ? `${scheduleTypeLabel(schedule)} · ${org.name} · ${org.region}` : scheduleTypeLabel(schedule);
           return `<article class="global-result-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
             <h4 class="schedule-date-jump" data-schedule-id="${schedule.id}" title="길게 누르면 캘린더 날짜로 이동">${escapeHTML(schedule.title)}</h4>
             <p>${escapeHTML(meta)}<br>${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</p>
@@ -2911,9 +3023,9 @@
       const fallbackName = cleanAiTarget(command) || "방문";
       const schedule = {
         id: uid(),
-        type: org ? "org" : "personal",
+        type: org ? (/원격/.test(command) ? "remote" : "visit") : "personal",
         orgId: org?.id || "",
-        title: org ? `${org.name} 방문` : `${fallbackName} 일정`,
+        title: org ? `${org.name} ${/원격/.test(command) ? "원격" : "방문"}` : `${fallbackName} 일정`,
         date,
         endDate: date,
         startTime: times.startTime,
@@ -3172,7 +3284,7 @@
     function scheduleSearchLabel(schedule) {
       const org = orgForSchedule(schedule);
       const date = scheduleDateLabel(schedule);
-      const who = org ? org.name : "개인 일정";
+      const who = org ? org.name : scheduleTypeLabel(schedule);
       return `${schedule.title} · ${who} · ${date}`;
     }
     function scheduleSearchText(schedule) {
@@ -3199,6 +3311,42 @@
         .sort((a, b) => `${a.date} ${a.startTime || ""}`.localeCompare(`${b.date} ${b.startTime || ""}`))
         .filter(schedule => scheduleSearchText(schedule).includes(keyword) || normalizeOrgKeyword(scheduleSearchLabel(schedule)).includes(keyword));
     }
+    const fixedHolidays = {
+      "01-01": "신정",
+      "03-01": "삼일절",
+      "05-05": "어린이날",
+      "06-06": "현충일",
+      "08-15": "광복절",
+      "10-03": "개천절",
+      "10-09": "한글날",
+      "12-25": "성탄절"
+    };
+    const holidayOverrides = {
+      "2026-02-16": "설날",
+      "2026-02-17": "설날",
+      "2026-02-18": "설날",
+      "2026-02-19": "대체휴일",
+      "2026-05-24": "부처님오신날",
+      "2026-09-24": "추석",
+      "2026-09-25": "추석",
+      "2026-09-26": "추석"
+    };
+    function holidayName(iso) {
+      return holidayOverrides[iso] || fixedHolidays[iso.slice(5)] || "";
+    }
+    function lunarLabel(iso, date) {
+      try {
+        const parts = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" }).formatToParts(date);
+        const month = parts.find(part => part.type === "month")?.value;
+        const day = parts.find(part => part.type === "day")?.value;
+        if (!month || !day) return "";
+        const dayNumber = Number(day);
+        const shouldShow = date.getDay() === 0 || iso === todayISO() || dayNumber === 1 || dayNumber === 15;
+        return shouldShow ? `${month}.${day}` : "";
+      } catch {
+        return "";
+      }
+    }
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -3217,9 +3365,16 @@
           weekDates.push(iso);
           const classes = ["day-cell"];
           if (d.getMonth() !== m) classes.push("muted");
+          if (d.getDay() === 0) classes.push("sunday");
+          if (d.getDay() === 6) classes.push("saturday");
+          const holiday = holidayName(iso);
+          if (holiday) classes.push("holiday");
           if (iso === todayISO()) classes.push("today");
+          const lunar = lunarLabel(iso, d);
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
             <div class="day-number">${d.getDate()}</div>
+            ${lunar ? `<div class="lunar-label">${escapeHTML(lunar)}</div>` : ""}
+            ${holiday ? `<div class="holiday-label">${escapeHTML(holiday)}</div>` : ""}
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
@@ -3362,15 +3517,13 @@
     window.calendarRangeStart = (event, date) => {
       if (isSchedulePillTarget(event)) return;
       clearCalendarLongPress();
-      const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, longPressFired: false };
+      const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, armed: false, cancelled: false, longPressFired: false };
       range.longPressTimer = setTimeout(() => {
-        if (state.calendarRange !== range || range.moved) return;
+        if (state.calendarRange !== range || range.cancelled) return;
         range.longPressFired = true;
-        state.calendarRange = null;
-        clearRangeSelection();
-        state.suppressCalendarClick = true;
-        setTimeout(() => { state.suppressCalendarClick = false; }, 300);
-        openScheduleDialog({ date, endDate: date });
+        range.armed = true;
+        markRange(range.start, range.end);
+        hapticTap(18);
       }, 560);
       state.calendarRange = range;
       event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -3380,13 +3533,18 @@
       if (!range || isSchedulePillTarget(event)) return;
       const dx = Math.abs(event.clientX - range.startX);
       const dy = Math.abs(event.clientY - range.startY);
-      if (dx + dy > 12) clearCalendarLongPress(range);
+      if (!range.armed) {
+        if (dx + dy > 12) {
+          range.cancelled = true;
+          clearCalendarLongPress(range);
+        }
+        return;
+      }
       const cell = dateCellFromPoint(event.clientX, event.clientY, null);
       if (!cell?.dataset.date) return;
       if (cell.dataset.date !== range.end) {
         range.end = cell.dataset.date;
         range.moved = true;
-        clearCalendarLongPress(range);
         markRange(range.start, range.end);
       }
     };
@@ -3400,7 +3558,18 @@
         if (range.end !== range.start) range.moved = true;
       }
       state.calendarRange = null;
-      if (range.longPressFired) {
+      const totalDx = event.clientX - range.startX;
+      const totalDy = Math.abs(event.clientY - range.startY);
+      if (range.cancelled) {
+        clearRangeSelection();
+        if (Math.abs(totalDx) > 56 && Math.abs(totalDx) > totalDy * 1.25) {
+          state.suppressCalendarClick = true;
+          setTimeout(() => { state.suppressCalendarClick = false; }, 260);
+          moveMonth(totalDx < 0 ? 1 : -1);
+        }
+        return;
+      }
+      if (!range.armed) {
         clearRangeSelection();
         return;
       }
@@ -3457,7 +3626,7 @@
       calendarSearchSub.textContent = `"${keyword}" 검색 결과 ${matches.length}건`;
       calendarSearchResults.innerHTML = `<div class="calendar-search-results">${matches.map(schedule => {
         const org = orgForSchedule(schedule);
-        const meta = org ? `${org.name} · ${org.region}` : "개인 일정";
+        const meta = org ? `${scheduleTypeLabel(schedule)} · ${org.name} · ${org.region}` : scheduleTypeLabel(schedule);
         return `<article class="calendar-search-result schedule-date-jump" data-schedule-id="${schedule.id}" title="길게 누르면 캘린더 날짜로 이동">
           <button type="button" class="secondary" onclick="goToSearchedSchedule('${schedule.id}')">
             <strong>${escapeHTML(schedule.title)}</strong>
@@ -3577,7 +3746,7 @@
       renderScheduleOrgSuggestions(false);
     }
     function renderScheduleOrgSuggestions(show = true) {
-      if (!show || scheduleType.value === "personal") {
+      if (!show || !scheduleNeedsOrg(scheduleType.value)) {
         scheduleOrgSuggestions.classList.remove("show");
         scheduleOrgSuggestions.innerHTML = "";
         return;
@@ -3609,10 +3778,10 @@
       return matches.length === 1 ? matches[0].id : "";
     }
     function syncScheduleType() {
-      const isPersonal = scheduleType.value === "personal";
-      scheduleOrgSearch.disabled = isPersonal;
-      scheduleOrgSearch.required = !isPersonal;
-      if (isPersonal) {
+      const needsOrg = scheduleNeedsOrg(scheduleType.value);
+      scheduleOrgSearch.disabled = !needsOrg;
+      scheduleOrgSearch.required = needsOrg;
+      if (!needsOrg) {
         scheduleOrgId.value = "";
         scheduleOrgSearch.value = "";
         renderScheduleOrgSuggestions(false);
@@ -3648,7 +3817,7 @@
       scheduleId.value = schedule.id || "";
       scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
       scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
-      scheduleType.value = schedule.type || "org";
+      scheduleType.value = schedule.type === "org" ? "visit" : (schedule.type || "visit");
       refreshScheduleOrgOptions();
       scheduleOrgId.value = org?.id || "";
       scheduleOrgSearch.value = org ? org.name : "";
@@ -3677,8 +3846,9 @@
         scheduleName.focus();
         return false;
       }
-      const orgId = type === "org" ? orgIdFromScheduleInput() : "";
-      if (type === "org" && !orgId) {
+      const needsOrg = scheduleNeedsOrg(type);
+      const orgId = needsOrg ? orgIdFromScheduleInput() : "";
+      if (needsOrg && !orgId) {
         toast("기관을 검색해서 선택해주세요.");
         scheduleOrgSearch.focus();
         return false;
@@ -3744,6 +3914,15 @@
       const date = state.selectedCalendarDate || todayISO();
       dayScheduleDialog.close();
       openScheduleDialog({ date, endDate: date });
+    };
+    dayScheduleNote.oninput = () => {
+      const date = state.selectedCalendarDate;
+      if (!date) return;
+      state.dayNotes = state.dayNotes || {};
+      const value = dayScheduleNote.value.trim();
+      if (value) state.dayNotes[date] = value;
+      else delete state.dayNotes[date];
+      save();
     };
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
     closeCalendarSearchDialogBtn.onclick = () => calendarSearchDialog.close();
@@ -3831,7 +4010,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, dayScheduleDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, photoSourceDialog, dayScheduleDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -3920,12 +4099,14 @@
       endDate.value = currentYearEndISO();
       billingDay.value = "25";
       contactRows.innerHTML = "";
-      addContactRow();
+      addContactRow({ primary: true });
     }
     function addContactRow(data = {}) {
       const div = document.createElement("div");
       div.className = "contact-row";
-      div.innerHTML = `<div class="field"><label>이름</label><input class="c-name" value="${escapeAttr(data.name || "")}"></div>
+      const primaryChecked = data.primary ? "checked" : "";
+      div.innerHTML = `<label class="contact-primary"><input type="radio" name="primaryContact" class="c-primary" ${primaryChecked}>주담당</label>
+        <div class="field"><label>이름</label><input class="c-name" value="${escapeAttr(data.name || "")}"></div>
         <div class="field"><label>전화번호</label><input class="c-tel" value="${escapeAttr(data.tel || "")}"></div>
         <div class="field"><label>휴대전화</label><input class="c-mobile" value="${escapeAttr(data.mobile || "")}"></div>
         <div class="field"><label>이메일주소</label><input class="c-email" type="email" value="${escapeAttr(data.email || "")}"></div>
@@ -3935,13 +4116,17 @@
       contactRows.appendChild(div);
     }
     function contactsFromForm() {
-      return [...document.querySelectorAll(".contact-row")].map(row => ({
+      const rows = [...document.querySelectorAll(".contact-row")];
+      const contacts = rows.map(row => ({
+        primary: row.querySelector(".c-primary").checked,
         name: row.querySelector(".c-name").value.trim(),
         tel: row.querySelector(".c-tel").value.trim(),
         mobile: row.querySelector(".c-mobile").value.trim(),
         email: row.querySelector(".c-email").value.trim(),
         note: row.querySelector(".c-note").value.trim()
       })).filter(c => c.name || c.tel || c.mobile || c.email || c.note);
+      if (contacts.length && !contacts.some(contact => contact.primary)) contacts[0].primary = true;
+      return contacts;
     }
     function openReportDb() {
       return new Promise((resolve, reject) => {
@@ -4109,8 +4294,7 @@
     }
     window.captureReport = id => {
       state.currentReportOrgId = id;
-      reportCameraInput.value = "";
-      reportCameraInput.click();
+      photoSourceDialog.showModal();
     };
     window.openReports = async id => {
       state.currentReportOrgId = id;
@@ -4132,8 +4316,12 @@
       await renderReportList(orgId);
       toast("레포트 사진을 삭제했습니다.");
     };
-    reportCameraInput.onchange = async () => {
-      const file = reportCameraInput.files?.[0];
+    function openReportInput(input) {
+      input.value = "";
+      input.click();
+    }
+    async function handleReportFileInput(input) {
+      const file = input.files?.[0];
       const org = state.orgs.find(o => o.id === state.currentReportOrgId);
       if (!file || !org) return;
       enqueueImageTask({
@@ -4142,7 +4330,14 @@
         meta: { orgId: org.id, orgName: org.name, visitDate: org.nextVisit || todayISO() },
         onDone: async () => { if (reportDialog.open) await renderReportList(org.id); }
       });
-    };
+    }
+    reportCameraInput.onchange = () => handleReportFileInput(reportCameraInput);
+    reportGalleryInput.onchange = () => handleReportFileInput(reportGalleryInput);
+    reportFileInput.onchange = () => handleReportFileInput(reportFileInput);
+    photoCameraBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportCameraInput); };
+    photoGalleryBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportGalleryInput); };
+    photoFileBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportFileInput); };
+    closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
     closeReportDialogBtn.onclick = () => reportDialog.close();
     addReportFromDialogBtn.onclick = () => {
       if (state.currentReportOrgId) captureReport(state.currentReportOrgId);
@@ -4258,16 +4453,31 @@
     };
     window.openCall = id => {
       const o = state.orgs.find(x => x.id === id);
-      const c = o?.contacts?.[0] || {};
-      callTarget.textContent = `${o?.name || ""} · ${c.name || "담당자 미등록"}`;
+      const contacts = (o?.contacts || [])
+        .map((contact, index) => ({ ...contact, index }))
+        .filter(contact => contact.name || contact.tel || contact.mobile)
+        .sort((a, b) => Number(Boolean(b.primary)) - Number(Boolean(a.primary)) || b.index - a.index);
+      const mainContact = contacts[0] || {};
+      callTarget.textContent = `${o?.name || ""} · ${mainContact.name || "담당자 미등록"}`;
       callOptions.innerHTML = "";
-      [["일반전화", c.tel], ["휴대전화", c.mobile]].forEach(([label, num]) => {
-        const btn = document.createElement("button");
-        btn.className = num ? "good" : "secondary";
-        btn.textContent = num ? `${label} ${num}` : `${label} 없음`;
-        btn.disabled = !num;
-        btn.onclick = () => { location.href = "tel:" + num.replace(/[^0-9+]/g, ""); };
-        callOptions.appendChild(btn);
+      if (!contacts.length) {
+        callOptions.innerHTML = '<div class="empty">등록된 연락처가 없습니다.</div>';
+      }
+      contacts.forEach(contact => {
+        const group = document.createElement("div");
+        group.className = "call-contact-card";
+        const badges = `${contact.primary ? '<span class="tag blue">주담당</span>' : ""}`;
+        group.innerHTML = `<strong>${escapeHTML(contact.name || "이름 미입력")}</strong>${badges}<p>${escapeHTML(contact.note || contact.email || "")}</p><div class="visit-actions"></div>`;
+        const actions = group.querySelector(".visit-actions");
+        [["일반전화", contact.tel], ["휴대전화", contact.mobile]].forEach(([label, num]) => {
+          const btn = document.createElement("button");
+          btn.className = num ? "good" : "secondary";
+          btn.textContent = num ? `${label} ${num}` : `${label} 없음`;
+          btn.disabled = !num;
+          btn.onclick = () => { location.href = "tel:" + num.replace(/[^0-9+]/g, ""); };
+          actions.appendChild(btn);
+        });
+        callOptions.appendChild(group);
       });
       callDialog.showModal();
     };
@@ -4444,7 +4654,7 @@
       const safeEndDate = endDate < date ? date : endDate;
       return {
         id: privateProps.maintenanceManagerId || `google-${event.id}`,
-        type: org ? "org" : "personal",
+        type: org ? "visit" : "personal",
         orgId: org?.id || "",
         title: event.summary || "(제목 없음)",
         date,
