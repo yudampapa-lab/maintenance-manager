@@ -1585,6 +1585,8 @@
     }
     dialog[open] {
       animation: dialogIn .26s cubic-bezier(.2, .85, .2, 1);
+      translate: 0 calc(var(--dialog-lift, 0px) * -1);
+      transition: translate .2s cubic-bezier(.2, .8, .2, 1);
     }
     dialog::backdrop {
       background: rgba(8, 12, 18, .34);
@@ -2008,7 +2010,7 @@
     <div class="modal-body">
       <h2 class="panel-title">일정 검색 결과</h2>
       <form class="calendar-search-modal" onsubmit="searchCalendarSchedule(event)">
-        <input id="calendarScheduleSearch" list="calendarScheduleSearchList" placeholder="일정명, 기관명, 지역명 검색">
+        <input id="calendarScheduleSearch" autocomplete="off" placeholder="일정명, 기관명, 지역명 검색">
         <button class="icon secondary" type="submit" title="검색" aria-label="검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </form>
       <p class="panel-sub" id="calendarSearchSub"></p>
@@ -2113,7 +2115,6 @@
 
   <datalist id="regionList"></datalist>
   <datalist id="scheduleOrgList"></datalist>
-  <datalist id="calendarScheduleSearchList"></datalist>
   <input id="reportCameraInput" type="file" accept="image/*" capture="environment" hidden>
   <button type="button" class="ai-command-fab" id="aiCommandFab" title="AI 등록" aria-label="AI 등록">
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2416,6 +2417,22 @@
     function hapticTap(pattern = 10) {
       if ("vibrate" in navigator) navigator.vibrate(pattern);
     }
+    function updateDialogKeyboardLift() {
+      if (!window.visualViewport) {
+        document.documentElement.style.setProperty("--dialog-lift", "0px");
+        return;
+      }
+      const hiddenHeight = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop);
+      const activeInDialog = document.activeElement?.closest?.("dialog");
+      const lift = activeInDialog ? Math.min(190, Math.round(hiddenHeight * 0.45)) : 0;
+      document.documentElement.style.setProperty("--dialog-lift", `${lift}px`);
+    }
+    if (window.visualViewport) {
+      visualViewport.addEventListener("resize", updateDialogKeyboardLift);
+      visualViewport.addEventListener("scroll", updateDialogKeyboardLift);
+    }
+    document.addEventListener("focusin", updateDialogKeyboardLift);
+    document.addEventListener("focusout", () => setTimeout(updateDialogKeyboardLift, 80));
     document.addEventListener("pointerdown", event => {
       if (event.pointerType === "mouse") return;
       const target = event.target.closest("button, .nav-btn, input[type='checkbox'], input[type='file'], select");
@@ -2606,7 +2623,7 @@
     function renderVisits(elId, date) {
       const wrap = document.getElementById(elId);
       const items = sortedSchedules(date);
-      const hideGoogleButton = elId === "todayVisits";
+      const hideGoogleButton = elId === "todayVisits" || elId === "tomorrowVisits";
       wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
     }
     function dayScheduleItem(schedule) {
@@ -3173,12 +3190,7 @@
       ].filter(Boolean).join(" "));
     }
     function updateCalendarScheduleSearchList() {
-      const list = document.getElementById("calendarScheduleSearchList");
-      if (!list) return;
-      const options = [...state.schedules]
-        .sort((a, b) => `${a.date} ${a.startTime || ""}`.localeCompare(`${b.date} ${b.startTime || ""}`))
-        .map(schedule => `<option value="${escapeAttr(scheduleSearchLabel(schedule))}"></option>`);
-      list.innerHTML = options.join("");
+      return;
     }
     function matchingCalendarSchedules(value) {
       const keyword = normalizeOrgKeyword(value);
