@@ -397,16 +397,17 @@
     .calendar-toolbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       gap: 8px;
       margin-bottom: 10px;
+      position: relative;
     }
     .calendar-title { font-weight: 800; }
     .calendar-nav {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex: 1;
+      gap: 5px;
+      flex: 0 1 auto;
       justify-content: center;
     }
     .calendar-title-button {
@@ -446,10 +447,17 @@
       width: 32px;
       min-height: 32px;
       border-radius: 8px;
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
     }
     #openCalendarSearchBtn svg {
       width: 17px;
       height: 17px;
+    }
+    #openCalendarSearchBtn:active {
+      transform: translateY(-50%) scale(.96);
     }
     .calendar-search-modal {
       display: flex;
@@ -535,7 +543,13 @@
       align-items: center;
       position: relative;
       z-index: 1;
-      touch-action: pan-y;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .calendar-wheel.dragging {
+      cursor: grabbing;
     }
     .calendar-wheel-row {
       width: 100%;
@@ -1285,6 +1299,36 @@
       min-height: 46px;
       background: rgba(255,255,255,.64);
     }
+    .environment-strip .environment-chip:nth-child(1) {
+      background: linear-gradient(135deg, rgba(255, 204, 0, .18), rgba(255, 255, 255, .72));
+      border-color: rgba(255, 204, 0, .18);
+    }
+    .environment-strip .environment-chip:nth-child(1) svg { color: #b87900; }
+    .environment-strip .environment-chip:nth-child(2) {
+      background: linear-gradient(135deg, rgba(90, 200, 250, .17), rgba(255, 255, 255, .72));
+      border-color: rgba(90, 200, 250, .18);
+    }
+    .environment-strip .environment-chip:nth-child(2) svg { color: #007aff; }
+    .environment-strip .environment-chip:nth-child(3) {
+      background: linear-gradient(135deg, rgba(52, 199, 89, .16), rgba(255, 255, 255, .72));
+      border-color: rgba(52, 199, 89, .18);
+    }
+    .environment-strip .environment-chip:nth-child(3) svg { color: #16823a; }
+    .stats .stat:nth-child(1) {
+      background: linear-gradient(135deg, rgba(0, 122, 255, .16), rgba(255, 255, 255, .76));
+      border-color: rgba(0, 122, 255, .14);
+    }
+    .stats .stat:nth-child(1) strong { color: #0057d8; }
+    .stats .stat:nth-child(2) {
+      background: linear-gradient(135deg, rgba(175, 82, 222, .14), rgba(255, 255, 255, .76));
+      border-color: rgba(175, 82, 222, .13);
+    }
+    .stats .stat:nth-child(2) strong { color: #8e24aa; }
+    .dashboard-search-card {
+      background: linear-gradient(135deg, rgba(28, 28, 30, .05), rgba(255,255,255,.82));
+      border-color: rgba(60, 60, 67, .11);
+      box-shadow: 0 12px 28px rgba(22, 28, 38, .07);
+    }
     .visit-card, .org-card { padding: 14px; }
     .visit-top h3, .org-card h3, .memo-card h3 {
       font-weight: 800;
@@ -1383,7 +1427,7 @@
       background: rgba(255,255,255,.6);
       border: 1px solid rgba(60, 60, 67, .1);
       border-radius: 8px;
-      padding: 8px;
+      padding: 5px 6px;
       box-shadow: var(--shadow-soft);
     }
     .calendar-search input {
@@ -1394,6 +1438,39 @@
     .calendar-title {
       font-size: 17px;
       letter-spacing: 0;
+    }
+    #view-calendar > .panel > .panel-head {
+      min-height: 42px;
+      padding: 8px 12px;
+      align-items: center;
+    }
+    #view-calendar > .panel > .panel-head .panel-title {
+      font-size: 15px;
+      line-height: 1;
+    }
+    #view-calendar .calendar-head-actions {
+      gap: 6px;
+    }
+    #view-calendar #openCalendarSearchBtn {
+      width: 30px;
+      min-height: 30px;
+      border-radius: 10px;
+    }
+    #view-calendar #openCalendarSearchBtn svg {
+      width: 16px;
+      height: 16px;
+    }
+    #view-calendar .calendar-title-button {
+      min-height: 32px;
+      min-width: 104px;
+      padding: 4px 8px;
+      font-size: 15px;
+      border-radius: 10px;
+    }
+    #view-calendar .calendar-nav .icon {
+      width: 32px;
+      min-height: 32px;
+      border-radius: 10px;
     }
     .calendar-grid {
       border-color: rgba(60, 60, 67, .1);
@@ -1562,12 +1639,16 @@
       .panel-body { padding: 12px; }
       .visit-actions, .org-actions { gap: 7px; }
       .calendar-toolbar {
-        align-items: stretch;
-        flex-direction: column;
+        align-items: center;
+        flex-direction: row;
       }
       .calendar-nav,
       .calendar-search {
         width: 100%;
+      }
+      .calendar-toolbar .calendar-nav {
+        width: auto;
+        padding: 0 36px;
       }
       .calendar-title {
         flex: 1;
@@ -1725,12 +1806,6 @@
 
       <section class="view" id="view-calendar" aria-label="전체 캘린더">
         <section class="panel">
-          <div class="panel-head">
-            <div><h2 class="panel-title">캘린더</h2></div>
-            <div class="calendar-head-actions">
-              <button type="button" class="icon secondary" id="openCalendarSearchBtn" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-            </div>
-          </div>
           <div class="panel-body"><div id="mainCalendar" class="calendar-wrap"></div></div>
         </section>
       </section>
@@ -2025,7 +2100,7 @@
       <div class="ai-command-box">
         <form class="ai-command-input" id="aiCommandForm">
           <input id="aiCommandInput" autocomplete="off" placeholder="말하거나 입력하세요">
-          <button type="button" class="icon secondary" id="aiListenBtn" title="말하기" aria-label="말하기"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
+          <button type="button" class="icon secondary" id="aiListenBtn" title="말하기" aria-label="말하기" autofocus><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
           <button type="submit">실행</button>
         </form>
         <div class="ai-result" id="aiCommandResult">AI 버튼을 누르면 음성 명령을 들을 준비를 합니다.</div>
@@ -3153,6 +3228,7 @@
           <button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>
           <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
+        <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
     }
@@ -3646,7 +3722,7 @@
       if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
     closeScheduleDialogBtn.onclick = () => scheduleDialog.close();
-    openCalendarSearchBtn.onclick = () => {
+    window.openCalendarSearch = () => {
       calendarSearchSub.textContent = "";
       calendarSearchResults.innerHTML = '<div class="empty">검색어를 입력하면 같은 이름의 일정까지 모두 보여줍니다.</div>';
       calendarSearchDialog.showModal();
@@ -3663,19 +3739,47 @@
     applyCalendarJumpBtn.onclick = applyCalendarJump;
     [calendarJumpYear, calendarJumpMonth, calendarJumpDay].forEach(el => {
       let startY = 0;
+      let lastStep = 0;
+      let isDraggingWheel = false;
+      let suppressWheelClick = false;
+      const wheelType = () => el.id.replace("calendarJump", "").toLowerCase();
       el.addEventListener("click", event => {
+        if (suppressWheelClick) {
+          event.preventDefault();
+          return;
+        }
         const row = event.target.closest(".calendar-wheel-row");
         if (!row || row.disabled) return;
         changeCalendarJump(row.dataset.wheel, Number(row.dataset.delta));
       });
       el.addEventListener("pointerdown", event => {
         startY = event.clientY;
+        lastStep = 0;
+        isDraggingWheel = false;
+        el.classList.add("dragging");
+        try { el.setPointerCapture(event.pointerId); } catch {}
+      });
+      el.addEventListener("pointermove", event => {
+        if (!el.classList.contains("dragging")) return;
+        const dy = startY - event.clientY;
+        const step = Math.trunc(dy / 28);
+        if (step === lastStep) return;
+        event.preventDefault();
+        isDraggingWheel = true;
+        changeCalendarJump(wheelType(), step - lastStep);
+        lastStep = step;
       });
       el.addEventListener("pointerup", event => {
-        const dy = event.clientY - startY;
-        if (Math.abs(dy) < 24) return;
-        const type = el.id.replace("calendarJump", "").toLowerCase();
-        changeCalendarJump(type, dy > 0 ? -1 : 1);
+        try { el.releasePointerCapture(event.pointerId); } catch {}
+        el.classList.remove("dragging");
+        if (isDraggingWheel) {
+          suppressWheelClick = true;
+          setTimeout(() => { suppressWheelClick = false; }, 80);
+        }
+      });
+      el.addEventListener("pointercancel", event => {
+        try { el.releasePointerCapture(event.pointerId); } catch {}
+        el.classList.remove("dragging");
       });
     });
     closeTodayCopyDialogBtn.onclick = () => todayCopyDialog.close();
@@ -3685,6 +3789,8 @@
     aiCommandFab.onclick = () => {
       if (!aiCommandDialog.open) aiCommandDialog.showModal();
       aiCommandInput.value = "";
+      aiCommandInput.blur();
+      aiListenBtn.focus({ preventScroll: true });
       setAiStatus("대기 중");
       setAiResult("말씀해주세요.");
       startAiListening();
