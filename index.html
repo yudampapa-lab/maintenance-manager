@@ -382,8 +382,9 @@
       margin: 0 3px;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       white-space: nowrap;
+      text-align: left;
       -webkit-line-clamp: 1;
       pointer-events: auto;
     }
@@ -628,7 +629,7 @@
     }
     .report-card h3 { margin: 0; font-size: 14px; }
     .report-card p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-    .vehicle-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 12px; }
+    .vehicle-grid { display: grid; gap: 12px; }
     .vehicle-card {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1190,8 +1191,16 @@
         gap: 5px 0;
       }
       .event-pill {
-        font-size: 11px;
-        padding: 5px 6px;
+        font-size: 9.5px;
+        padding: 4px 5px;
+        line-height: 1.2;
+      }
+      .event-pill.calendar-bar {
+        min-height: 22px;
+        margin: 0 2px;
+        justify-content: flex-start;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .bottom-nav {
         width: min(520px, calc(100% - 16px));
@@ -1215,6 +1224,19 @@
       .modal-actions {
         position: sticky;
         bottom: 0;
+      }
+    }
+    @media (max-width: 390px) {
+      .week-events {
+        padding: 0 2px;
+      }
+      .event-pill {
+        font-size: 8.8px;
+        padding: 3px 4px;
+      }
+      .event-pill.calendar-bar {
+        min-height: 20px;
+        margin: 0 1px;
       }
     }
 
@@ -1322,26 +1344,8 @@
         <div class="vehicle-grid">
           <section class="panel">
             <div class="panel-head">
-              <div><h2 class="panel-title">차량관리</h2><p class="panel-sub">운행 차량, 점검 주기, 현재 키로수</p></div>
-            </div>
-            <div class="panel-body">
-              <div class="form-grid">
-                <div class="field"><label>차량명</label><input id="vehicleName" placeholder="예: 업무용 차량"></div>
-                <div class="field"><label>차량번호</label><input id="vehicleNumber" placeholder="12가 3456"></div>
-                <div class="field"><label>현재 키로수</label><input id="vehicleMileage" type="number" min="0" placeholder="km"></div>
-                <div class="field"><label>다음 점검 예정</label><input id="vehicleNextMileage" type="number" min="0" placeholder="km"></div>
-                <div class="field full"><label>차량 메모</label><textarea id="vehicleNote" placeholder="타이어, 엔진오일, 보험, 검사일 등"></textarea></div>
-              </div>
-              <div class="toolbar" style="margin-top:12px">
-                <button id="saveVehicleBtn">차량 저장</button>
-                <button class="secondary" id="addVehicleRecordBtn">점검/수리 추가</button>
-              </div>
-              <div id="vehicleSummary" style="margin-top:12px"></div>
-            </div>
-          </section>
-          <section class="panel">
-            <div class="panel-head">
-              <div><h2 class="panel-title">점검·수리 내역</h2><p class="panel-sub">사진은 압축 후 백그라운드 저장</p></div>
+              <div><h2 class="panel-title">차량관리</h2><p class="panel-sub">점검·수리 내역과 수리내역서 사진 관리</p></div>
+              <button class="secondary" id="addVehicleRecordBtn">점검/수리 추가</button>
             </div>
             <div class="panel-body"><div class="memo-list" id="vehicleRecordList"></div></div>
           </section>
@@ -1600,7 +1604,7 @@
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
-      vehicle: load("maint_vehicle", { name: "", number: "", mileage: "", nextMileage: "", note: "", records: [] }),
+      vehicle: load("maint_vehicle", { records: [] }),
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
@@ -1672,11 +1676,6 @@
     }
     function normalizeVehicle() {
       state.vehicle = {
-        name: state.vehicle?.name || "",
-        number: state.vehicle?.number || "",
-        mileage: state.vehicle?.mileage || "",
-        nextMileage: state.vehicle?.nextMileage || "",
-        note: state.vehicle?.note || "",
         records: Array.isArray(state.vehicle?.records) ? state.vehicle.records : []
       };
     }
@@ -2543,19 +2542,6 @@
       document.getElementById("memoList").innerHTML = cards.length ? cards.join("") : '<div class="empty">저장된 기술 메모가 없습니다.</div>';
     }
     async function renderVehicle() {
-      vehicleName.value = state.vehicle.name || "";
-      vehicleNumber.value = state.vehicle.number || "";
-      vehicleMileage.value = state.vehicle.mileage || "";
-      vehicleNextMileage.value = state.vehicle.nextMileage || "";
-      vehicleNote.value = state.vehicle.note || "";
-      const mileage = Number(state.vehicle.mileage || 0);
-      const next = Number(state.vehicle.nextMileage || 0);
-      const remain = next && mileage ? next - mileage : 0;
-      vehicleSummary.innerHTML = `<article class="vehicle-card">
-        <h3>${escapeHTML(state.vehicle.name || "차량 미등록")}</h3>
-        <p>차량번호 ${escapeHTML(state.vehicle.number || "-")} · 현재 ${mileage ? mileage.toLocaleString() + "km" : "-"} · 다음 점검 ${next ? next.toLocaleString() + "km" : "-"}</p>
-        <p>${remain ? (remain > 0 ? `점검까지 약 ${remain.toLocaleString()}km 남았습니다.` : `점검 기준을 ${Math.abs(remain).toLocaleString()}km 지났습니다.`) : "다음 점검 키로수를 입력하면 남은 거리를 계산합니다."}</p>
-      </article>`;
       const records = [...(state.vehicle.records || [])].sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
       const cards = await Promise.all(records.map(async record => `<article class="vehicle-card">
         <h3>${escapeHTML(record.type)} · ${escapeHTML(record.date)}</h3>
@@ -3380,16 +3366,6 @@
       if (!confirm("이 메모를 삭제할까요?")) return;
       state.memos = state.memos.filter(m => m.id !== id);
       save(); render(); toast("삭제되었습니다.");
-    };
-    saveVehicleBtn.onclick = () => {
-      state.vehicle.name = vehicleName.value.trim();
-      state.vehicle.number = vehicleNumber.value.trim();
-      state.vehicle.mileage = vehicleMileage.value;
-      state.vehicle.nextMileage = vehicleNextMileage.value;
-      state.vehicle.note = vehicleNote.value.trim();
-      save();
-      renderVehicle();
-      toast("차량 정보가 저장되었습니다.");
     };
     addVehicleRecordBtn.onclick = () => openVehicleRecordDialog();
     vehiclePhotoInput.onchange = () => {
