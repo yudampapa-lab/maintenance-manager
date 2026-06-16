@@ -2208,7 +2208,6 @@
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
           <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="personal">개인일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
-          <div class="field" id="scheduleRepeatWrap"><label>반복</label><select id="scheduleRepeat"><option value="none">반복 안함</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option><option value="yearly">매년</option></select></div>
           <div class="field org-autocomplete">
             <label>기관명</label>
             <input type="hidden" id="scheduleOrgId">
@@ -2219,6 +2218,7 @@
           <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
           <div class="field"><label>작업 종료시간</label><input id="scheduleEndTime" type="time"></div>
+          <div class="field" id="scheduleRepeatWrap"><label>반복</label><select id="scheduleRepeat"><option value="none">반복 안함</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option><option value="yearly">매년</option></select></div>
           <div class="field full">
             <label>일정 색상</label>
             <input type="hidden" id="scheduleColor" value="blue">
@@ -2454,6 +2454,7 @@
       scheduleClipboard: null,
       scheduleContextTimer: null,
       dayContextTimer: null,
+      scheduleColorTouched: false,
       pendingMemoFiles: [],
       pendingVehicleFiles: [],
       attachmentQueue: [],
@@ -2938,11 +2939,11 @@
       }
       const duration = Math.max(0, Math.round((new Date((data.endDate || data.date) + "T00:00:00") - new Date(data.date + "T00:00:00")) / 86400000));
       const rootId = data.id;
-      const limitDate = addYearsISO(data.date, 1);
+      const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
       const copies = [];
       let date = data.date;
       let index = 0;
-      while (date && date <= limitDate && copies.length < 120) {
+      while (date && copies.length < maxCount) {
         const copy = {
           ...data,
           id: index === 0 ? rootId : uid(),
@@ -3031,11 +3032,11 @@
     }
     function defaultScheduleColor(schedule = {}) {
       if (schedule.color) return safeScheduleColor(schedule.color);
-      if (schedule.type === "remote") return "purple";
-      if (schedule.type === "team") return "blue";
+      if (schedule.type === "visit" || schedule.type === "org") return "blue";
+      if (schedule.type === "remote") return "green";
+      if (schedule.type === "team") return "gray";
       if (schedule.type === "personal") return "purple";
-      const org = schedule.orgId ? orgForSchedule(schedule) : null;
-      return org?.method === "원격점검" ? "purple" : "green";
+      return "purple";
     }
     function scheduleColorStyle(schedule = {}) {
       const color = scheduleColors[defaultScheduleColor(schedule)];
@@ -3072,6 +3073,7 @@
     }
     window.selectScheduleColor = (color, { persist = true } = {}) => {
       const selected = paintScheduleColorPicker(color);
+      if (persist) state.scheduleColorTouched = true;
       if (!persist) return;
       if (persistOpenScheduleColor(selected)) {
         paintScheduleColorPicker(selected);
@@ -3137,8 +3139,7 @@
       return state.orgs.find(org => org.id === schedule.orgId);
     }
     function scheduleNeedsOrg(typeOrSchedule) {
-      const type = typeof typeOrSchedule === "string" ? typeOrSchedule : typeOrSchedule?.type;
-      return type === "visit" || type === "remote" || type === "org";
+      return false;
     }
     function scheduleTypeLabel(schedule = {}) {
       if (schedule.type === "remote") return "원격일정";
@@ -3160,15 +3161,7 @@
       return schedule.date <= date && date <= end;
     }
     function scheduleTextForClipboard(schedule) {
-      const org = orgForSchedule(schedule);
-      const parts = [
-        schedule.title,
-        scheduleTypeLabel(schedule),
-        org?.name || "",
-        scheduleDateLabel(schedule),
-        scheduleTimeLabel(schedule)
-      ].filter(Boolean);
-      return parts.join(" · ");
+      return schedule.title || "";
     }
     function copyScheduleForPaste(id) {
       const schedule = state.schedules.find(item => item.id === id);
@@ -3449,29 +3442,6 @@
         ["pointerup", "pointercancel", "pointerleave"].forEach(name => item.addEventListener(name, clear));
         item.addEventListener("contextmenu", event => event.preventDefault());
       });
-      let blankTimer = null;
-      let startX = 0;
-      let startY = 0;
-      const clearBlank = () => {
-        if (blankTimer) clearTimeout(blankTimer);
-        blankTimer = null;
-      };
-      dayScheduleList.onpointerdown = event => {
-        if (event.target.closest(".day-schedule-item, button")) return;
-        startX = event.clientX;
-        startY = event.clientY;
-        clearBlank();
-        blankTimer = setTimeout(() => {
-          blankTimer = null;
-          hapticTap(20);
-          openScheduleActionForDate(date);
-        }, 650);
-      };
-      dayScheduleList.onpointermove = event => {
-        if (Math.abs(event.clientX - startX) + Math.abs(event.clientY - startY) > 12) clearBlank();
-      };
-      dayScheduleList.onpointerup = clearBlank;
-      dayScheduleList.onpointercancel = clearBlank;
       dayScheduleList.oncontextmenu = event => event.preventDefault();
     }
     function renderDayScheduleDialog(date) {
@@ -4563,7 +4533,7 @@
       renderScheduleOrgSuggestions(false);
     }
     function renderScheduleOrgSuggestions(show = true) {
-      if (!show || !scheduleNeedsOrg(scheduleType.value)) {
+      if (!show) {
         scheduleOrgSuggestions.classList.remove("show");
         scheduleOrgSuggestions.innerHTML = "";
         return;
@@ -4595,14 +4565,12 @@
       return matches.length === 1 ? matches[0].id : "";
     }
     function syncScheduleType() {
-      const needsOrg = scheduleNeedsOrg(scheduleType.value);
-      scheduleOrgSearch.disabled = !needsOrg;
-      scheduleOrgSearch.required = needsOrg;
-      if (!needsOrg) {
-        scheduleOrgId.value = "";
-        scheduleOrgSearch.value = "";
-        renderScheduleOrgSuggestions(false);
+      scheduleOrgSearch.disabled = false;
+      scheduleOrgSearch.required = false;
+      if (!state.scheduleColorTouched) {
+        selectScheduleColor(defaultScheduleColor({ type: scheduleType.value }), { persist: false });
       }
+      renderScheduleOrgSuggestions(false);
     }
     function guardScheduleTimeInputs(duration = 450) {
       state.scheduleTimeGuardUntil = Date.now() + duration;
@@ -4635,6 +4603,7 @@
       scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
       scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
       scheduleType.value = schedule.type === "org" ? "visit" : (schedule.type || "personal");
+      state.scheduleColorTouched = Boolean(schedule.id || schedule.color);
       scheduleRepeat.value = "none";
       scheduleRepeatWrap.hidden = Boolean(schedule.id);
       refreshScheduleOrgOptions();
@@ -4645,7 +4614,7 @@
       scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
       scheduleEndTime.value = schedule.endTime || "";
-      state.editingScheduleColor = defaultScheduleColor(schedule);
+      state.editingScheduleColor = defaultScheduleColor({ ...schedule, type: scheduleType.value });
       selectScheduleColor(state.editingScheduleColor, { persist: false });
       deleteScheduleBtn.style.display = schedule.id ? "" : "none";
       syncScheduleType();
@@ -4665,13 +4634,7 @@
         scheduleName.focus();
         return false;
       }
-      const needsOrg = scheduleNeedsOrg(type);
-      const orgId = needsOrg ? orgIdFromScheduleInput() : "";
-      if (needsOrg && !orgId) {
-        toast("기관을 검색해서 선택해주세요.");
-        scheduleOrgSearch.focus();
-        return false;
-      }
+      const orgId = orgIdFromScheduleInput();
       if (!scheduleDate.value || !scheduleEndDate.value) return false;
       const [date, endDate] = orderedDates(scheduleDate.value, scheduleEndDate.value);
       const data = {
@@ -4733,7 +4696,28 @@
       calendarSearchDialog.showModal();
       setTimeout(() => calendarScheduleSearch.focus(), 60);
     };
-    addDayScheduleBtn.onclick = () => {
+    let addDayScheduleLongPressed = false;
+    let addDayScheduleTimer = null;
+    addDayScheduleBtn.addEventListener("pointerdown", event => {
+      addDayScheduleLongPressed = false;
+      if (addDayScheduleTimer) clearTimeout(addDayScheduleTimer);
+      addDayScheduleTimer = setTimeout(() => {
+        addDayScheduleLongPressed = true;
+        hapticTap(20);
+        openScheduleActionForDate(state.selectedCalendarDate || todayISO());
+      }, 650);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(name => addDayScheduleBtn.addEventListener(name, () => {
+      if (addDayScheduleTimer) clearTimeout(addDayScheduleTimer);
+      addDayScheduleTimer = null;
+    }));
+    addDayScheduleBtn.addEventListener("contextmenu", event => event.preventDefault());
+    addDayScheduleBtn.onclick = event => {
+      if (addDayScheduleLongPressed) {
+        event.preventDefault();
+        addDayScheduleLongPressed = false;
+        return;
+      }
       const date = state.selectedCalendarDate || todayISO();
       dayScheduleDialog.close();
       openScheduleDialog({ date, endDate: date });
