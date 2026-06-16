@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f7">
-  <title>유지보수 매니저</title>
+  <title>ReportMate</title>
   <style>
     :root {
       color-scheme: light;
@@ -91,7 +91,21 @@
       min-width: 0;
     }
     .brand strong { display: block; font-size: 15px; white-space: nowrap; line-height: 1.25; }
+    .brand-title {
+      display: inline-block;
+      background: linear-gradient(90deg, #17212b 0%, #007aff 28%, #34c759 50%, #af52de 72%, #17212b 100%);
+      background-size: 230% 100%;
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: titleWave 3.4s ease-in-out infinite;
+      letter-spacing: .1px;
+    }
     .brand span { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; line-height: 1.2; }
+    @keyframes titleWave {
+      0%, 100% { background-position: 0% 50%; transform: translateY(0); }
+      50% { background-position: 100% 50%; transform: translateY(-1px); }
+    }
     .top-actions { margin-left: auto; display: flex; gap: 8px; }
     main {
       width: 100%;
@@ -1536,33 +1550,46 @@
     }
     .day-cell.muted { background: rgba(248, 248, 250, .62); }
     .day-cell.sunday .day-number,
-    .day-cell.holiday .day-number {
+    .day-cell.holiday .day-number,
+    .day-cell.holiday .day-number > span:first-child {
       color: #d70015;
     }
     .day-cell.saturday .day-number {
       color: rgba(90, 120, 140, .48);
     }
     .lunar-label {
-      position: absolute;
-      top: 27px;
-      left: 6px;
       color: rgba(60, 60, 67, .38);
-      font-size: 10px;
+      font-size: 9px;
       line-height: 1;
+      font-weight: 700;
       pointer-events: none;
     }
     .holiday-label {
-      position: absolute;
-      top: 42px;
-      left: 6px;
-      right: 6px;
       color: #d70015;
-      font-size: 9.5px;
-      line-height: 1.15;
+      font-size: 9px;
+      line-height: 1;
+      font-weight: 800;
       white-space: nowrap;
+      flex: 0 0 auto;
+      max-width: 42px;
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: none;
+    }
+    .date-meta {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 3px;
+      min-width: 0;
+      overflow: hidden;
+      margin-left: 3px;
+      vertical-align: baseline;
+    }
+    .date-meta .lunar-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .day-cell.today {
       box-shadow: inset 0 0 0 2px rgba(0, 122, 255, .68);
@@ -1579,6 +1606,10 @@
     .day-number {
       font-size: 12px;
       color: rgba(28, 28, 30, .82);
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+      min-width: 0;
     }
     .event-pill {
       border-radius: 7px;
@@ -1802,7 +1833,7 @@
     <header>
       <div class="topbar">
         <div class="brand">
-          <div><strong>유지보수 매니저</strong><span>방문, 청구, 담당자, 기술메모 관리</span></div>
+          <div><strong class="brand-title">ReportMate</strong><span>방문, 청구, 담당자, 기술메모 관리</span></div>
         </div>
         <div class="top-actions">
           <button type="button" class="icon secondary header-gear" id="dashboardSettingsBtn" title="설정" aria-label="설정">
@@ -2221,8 +2252,9 @@
 
   <script>
     const defaultGoogleClientId = "799426628695-uih32dh5mqqpst3o3tmblaq3n77pvd2r.apps.googleusercontent.com";
-    const googleAutoSyncVisibleIntervalMs = 30 * 1000;
-    const googleAutoSyncHiddenIntervalMs = 2 * 60 * 1000;
+    const googleAutoSyncVisibleIntervalMs = 8 * 1000;
+    const googleAutoSyncHiddenIntervalMs = 60 * 1000;
+    const googleSyncLookbackMs = 2 * 60 * 1000;
     const islandRegions = [
       "인천 강화군 교동도", "인천 강화군 석모도", "인천 옹진군 백령도", "인천 옹진군 대청도", "인천 옹진군 소청도", "인천 옹진군 연평도", "인천 옹진군 덕적도", "인천 옹진군 자월도", "인천 옹진군 영흥도",
       "충남 보령시 원산도", "충남 보령시 삽시도", "충남 보령시 장고도", "충남 보령시 고대도", "충남 태안군 안면도", "충남 태안군 가의도", "충남 서산시 웅도", "충남 당진시 난지도",
@@ -2246,7 +2278,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", tmapKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3313,27 +3345,92 @@
         .filter(schedule => scheduleSearchText(schedule).includes(keyword) || normalizeOrgKeyword(scheduleSearchLabel(schedule)).includes(keyword));
     }
     const fixedHolidays = {
-      "01-01": "신정",
-      "03-01": "삼일절",
-      "05-05": "어린이날",
-      "06-06": "현충일",
-      "08-15": "광복절",
-      "10-03": "개천절",
-      "10-09": "한글날",
-      "12-25": "성탄절"
+      "01-01": { label: "신정", substitute: false },
+      "03-01": { label: "삼일절", substitute: "weekend" },
+      "05-05": { label: "어린이날", substitute: "weekend" },
+      "06-06": { label: "현충일", substitute: false },
+      "08-15": { label: "광복절", substitute: "weekend" },
+      "10-03": { label: "개천절", substitute: "weekend" },
+      "10-09": { label: "한글날", substitute: "weekend" },
+      "12-25": { label: "성탄절", substitute: "weekend" }
     };
-    const holidayOverrides = {
-      "2026-02-16": "설날",
-      "2026-02-17": "설날",
-      "2026-02-18": "설날",
-      "2026-02-19": "대체휴일",
-      "2026-05-24": "부처님오신날",
-      "2026-09-24": "추석",
-      "2026-09-25": "추석",
-      "2026-09-26": "추석"
-    };
-    function holidayName(iso) {
-      return holidayOverrides[iso] || fixedHolidays[iso.slice(5)] || "";
+    const holidayCalendarCache = {};
+    function lunarMonthDay(date) {
+      try {
+        const parts = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" }).formatToParts(date);
+        const month = parseInt(parts.find(part => part.type === "month")?.value, 10);
+        const day = parseInt(parts.find(part => part.type === "day")?.value, 10);
+        return month && day ? `${month}-${day}` : "";
+      } catch {
+        return "";
+      }
+    }
+    function addHolidayEntry(entries, iso, label, substitute) {
+      entries.push({ iso, label, substitute });
+    }
+    function lunarHolidayEntries(year) {
+      const entries = [];
+      const cursor = new Date(year, 0, 1);
+      while (cursor.getFullYear() === year) {
+        const iso = localDateISO(cursor);
+        const lunar = lunarMonthDay(cursor);
+        if (lunar === "1-1") {
+          addHolidayEntry(entries, addDaysISO(iso, -1), "", "sunday");
+          addHolidayEntry(entries, iso, "설날", "sunday");
+          addHolidayEntry(entries, addDaysISO(iso, 1), "", "sunday");
+        } else if (lunar === "4-8") {
+          addHolidayEntry(entries, iso, "부처님오신날", "weekend");
+        } else if (lunar === "8-15") {
+          addHolidayEntry(entries, addDaysISO(iso, -1), "", "sunday");
+          addHolidayEntry(entries, iso, "추석", "sunday");
+          addHolidayEntry(entries, addDaysISO(iso, 1), "", "sunday");
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return entries;
+    }
+    function buildHolidayCalendar(year) {
+      const entries = Object.entries(fixedHolidays).map(([monthDay, info]) => ({
+        iso: `${year}-${monthDay}`,
+        label: info.label,
+        substitute: info.substitute
+      })).concat(lunarHolidayEntries(year));
+      const calendar = new Map();
+      const addToCalendar = (iso, label, substitute = false) => {
+        const current = calendar.get(iso) || { labels: [], substitute };
+        if (label && !current.labels.includes(label)) current.labels.push(label);
+        current.substitute = current.substitute || substitute;
+        calendar.set(iso, current);
+      };
+      entries.forEach(entry => addToCalendar(entry.iso, entry.label));
+      const processedSubstituteTriggers = new Set();
+      entries.forEach(entry => {
+        if (!entry.substitute) return;
+        if (processedSubstituteTriggers.has(entry.iso)) return;
+        const sameDayEntries = entries.filter(item => item.iso === entry.iso);
+        const day = new Date(entry.iso + "T00:00:00").getDay();
+        const isWeekendTrigger = entry.substitute === "weekend" ? day === 0 || day === 6 : day === 0;
+        const isOverlapTrigger = sameDayEntries.length > 1;
+        if (!isWeekendTrigger && !isOverlapTrigger) return;
+        processedSubstituteTriggers.add(entry.iso);
+        let substituteIso = addDaysISO(entry.iso, 1);
+        while (calendar.has(substituteIso) || [0, 6].includes(new Date(substituteIso + "T00:00:00").getDay())) {
+          substituteIso = addDaysISO(substituteIso, 1);
+        }
+        addToCalendar(substituteIso, "대체공휴일", true);
+      });
+      return calendar;
+    }
+    function holidayInfo(iso) {
+      const year = Number(iso.slice(0, 4));
+      holidayCalendarCache[year] ||= buildHolidayCalendar(year);
+      return holidayCalendarCache[year].get(iso);
+    }
+    function isHoliday(iso) {
+      return Boolean(holidayInfo(iso));
+    }
+    function holidayLabel(iso) {
+      return holidayInfo(iso)?.labels[0] || "";
     }
     function lunarLabel(iso, date) {
       try {
@@ -3341,8 +3438,7 @@
         const month = parts.find(part => part.type === "month")?.value;
         const day = parts.find(part => part.type === "day")?.value;
         if (!month || !day) return "";
-        const dayNumber = Number(day);
-        const shouldShow = date.getDay() === 0 || iso === todayISO() || dayNumber === 1 || dayNumber === 15;
+        const shouldShow = date.getDay() === 0 || iso === todayISO();
         return shouldShow ? `${month}.${day}` : "";
       } catch {
         return "";
@@ -3368,14 +3464,12 @@
           if (d.getMonth() !== m) classes.push("muted");
           if (d.getDay() === 0) classes.push("sunday");
           if (d.getDay() === 6) classes.push("saturday");
-          const holiday = holidayName(iso);
-          if (holiday) classes.push("holiday");
+          const holiday = holidayLabel(iso);
+          if (isHoliday(iso)) classes.push("holiday");
           if (iso === todayISO()) classes.push("today");
           const lunar = lunarLabel(iso, d);
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
-            <div class="day-number">${d.getDate()}</div>
-            ${lunar ? `<div class="lunar-label">${escapeHTML(lunar)}</div>` : ""}
-            ${holiday ? `<div class="holiday-label">${escapeHTML(holiday)}</div>` : ""}
+            <div class="day-number"><span>${d.getDate()}</span>${lunar || holiday ? `<span class="date-meta">${holiday ? `<span class="holiday-label">${escapeHTML(holiday)}</span>` : ""}${lunar ? `<span class="lunar-label">${escapeHTML(lunar)}</span>` : ""}</span>` : ""}</div>
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
@@ -4647,6 +4741,7 @@
     function scheduleFromGoogleEvent(event) {
       const privateProps = event.extendedProperties?.private || {};
       const org = privateProps.maintenanceManagerOrgId ? state.orgs.find(item => item.id === privateProps.maintenanceManagerOrgId) : null;
+      const privateType = ["visit", "remote", "team", "personal"].includes(privateProps.maintenanceManagerType) ? privateProps.maintenanceManagerType : "";
       const startRaw = event.start?.dateTime || event.start?.date;
       const endRaw = event.end?.dateTime || event.end?.date || startRaw;
       const isAllDay = Boolean(event.start?.date);
@@ -4655,7 +4750,7 @@
       const safeEndDate = endDate < date ? date : endDate;
       return {
         id: privateProps.maintenanceManagerId || `google-${event.id}`,
-        type: org ? "visit" : "personal",
+        type: privateType || (org ? "visit" : "personal"),
         orgId: org?.id || "",
         title: event.summary || "(제목 없음)",
         date,
@@ -4681,16 +4776,21 @@
         timeMax: new Date(now.getFullYear() + 2, 0, 1).toISOString()
       };
     }
-    async function listGoogleCalendarEvents() {
+    async function listGoogleCalendarEvents({ incremental = false } = {}) {
       const windowRange = googleSyncWindow();
       const params = new URLSearchParams({
         singleEvents: "true",
         showDeleted: "true",
-        orderBy: "startTime",
         maxResults: "2500",
         timeMin: windowRange.timeMin,
         timeMax: windowRange.timeMax
       });
+      const lastSyncTime = Date.parse(state.settings.googleLastSync || "");
+      if (incremental && Number.isFinite(lastSyncTime)) {
+        params.set("updatedMin", new Date(Math.max(0, lastSyncTime - googleSyncLookbackMs)).toISOString());
+      } else {
+        params.set("orderBy", "startTime");
+      }
       const events = [];
       let pageToken = "";
       do {
@@ -4772,7 +4872,7 @@
     function currentGoogleAutoSyncIntervalMs() {
       return document.hidden ? googleAutoSyncHiddenIntervalMs : googleAutoSyncVisibleIntervalMs;
     }
-    function scheduleGoogleAutoSync(reason = "change", delay = 800) {
+    function scheduleGoogleAutoSync(reason = "change", delay = 180) {
       if (!canAutoSyncGoogle()) return;
       if (state.googleAutoSyncTimer) clearTimeout(state.googleAutoSyncTimer);
       state.googleAutoSyncTimer = setTimeout(() => runGoogleAutoSync(reason), delay);
@@ -4783,9 +4883,9 @@
       if (!state.googleAutoSyncInterval || state.googleAutoSyncIntervalMs !== intervalMs) {
         if (state.googleAutoSyncInterval) clearInterval(state.googleAutoSyncInterval);
         state.googleAutoSyncIntervalMs = intervalMs;
-        state.googleAutoSyncInterval = setInterval(() => scheduleGoogleAutoSync("interval", 250), intervalMs);
+        state.googleAutoSyncInterval = setInterval(() => scheduleGoogleAutoSync("interval", 120), intervalMs);
       }
-      if (immediate) scheduleGoogleAutoSync("connect", 250);
+      if (immediate) scheduleGoogleAutoSync("connect", 120);
     }
     async function runGoogleAutoSync(reason = "auto") {
       if (!canAutoSyncGoogle()) return null;
@@ -4808,7 +4908,7 @@
         startGoogleAutoSync();
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
-        const googleEvents = await listGoogleCalendarEvents();
+        const googleEvents = await listGoogleCalendarEvents({ incremental: silent && Boolean(state.settings.googleLastSync) });
         const pulled = mergeGoogleEventsIntoLocal(googleEvents);
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
@@ -4926,9 +5026,12 @@
       }
     }
     saveSettingsBtn.onclick = () => {
-      state.settings = { ...state.settings, kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleClientId: googleClientId.value.trim() || defaultGoogleClientId, googleCalendarId: googleCalendarId.value.trim() || "primary", tmapKey: tmapKey.value.trim() };
+      const nextGoogleCalendarId = googleCalendarId.value.trim() || "primary";
+      const calendarChanged = nextGoogleCalendarId !== (state.settings.googleCalendarId || "primary");
+      state.settings = { ...state.settings, kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleClientId: googleClientId.value.trim() || defaultGoogleClientId, googleCalendarId: nextGoogleCalendarId, tmapKey: tmapKey.value.trim() };
+      if (calendarChanged) state.settings.googleLastSync = "";
       save();
-      scheduleGoogleAutoSync("settings", 700);
+      scheduleGoogleAutoSync("settings", 120);
       connectGoogleFromSettingsSave();
       toast("연동 설정이 저장되었습니다.");
     };
