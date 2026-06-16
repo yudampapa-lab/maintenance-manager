@@ -3262,16 +3262,26 @@
       const schedules = selectedTodaySchedules();
       if (!schedules.length) return "";
       const visitNames = schedules
-        .filter(schedule => schedule.type !== "remote")
+        .filter(schedule => schedule.type === "visit" || schedule.type === "org")
         .map(scheduleCopyName)
         .filter(Boolean);
       const remoteNames = schedules
         .filter(schedule => schedule.type === "remote")
         .map(scheduleCopyName)
         .filter(Boolean);
+      const teamNames = schedules
+        .filter(schedule => schedule.type === "team")
+        .map(scheduleCopyName)
+        .filter(Boolean);
+      const personalNames = schedules
+        .filter(schedule => schedule.type === "personal")
+        .map(scheduleCopyName)
+        .filter(Boolean);
       const sections = [];
       if (visitNames.length) sections.push(`【방문 일정】\n${visitNames.join(", ")} 다녀오겠습니다.`);
       if (remoteNames.length) sections.push(`【원격 일정】\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
+      if (teamNames.length) sections.push(`【팀 일정】\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
+      if (personalNames.length) sections.push(`【개인 일정】\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
       return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}`;
     }
     async function copyTextToClipboard(text) {
@@ -3306,7 +3316,7 @@
       }
     }
     function todayCopySchedules() {
-      return sortedSchedules(todayISO()).filter(schedule => schedule.type !== "personal" && schedule.type !== "team");
+      return sortedSchedules(todayISO());
     }
     function renderTodayCopyDialog() {
       const items = todayCopySchedules();
