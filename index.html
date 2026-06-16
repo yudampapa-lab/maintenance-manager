@@ -5580,6 +5580,10 @@
       schedule.googleDirty = false;
       return event;
     }
+    function isGoogleGoneError(error) {
+      const text = String([error?.status, error?.message, error?.detail].filter(Boolean).join(" ")).toLowerCase();
+      return text.includes("404") || text.includes("410") || text.includes("notfound") || text.includes("deleted");
+    }
     async function patchGoogleCalendarEvent(schedule) {
       if (!schedule.googleEventId) return insertGoogleCalendarEvent(schedule);
       try {
@@ -5593,7 +5597,13 @@
         schedule.googleDirty = false;
         return event;
       } catch (error) {
-        if (String(error.message || "").includes("404")) return insertGoogleCalendarEvent(schedule);
+        if (isGoogleGoneError(error)) {
+          schedule.googleEventId = "";
+          schedule.googleDuplicateEventIds = [];
+          schedule.googleUpdated = "";
+          schedule.googleHtmlLink = "";
+          return insertGoogleCalendarEvent(schedule);
+        }
         throw error;
       }
     }
@@ -5602,7 +5612,7 @@
       try {
         await googleApiFetch(`/events/${encodeURIComponent(eventId)}?sendUpdates=none`, { method: "DELETE" });
       } catch (error) {
-        if (!String(error.message || "").includes("404")) throw error;
+        if (!isGoogleGoneError(error)) throw error;
       }
     }
     function googleDateToLocalISO(value) {
