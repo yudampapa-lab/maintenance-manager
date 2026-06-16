@@ -4652,6 +4652,7 @@
     }
     function applyCloudSnapshot(data) {
       if (!data) return;
+      const incomingScheduleCount = Array.isArray(data.schedules) ? data.schedules.length : 0;
       state.cloudApplying = true;
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
@@ -4665,6 +4666,9 @@
       state.settings.cloudLastSync = new Date().toISOString();
       save({ skipCloud: true });
       state.cloudApplying = false;
+      if (incomingScheduleCount && state.schedules.length < incomingScheduleCount) {
+        setTimeout(() => uploadCloudData({ silent: true }), 250);
+      }
       render();
       updateCloudStatus();
     }
