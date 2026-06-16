@@ -2717,6 +2717,7 @@
         endTime: schedule.endTime || "",
         color: ["blue", "green", "purple", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
         googleEventId: schedule.googleEventId || "",
+        googleDuplicateEventIds: Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds.filter(Boolean) : [],
         googleUpdated: schedule.googleUpdated || "",
         googleHtmlLink: schedule.googleHtmlLink || "",
         googleSyncedAt: schedule.googleSyncedAt || "",
@@ -2754,11 +2755,17 @@
     }
     function betterSchedule(base, next) {
       if (!base) return next;
-      if (!base.googleEventId && next.googleEventId) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt };
+      const duplicateIds = [...new Set([
+        base.googleEventId,
+        next.googleEventId,
+        ...(base.googleDuplicateEventIds || []),
+        ...(next.googleDuplicateEventIds || [])
+      ].filter(Boolean))];
+      if (!base.googleEventId && next.googleEventId) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== next.googleEventId) };
       const baseTime = Date.parse(base.updatedAt || base.googleUpdated || base.createdAt || "") || 0;
       const nextTime = Date.parse(next.updatedAt || next.googleUpdated || next.createdAt || "") || 0;
-      if (nextTime > baseTime) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt };
-      return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
+      if (nextTime > baseTime) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== (next.googleEventId || base.googleEventId)) };
+      return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleDuplicateEventIds: duplicateIds.filter(id => id !== (base.googleEventId || next.googleEventId)), googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
     }
     function dedupeSchedules(schedules = []) {
       const byGoogle = new Map();
@@ -4416,7 +4423,7 @@
       if (!schedule) return;
       if (!confirm("이 일정을 삭제할까요?")) return;
       if (schedule.googleEventId) {
-        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), schedule.googleEventId])];
+        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), schedule.googleEventId, ...(schedule.googleDuplicateEventIds || [])].filter(Boolean))];
       }
       state.schedules = state.schedules.filter(item => item.id !== id);
       save();
@@ -5360,6 +5367,7 @@
         endTime: isAllDay ? "" : googleTimeToLocal(endRaw),
         color: googleEventColorToScheduleColor(event.colorId),
         googleEventId: event.id,
+        googleDuplicateEventIds: [],
         googleUpdated: event.updated || "",
         googleHtmlLink: event.htmlLink || "",
         googleSyncedAt: new Date().toISOString(),
@@ -5411,7 +5419,7 @@
         (privateId && schedule.id === privateId) ||
         (event.id && schedule.googleEventId === event.id) ||
         (googleGeneratedId && schedule.id === googleGeneratedId) ||
-        (!schedule.googleEventId && scheduleContentKey(schedule) === contentKey)
+        (scheduleContentKey(schedule) === contentKey)
       );
     }
     function mergeGoogleEventsIntoLocal(events) {
