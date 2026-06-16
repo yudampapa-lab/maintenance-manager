@@ -2723,6 +2723,63 @@
         createdAt: schedule.createdAt || new Date().toISOString(),
         updatedAt: schedule.updatedAt || ""
       }));
+      state.schedules = dedupeSchedules(state.schedules);
+    }
+    function normalizedScheduleText(value = "") {
+      return String(value).toLowerCase().replace(/\s+/g, "");
+    }
+    function scheduleDedupeKey(schedule = {}) {
+      if (schedule.googleEventId) return "google:" + schedule.googleEventId;
+      return [
+        "local",
+        normalizedScheduleText(schedule.title),
+        schedule.date || "",
+        schedule.endDate || schedule.date || "",
+        schedule.startTime || "",
+        schedule.endTime || "",
+        schedule.orgId || "",
+        schedule.type || ""
+      ].join("|");
+    }
+    function scheduleContentKey(schedule = {}) {
+      return [
+        normalizedScheduleText(schedule.title),
+        schedule.date || "",
+        schedule.endDate || schedule.date || "",
+        schedule.startTime || "",
+        schedule.endTime || "",
+        schedule.orgId || "",
+        schedule.type || ""
+      ].join("|");
+    }
+    function betterSchedule(base, next) {
+      if (!base) return next;
+      if (!base.googleEventId && next.googleEventId) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt };
+      const baseTime = Date.parse(base.updatedAt || base.googleUpdated || base.createdAt || "") || 0;
+      const nextTime = Date.parse(next.updatedAt || next.googleUpdated || next.createdAt || "") || 0;
+      if (nextTime > baseTime) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt };
+      return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
+    }
+    function dedupeSchedules(schedules = []) {
+      const byGoogle = new Map();
+      const byContent = new Map();
+      schedules.forEach(schedule => {
+        const googleKey = schedule.googleEventId ? "google:" + schedule.googleEventId : "";
+        const contentKey = "content:" + scheduleContentKey(schedule);
+        const existing = (googleKey && byGoogle.get(googleKey)) || byContent.get(contentKey);
+        const merged = betterSchedule(existing, schedule);
+        if (existing) {
+          const existingGoogleKey = existing.googleEventId ? "google:" + existing.googleEventId : "";
+          const existingContentKey = "content:" + scheduleContentKey(existing);
+          if (existingGoogleKey) byGoogle.delete(existingGoogleKey);
+          byContent.delete(existingContentKey);
+        }
+        if (merged.googleEventId) byGoogle.set("google:" + merged.googleEventId, merged);
+        byContent.set("content:" + scheduleContentKey(merged), merged);
+      });
+      return [...new Set([...byContent.values(), ...byGoogle.values()])]
+        .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "").localeCompare(b.startTime || "") || (a.title || "").localeCompare(b.title || ""))
+        .map(schedule => ({ ...schedule }));
     }
     function normalizeVehicle() {
       state.vehicle = {
@@ -4587,6 +4644,7 @@
         memos: state.memos,
         dayNotes: state.dayNotes || {},
         vehicle: state.vehicle || { records: [] },
+        googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -4598,6 +4656,9 @@
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
       });
+      if (Array.isArray(data.googleDeletedEventIds)) {
+        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...data.googleDeletedEventIds])];
+      }
       normalizeOrgs();
       normalizeSchedules();
       normalizeVehicle();
@@ -5339,7 +5400,15 @@
     }
     function findLocalScheduleForGoogleEvent(event) {
       const privateId = event.extendedProperties?.private?.maintenanceManagerId;
-      return state.schedules.find(schedule => (privateId && schedule.id === privateId) || (event.id && schedule.googleEventId === event.id));
+      const fromGoogle = scheduleFromGoogleEvent(event);
+      const googleGeneratedId = event.id ? `google-${event.id}` : "";
+      const contentKey = scheduleContentKey(fromGoogle);
+      return state.schedules.find(schedule =>
+        (privateId && schedule.id === privateId) ||
+        (event.id && schedule.googleEventId === event.id) ||
+        (googleGeneratedId && schedule.id === googleGeneratedId) ||
+        (!schedule.googleEventId && scheduleContentKey(schedule) === contentKey)
+      );
     }
     function mergeGoogleEventsIntoLocal(events) {
       let imported = 0;
@@ -5374,6 +5443,7 @@
           local.googleHtmlLink = event.htmlLink || local.googleHtmlLink || "";
         }
       });
+      state.schedules = dedupeSchedules(state.schedules);
       return { imported, updated, removed };
     }
     async function pushLocalSchedulesToGoogle() {
@@ -5400,6 +5470,7 @@
         deleted++;
       }
       state.settings.googleDeletedEventIds = [];
+      state.schedules = dedupeSchedules(state.schedules);
       return deleted;
     }
     function canAutoSyncGoogle() {
