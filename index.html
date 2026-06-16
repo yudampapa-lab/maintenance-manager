@@ -2440,6 +2440,33 @@
       if (!services || !uid) return null;
       return services.db.collection("reportmateUsers").doc(uid).collection("state").doc("current");
     }
+    function waitForFirebaseAuthUser(timeoutMs = 5000) {
+      const services = initFirebaseServices();
+      if (!services?.auth) return Promise.resolve(null);
+      if (services.auth.currentUser) return Promise.resolve(services.auth.currentUser);
+      return new Promise(resolve => {
+        let done = false;
+        const finish = user => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          try { unsubscribe(); } catch {}
+          resolve(user || services.auth.currentUser || null);
+        };
+        const unsubscribe = services.auth.onAuthStateChanged(user => finish(user));
+        const timer = setTimeout(() => finish(null), timeoutMs);
+      });
+    }
+    async function ensureFirebaseUser({ promptLogin = false } = {}) {
+      const services = initFirebaseServices();
+      if (!services?.auth) return null;
+      let user = services.auth.currentUser || await waitForFirebaseAuthUser();
+      if (!user && promptLogin && location.protocol !== "file:") {
+        await signInWithFirebaseGoogle();
+        user = services.auth.currentUser || await waitForFirebaseAuthUser();
+      }
+      return user;
+    }
     function callFirebaseFunction(name, payload = {}) {
       const services = initFirebaseServices();
       if (!services?.auth?.currentUser) throw new Error("Firebase 로그인 후 사용 가능합니다.");
@@ -5596,11 +5623,14 @@
       if (!config.projectId) throw new Error("Firebase Project ID가 필요합니다.");
       return `https://${region}-${config.projectId}.cloudfunctions.net/${name}`;
     }
-    function connectServerGoogleCalendar() {
+    async function connectServerGoogleCalendar() {
       const services = initFirebaseServices();
-      const user = services?.auth?.currentUser;
+      const user = await ensureFirebaseUser({ promptLogin: true });
       if (!user) {
-        showInfo("서버 구글 연동", "Firebase 로그인 후 사용할 수 있습니다.");
+        const guide = location.protocol === "file:"
+          ? "로컬 파일 미리보기에서는 서버 구글 연동을 사용할 수 없습니다. GitHub Pages 주소에서 로그인 후 다시 눌러주세요."
+          : "Firebase 로그인을 확인하지 못했습니다. 로그아웃 후 Google로 다시 로그인해 주세요.";
+        showInfo("서버 구글 연동", guide);
         return;
       }
       const url = `${functionBaseUrl("googleAuthStart")}?uid=${encodeURIComponent(user.uid)}`;
@@ -5608,6 +5638,11 @@
     }
     async function syncServerGoogleCalendar() {
       try {
+        const user = await ensureFirebaseUser({ promptLogin: true });
+        if (!user) {
+          showInfo("서버 일정 동기화", "Firebase 로그인 후 사용할 수 있습니다.");
+          return;
+        }
         toast("서버에서 구글 일정을 동기화합니다.");
         const result = await callFirebaseFunction("syncCalendarNow", {});
         toast(`서버 동기화 완료: ${result.data?.count || 0}건`);
