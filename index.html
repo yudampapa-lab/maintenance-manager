@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
@@ -543,6 +543,22 @@
       height: 17px;
     }
     #openCalendarSearchBtn:active {
+      transform: translateY(-50%) scale(.96);
+    }
+    #manualGoogleSyncBtn {
+      width: 32px;
+      min-height: 32px;
+      border-radius: 8px;
+      position: absolute;
+      right: 42px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #manualGoogleSyncBtn svg {
+      width: 17px;
+      height: 17px;
+    }
+    #manualGoogleSyncBtn:active {
       transform: translateY(-50%) scale(.96);
     }
     .calendar-search-modal {
@@ -1585,6 +1601,16 @@
       width: 16px;
       height: 16px;
     }
+    #view-calendar #manualGoogleSyncBtn {
+      width: 30px;
+      min-height: 30px;
+      border-radius: 10px;
+      right: 40px;
+    }
+    #view-calendar #manualGoogleSyncBtn svg {
+      width: 16px;
+      height: 16px;
+    }
     #view-calendar .calendar-title-button {
       min-height: 32px;
       min-width: 104px;
@@ -2047,8 +2073,6 @@
             </div>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
-              <button class="secondary" id="serverGoogleConnectBtn" type="button">서버 구글 연동</button>
-              <button class="secondary" id="serverGoogleSyncBtn" type="button">서버 일정 동기화</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
               <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
@@ -2358,7 +2382,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script>
@@ -2441,8 +2464,7 @@
       const auth = firebase.auth();
       auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.warn);
       const db = firebase.firestore();
-      const functions = firebase.app().functions(config.functionsRegion || "asia-northeast3");
-      state.firebase = { app, auth, db, functions, config };
+      state.firebase = { app, auth, db, config };
       state.firebaseReady = true;
       return state.firebase;
     }
@@ -2486,13 +2508,7 @@
         return;
       }
       localStorage.removeItem(loginSessionKey);
-      localStorage.setItem(firebasePendingActionKey, "serverGoogleConnect");
       lockApp(message);
-    }
-    function callFirebaseFunction(name, payload = {}) {
-      const services = initFirebaseServices();
-      if (!services?.auth?.currentUser) throw new Error("Firebase 로그인 후 사용 가능합니다.");
-      return services.functions.httpsCallable(name)(payload);
     }
     function loginClientId() {
       return state?.settings?.googleClientId || defaultGoogleClientId;
@@ -2553,9 +2569,6 @@
       const action = localStorage.getItem(firebasePendingActionKey);
       if (!action) return;
       localStorage.removeItem(firebasePendingActionKey);
-      if (action === "serverGoogleConnect") {
-        setTimeout(() => connectServerGoogleCalendar(), 350);
-      }
     }
     function handleLoginCredential(response) {
       try {
@@ -3929,6 +3942,7 @@
           <button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>
           <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
+        <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
@@ -5458,6 +5472,58 @@
       state.schedules = dedupeSchedules(state.schedules);
       return { imported, updated, removed };
     }
+    function scheduleInGoogleSyncWindow(schedule) {
+      const windowRange = googleSyncWindow();
+      const startTime = Date.parse(`${schedule.date || todayISO()}T00:00:00+09:00`);
+      const minTime = Date.parse(windowRange.timeMin);
+      const maxTime = Date.parse(windowRange.timeMax);
+      return Number.isFinite(startTime) && startTime >= minTime && startTime <= maxTime;
+    }
+    function removeLocalSchedulesMissingFromGoogle(events) {
+      const activeGoogleIds = new Set(events.filter(event => event.id && event.status !== "cancelled").map(event => event.id));
+      let removed = 0;
+      state.schedules = state.schedules.filter(schedule => {
+        const ids = [schedule.googleEventId, ...(schedule.googleDuplicateEventIds || [])].filter(Boolean);
+        if (!ids.length || !scheduleInGoogleSyncWindow(schedule)) return true;
+        if (ids.some(id => activeGoogleIds.has(id))) return true;
+        removed++;
+        return false;
+      });
+      if (removed) state.schedules = dedupeSchedules(state.schedules);
+      return removed;
+    }
+    async function deleteDuplicateGoogleEvents(events) {
+      const groups = new Map();
+      const deletedIds = new Set();
+      events.filter(event => event.id && event.status !== "cancelled").forEach(event => {
+        const appId = event.extendedProperties?.private?.maintenanceManagerId || "";
+        if (!appId) return;
+        if (!groups.has(appId)) groups.set(appId, []);
+        groups.get(appId).push(event);
+      });
+      let removed = 0;
+      for (const group of groups.values()) {
+        if (group.length < 2) continue;
+        group.sort((a, b) => Date.parse(b.updated || b.created || 0) - Date.parse(a.updated || a.created || 0));
+        for (const duplicate of group.slice(1)) {
+          await deleteGoogleCalendarEvent(duplicate.id);
+          deletedIds.add(duplicate.id);
+          removed++;
+        }
+      }
+      for (const schedule of state.schedules) {
+        const ids = [...new Set(schedule.googleDuplicateEventIds || [])];
+        for (const id of ids) {
+          if (id && id !== schedule.googleEventId) {
+            await deleteGoogleCalendarEvent(id);
+            deletedIds.add(id);
+            removed++;
+          }
+        }
+        schedule.googleDuplicateEventIds = [];
+      }
+      return { removed, deletedIds };
+    }
     async function pushLocalSchedulesToGoogle() {
       let inserted = 0;
       let updated = 0;
@@ -5486,34 +5552,19 @@
       return deleted;
     }
     function canAutoSyncGoogle() {
-      return Boolean(state.googleAccessToken) && location.protocol !== "file:";
+      return false;
     }
     function currentGoogleAutoSyncIntervalMs() {
       return document.hidden ? googleAutoSyncHiddenIntervalMs : googleAutoSyncVisibleIntervalMs;
     }
     function scheduleGoogleAutoSync(reason = "change", delay = 180) {
-      if (!canAutoSyncGoogle()) return;
-      if (state.googleAutoSyncTimer) clearTimeout(state.googleAutoSyncTimer);
-      state.googleAutoSyncTimer = setTimeout(() => runGoogleAutoSync(reason), delay);
+      return;
     }
     function startGoogleAutoSync({ immediate = false } = {}) {
-      if (!canAutoSyncGoogle()) return;
-      const intervalMs = currentGoogleAutoSyncIntervalMs();
-      if (!state.googleAutoSyncInterval || state.googleAutoSyncIntervalMs !== intervalMs) {
-        if (state.googleAutoSyncInterval) clearInterval(state.googleAutoSyncInterval);
-        state.googleAutoSyncIntervalMs = intervalMs;
-        state.googleAutoSyncInterval = setInterval(() => scheduleGoogleAutoSync("interval", 120), intervalMs);
-      }
-      if (immediate) scheduleGoogleAutoSync("connect", 120);
+      return;
     }
     async function runGoogleAutoSync(reason = "auto") {
-      if (!canAutoSyncGoogle()) return null;
-      try {
-        return await syncGoogleCalendar({ silent: true, reason });
-      } catch (error) {
-        console.warn(error);
-        return null;
-      }
+      return null;
     }
     async function syncGoogleCalendar({ silent = false, full = false } = {}) {
       if (state.googleSyncInProgress) {
@@ -5524,23 +5575,24 @@
       state.googleSyncInProgress = true;
       try {
         await ensureGoogleAccess();
-        startGoogleAutoSync();
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
         const googleEvents = await listGoogleCalendarEvents({ incremental: !full && silent && Boolean(state.settings.googleLastSync) });
-        const pulled = mergeGoogleEventsIntoLocal(googleEvents);
+        const duplicateCleanup = full ? await deleteDuplicateGoogleEvents(googleEvents) : { removed: 0, deletedIds: new Set() };
+        const activeGoogleEvents = googleEvents.filter(event => !duplicateCleanup.deletedIds.has(event.id));
+        const pulled = mergeGoogleEventsIntoLocal(activeGoogleEvents);
+        const missingRemoved = full ? removeLocalSchedulesMissingFromGoogle(activeGoogleEvents) : 0;
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
         save();
         render();
-        const result = { deleted, pulled, pushed };
-        if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed}건`);
+        const result = { deleted, pulled, pushed, missingRemoved, duplicateDeleted: duplicateCleanup.removed };
+        if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed + missingRemoved + duplicateCleanup.removed}건`);
         return result;
       } finally {
         state.googleSyncInProgress = false;
         if (state.googleSyncPending) {
           state.googleSyncPending = false;
-          scheduleGoogleAutoSync("pending", 1000);
         }
       }
     }
@@ -5751,57 +5803,27 @@
         showInfo("구글 일정 불러오기 실패", googleErrorMessage(error));
       }
     }
-    function functionBaseUrl(name) {
-      const config = firebaseConfig();
-      const region = config.functionsRegion || "asia-northeast3";
-      if (!config.projectId) throw new Error("Firebase Project ID가 필요합니다.");
-      return `https://${region}-${config.projectId}.cloudfunctions.net/${name}`;
-    }
-    async function connectServerGoogleCalendar() {
-      const services = initFirebaseServices();
-      const user = await ensureFirebaseUser({ promptLogin: true, pendingAction: "serverGoogleConnect" });
-      if (!user) {
-        forceFirebaseLogin("서버 구글 연동은 Firebase Google 로그인 후 사용할 수 있습니다. Google로 다시 로그인해주세요.");
-        return;
-      }
-      const url = `${functionBaseUrl("googleAuthStart")}?uid=${encodeURIComponent(user.uid)}`;
-      window.open(url, "_blank");
-    }
-    async function syncServerGoogleCalendar() {
-      try {
-        const user = await ensureFirebaseUser({ promptLogin: true });
-        if (!user) {
-          showInfo("서버 일정 동기화", "Firebase 로그인 후 사용할 수 있습니다.");
-          return;
-        }
-        toast("서버에서 구글 일정을 동기화합니다.");
-        const result = await callFirebaseFunction("syncCalendarNow", {});
-        toast(`서버 동기화 완료: ${result.data?.count || 0}건`);
-      } catch (error) {
-        console.warn(error);
-        showInfo("서버 일정 동기화 실패", String(error.message || error));
-      }
-    }
     document.getElementById("googleHelpBtn")?.addEventListener("click", () => connectGoogleCalendar());
     document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
-    const manualGoogleSync = () => syncGoogleCalendar({ full: true }).catch(error => {
-      console.warn(error);
-      showInfo("구글 동기화 실패", googleErrorMessage(error));
-    });
+    async function manualGoogleCalendarSync() {
+      try {
+        const needsConsent = !state.googleAccessToken || Date.now() > (state.googleAccessTokenExpiresAt || 0) - 60000;
+        await requestGoogleAccessToken(needsConsent ? "consent" : "");
+        await syncGoogleCalendar({ silent: false, full: true });
+      } catch (error) {
+        console.warn(error);
+        showInfo("Google 동기화 실패", googleErrorMessage(error));
+      }
+    }
+    window.manualGoogleCalendarSync = manualGoogleCalendarSync;
+    const manualGoogleSync = manualGoogleCalendarSync;
     document.getElementById("syncGoogleBtn")?.addEventListener("click", manualGoogleSync);
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
-    serverGoogleConnectBtn.onclick = connectServerGoogleCalendar;
-    serverGoogleSyncBtn.onclick = syncServerGoogleCalendar;
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
-      if (canAutoSyncGoogle()) startGoogleAutoSync({ immediate: !document.hidden });
       if (!document.hidden) startCloudAutoSync({ immediate: true });
     });
     window.addEventListener("focus", () => {
-      if (canAutoSyncGoogle()) {
-        startGoogleAutoSync({ immediate: true });
-        scheduleGoogleAutoSync("focus", 250);
-      }
       startCloudAutoSync({ immediate: true });
     });
     testKakaoBtn.onclick = () => {
@@ -5836,3 +5858,7 @@
   </script>
 </body>
 </html>
+
+
+
+
