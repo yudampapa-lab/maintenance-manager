@@ -1046,6 +1046,26 @@
       font-size: 12px;
       line-height: 1.4;
     }
+    .schedule-action-dialog {
+      width: min(360px, calc(100vw - 28px));
+    }
+    .schedule-action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .schedule-action-grid button {
+      min-height: 46px;
+      justify-content: center;
+      gap: 7px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    .schedule-action-grid svg {
+      width: 17px;
+      height: 17px;
+    }
     .report-card {
       display: grid;
       grid-template-columns: 86px minmax(0, 1fr);
@@ -2187,7 +2207,8 @@
         <div class="form-grid" style="margin-top:14px">
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
-          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option><option value="personal">개인일정</option></select></div>
+          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="personal">개인일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
+          <div class="field" id="scheduleRepeatWrap"><label>반복</label><select id="scheduleRepeat"><option value="none">반복 안함</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option><option value="yearly">매년</option></select></div>
           <div class="field org-autocomplete">
             <label>기관명</label>
             <input type="hidden" id="scheduleOrgId">
@@ -2238,6 +2259,17 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="secondary" id="closeDayScheduleDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="scheduleActionDialog" class="schedule-action-dialog">
+    <div class="modal-body">
+      <h2 class="panel-title" id="scheduleActionTitle">일정 작업</h2>
+      <p class="panel-sub" id="scheduleActionSub"></p>
+      <div class="schedule-action-grid" id="scheduleActionGrid"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeScheduleActionDialogBtn">닫기</button>
     </div>
   </dialog>
 
@@ -2419,6 +2451,9 @@
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
+      scheduleClipboard: null,
+      scheduleContextTimer: null,
+      dayContextTimer: null,
       pendingMemoFiles: [],
       pendingVehicleFiles: [],
       attachmentQueue: [],
@@ -2729,6 +2764,8 @@
         startTime: schedule.startTime || schedule.time || "",
         endTime: schedule.endTime || "",
         color: ["blue", "green", "purple", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
+        recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
+        recurrenceRootId: schedule.recurrenceRootId || "",
         googleEventId: schedule.googleEventId || "",
         googleDuplicateEventIds: Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds.filter(Boolean) : [],
         googleUpdated: schedule.googleUpdated || "",
@@ -2844,6 +2881,22 @@
       d.setDate(d.getDate() + offset);
       return localDateISO(d);
     }
+    function addMonthsISO(iso, offset) {
+      const d = new Date(iso + "T00:00:00");
+      const day = d.getDate();
+      const target = new Date(d.getFullYear(), d.getMonth() + offset, 1);
+      const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+      target.setDate(Math.min(day, lastDay));
+      return localDateISO(target);
+    }
+    function addYearsISO(iso, offset) {
+      const d = new Date(iso + "T00:00:00");
+      const day = d.getDate();
+      const target = new Date(d.getFullYear() + offset, d.getMonth(), 1);
+      const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+      target.setDate(Math.min(day, lastDay));
+      return localDateISO(target);
+    }
     function scheduleEndDateISO(schedule) {
       return addDaysISO(schedule.endDate || schedule.date, 1);
     }
@@ -2870,6 +2923,42 @@
     function scheduleDateLabel(schedule) {
       const end = schedule.endDate || schedule.date;
       return end === schedule.date ? schedule.date : `${schedule.date} ~ ${end}`;
+    }
+    function nextRepeatDate(iso, repeat) {
+      if (repeat === "daily") return addDaysISO(iso, 1);
+      if (repeat === "weekly") return addDaysISO(iso, 7);
+      if (repeat === "monthly") return addMonthsISO(iso, 1);
+      if (repeat === "yearly") return addYearsISO(iso, 1);
+      return "";
+    }
+    function recurringScheduleCopies(data, repeat) {
+      if (!["daily", "weekly", "monthly", "yearly"].includes(repeat)) {
+        markGoogleDirty(data);
+        return [data];
+      }
+      const duration = Math.max(0, Math.round((new Date((data.endDate || data.date) + "T00:00:00") - new Date(data.date + "T00:00:00")) / 86400000));
+      const rootId = data.id;
+      const limitDate = addYearsISO(data.date, 1);
+      const copies = [];
+      let date = data.date;
+      let index = 0;
+      while (date && date <= limitDate && copies.length < 120) {
+        const copy = {
+          ...data,
+          id: index === 0 ? rootId : uid(),
+          date,
+          endDate: addDaysISO(date, duration),
+          recurrence: repeat,
+          recurrenceRootId: rootId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        markGoogleDirty(copy);
+        copies.push(copy);
+        date = nextRepeatDate(date, repeat);
+        index++;
+      }
+      return copies;
     }
     function scheduleEndDateTime(schedule) {
       const endTime = getScheduleEndTime(schedule);
@@ -2921,6 +3010,10 @@
         note: '<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h4"/></svg>',
         package: '<svg viewBox="0 0 24 24"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
         edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+        copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+        text: '<svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>',
+        paste: '<svg viewBox="0 0 24 24"><path d="M8 4h8l1 3H7l1-3Z"/><path d="M16 6h3v15H5V6h3"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>',
+        plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
         trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
       };
       return icons[name] || "";
@@ -3066,6 +3159,93 @@
       const end = schedule.endDate || schedule.date;
       return schedule.date <= date && date <= end;
     }
+    function scheduleTextForClipboard(schedule) {
+      const org = orgForSchedule(schedule);
+      const parts = [
+        schedule.title,
+        scheduleTypeLabel(schedule),
+        org?.name || "",
+        scheduleDateLabel(schedule),
+        scheduleTimeLabel(schedule)
+      ].filter(Boolean);
+      return parts.join(" · ");
+    }
+    function copyScheduleForPaste(id) {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
+      state.scheduleClipboard = {
+        type: schedule.type || "personal",
+        orgId: schedule.orgId || "",
+        title: schedule.title || "",
+        startTime: schedule.startTime || "",
+        endTime: schedule.endTime || "",
+        color: schedule.color || "",
+        duration: Math.max(0, Math.round((new Date((schedule.endDate || schedule.date) + "T00:00:00") - new Date(schedule.date + "T00:00:00")) / 86400000))
+      };
+      toast("일정을 복사했습니다.");
+    }
+    async function copyScheduleText(id) {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
+      await copyTextToClipboard(scheduleTextForClipboard(schedule));
+      toast("일정 텍스트를 복사했습니다.");
+    }
+    function pasteScheduleOnDate(date) {
+      const clip = state.scheduleClipboard;
+      if (!clip) {
+        toast("복사한 일정이 없습니다.");
+        return;
+      }
+      const schedule = {
+        id: uid(),
+        type: clip.type || "personal",
+        orgId: clip.orgId || "",
+        title: clip.title || "일정",
+        date,
+        endDate: addDaysISO(date, Number(clip.duration || 0)),
+        startTime: clip.startTime || "",
+        endTime: clip.endTime || "",
+        color: clip.color || "",
+        recurrence: "none",
+        recurrenceRootId: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      markGoogleDirty(schedule);
+      state.schedules.push(schedule);
+      save();
+      render();
+      if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
+      toast("일정을 붙여넣었습니다.");
+    }
+    function actionButton(label, iconName, action, tone = "secondary", disabled = false) {
+      return `<button type="button" class="${tone}" ${disabled ? "disabled" : ""} onclick="${action}">${icon(iconName)}<span>${escapeHTML(label)}</span></button>`;
+    }
+    function showScheduleActionDialog(title, sub, buttons) {
+      scheduleActionTitle.textContent = title;
+      scheduleActionSub.textContent = sub || "";
+      scheduleActionGrid.innerHTML = buttons.join("");
+      if (!scheduleActionDialog.open) scheduleActionDialog.showModal();
+    }
+    window.closeScheduleActionDialog = () => scheduleActionDialog.close();
+    window.openScheduleActionForSchedule = id => {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
+      const buttons = [
+        actionButton("편집", "edit", `scheduleActionDialog.close(); openScheduleEditor('${id}')`),
+        actionButton("복사", "copy", `scheduleActionDialog.close(); copyScheduleForPaste('${id}')`),
+        actionButton("텍스트복사", "text", `scheduleActionDialog.close(); copyScheduleText('${id}')`),
+        actionButton("삭제", "trash", `scheduleActionDialog.close(); deleteSchedule('${id}')`, "danger")
+      ];
+      showScheduleActionDialog(schedule.title || "일정", `${scheduleTypeLabel(schedule)} · ${scheduleDateLabel(schedule)} · ${scheduleTimeLabel(schedule)}`, buttons);
+    };
+    window.openScheduleActionForDate = date => {
+      const buttons = [
+        actionButton("붙여넣기", "paste", `scheduleActionDialog.close(); pasteScheduleOnDate('${date}')`, "secondary", !state.scheduleClipboard),
+        actionButton("일정추가", "plus", `scheduleActionDialog.close(); openScheduleDialog({ date: '${date}', endDate: '${date}' })`, "good")
+      ];
+      showScheduleActionDialog(formatDate(date), "날짜 작업", buttons);
+    };
     function isMultiDaySchedule(schedule) {
       return (schedule.endDate || schedule.date) !== schedule.date;
     }
@@ -3231,7 +3411,7 @@
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
       const meta = org ? `${scheduleTypeLabel(schedule)} · ${org.name} · ${org.region}` : scheduleTypeLabel(schedule);
-      return `<article class="day-schedule-item" ${scheduleColorStyleAttr(schedule)}>
+      return `<article class="day-schedule-item" data-schedule-id="${schedule.id}" ${scheduleColorStyleAttr(schedule)}>
         <div>
           <h3>${escapeHTML(schedule.title)}</h3>
           <p>${escapeHTML(meta)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</p>
@@ -3243,6 +3423,57 @@
         </div>
       </article>`;
     }
+    function installDayScheduleMenuHandlers(date) {
+      dayScheduleList.querySelectorAll(".day-schedule-item[data-schedule-id]").forEach(item => {
+        let timer = null;
+        let startX = 0;
+        let startY = 0;
+        const clear = () => {
+          if (timer) clearTimeout(timer);
+          timer = null;
+        };
+        item.addEventListener("pointerdown", event => {
+          if (event.target.closest("button")) return;
+          startX = event.clientX;
+          startY = event.clientY;
+          clear();
+          timer = setTimeout(() => {
+            timer = null;
+            hapticTap(20);
+            openScheduleActionForSchedule(item.dataset.scheduleId);
+          }, 650);
+        });
+        item.addEventListener("pointermove", event => {
+          if (Math.abs(event.clientX - startX) + Math.abs(event.clientY - startY) > 12) clear();
+        });
+        ["pointerup", "pointercancel", "pointerleave"].forEach(name => item.addEventListener(name, clear));
+        item.addEventListener("contextmenu", event => event.preventDefault());
+      });
+      let blankTimer = null;
+      let startX = 0;
+      let startY = 0;
+      const clearBlank = () => {
+        if (blankTimer) clearTimeout(blankTimer);
+        blankTimer = null;
+      };
+      dayScheduleList.onpointerdown = event => {
+        if (event.target.closest(".day-schedule-item, button")) return;
+        startX = event.clientX;
+        startY = event.clientY;
+        clearBlank();
+        blankTimer = setTimeout(() => {
+          blankTimer = null;
+          hapticTap(20);
+          openScheduleActionForDate(date);
+        }, 650);
+      };
+      dayScheduleList.onpointermove = event => {
+        if (Math.abs(event.clientX - startX) + Math.abs(event.clientY - startY) > 12) clearBlank();
+      };
+      dayScheduleList.onpointerup = clearBlank;
+      dayScheduleList.onpointercancel = clearBlank;
+      dayScheduleList.oncontextmenu = event => event.preventDefault();
+    }
     function renderDayScheduleDialog(date) {
       state.selectedCalendarDate = date;
       const items = sortedSchedules(date);
@@ -3251,6 +3482,7 @@
       dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
       dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
       dayScheduleNote.value = state.dayNotes?.[date] || "";
+      installDayScheduleMenuHandlers(date);
     }
     function openDayScheduleDialog(date) {
       renderDayScheduleDialog(date);
@@ -3989,6 +4221,10 @@
         clearTimeout(range.longPressTimer);
         range.longPressTimer = null;
       }
+      if (range?.contextTimer) {
+        clearTimeout(range.contextTimer);
+        range.contextTimer = null;
+      }
     }
     window.schedulePointerStart = (event, id) => {
       event.preventDefault();
@@ -4004,6 +4240,15 @@
         el.classList.add("drag-ready");
         hapticTap(18);
       }, 520);
+      drag.contextTimer = setTimeout(() => {
+        if (state.calendarDrag !== drag || drag.cancelled || drag.moved) return;
+        drag.cancelled = true;
+        clearTimeout(drag.longPressTimer);
+        el.classList.remove("drag-ready");
+        state.calendarDrag = null;
+        hapticTap(20);
+        openScheduleActionForSchedule(id);
+      }, 1120);
       state.calendarDrag = drag;
     };
     window.schedulePointerMove = (event, id) => {
@@ -4017,10 +4262,14 @@
         if (Math.abs(dx) + Math.abs(dy) > 12) {
           drag.cancelled = true;
           clearTimeout(drag.longPressTimer);
+          clearTimeout(drag.contextTimer);
         }
         return;
       }
-      if (Math.abs(dx) + Math.abs(dy) > 8) drag.moved = true;
+      if (Math.abs(dx) + Math.abs(dy) > 8) {
+        drag.moved = true;
+        clearTimeout(drag.contextTimer);
+      }
       if (!drag.moved) return;
       drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
@@ -4034,6 +4283,7 @@
       event.preventDefault();
       event.stopPropagation();
       clearTimeout(drag.longPressTimer);
+      clearTimeout(drag.contextTimer);
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
       drag.el.classList.remove("drag-ready");
       drag.el.classList.remove("dragging");
@@ -4063,6 +4313,7 @@
       const drag = state.calendarDrag;
       if (!drag || drag.id !== id) return;
       clearTimeout(drag.longPressTimer);
+      clearTimeout(drag.contextTimer);
       drag.el.classList.remove("drag-ready");
       drag.el.classList.remove("dragging");
       drag.el.style.transform = "";
@@ -4080,6 +4331,16 @@
         markRange(range.start, range.end);
         hapticTap(18);
       }, 560);
+      range.contextTimer = setTimeout(() => {
+        if (state.calendarRange !== range || range.cancelled || range.moved) return;
+        range.cancelled = true;
+        state.calendarRange = null;
+        clearRangeSelection();
+        state.suppressCalendarClick = true;
+        setTimeout(() => { state.suppressCalendarClick = false; }, 300);
+        hapticTap(20);
+        openScheduleActionForDate(date);
+      }, 1140);
       state.calendarRange = range;
       event.currentTarget.setPointerCapture?.(event.pointerId);
     };
@@ -4098,6 +4359,7 @@
       const cell = dateCellFromPoint(event.clientX, event.clientY, null);
       if (!cell?.dataset.date) return;
       if (cell.dataset.date !== range.end) {
+        clearCalendarLongPress(range);
         range.end = cell.dataset.date;
         range.moved = true;
         markRange(range.start, range.end);
@@ -4372,7 +4634,9 @@
       scheduleId.value = schedule.id || "";
       scheduleTitle.textContent = schedule.id ? "일정 수정" : "일정 등록";
       scheduleSub.textContent = schedule.date ? formatDate(schedule.date) : "";
-      scheduleType.value = schedule.type === "org" ? "visit" : (schedule.type || "visit");
+      scheduleType.value = schedule.type === "org" ? "visit" : (schedule.type || "personal");
+      scheduleRepeat.value = "none";
+      scheduleRepeatWrap.hidden = Boolean(schedule.id);
       refreshScheduleOrgOptions();
       scheduleOrgId.value = org?.id || "";
       scheduleOrgSearch.value = org ? org.name : "";
@@ -4420,6 +4684,8 @@
         startTime: scheduleStartTime.value,
         endTime: scheduleEndTime.value,
         color: safeScheduleColor(state.editingScheduleColor || document.getElementById("scheduleColor")?.value),
+        recurrence: existing ? (existing.recurrence || "none") : (scheduleRepeat.value || "none"),
+        recurrenceRootId: existing?.recurrenceRootId || "",
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -4427,13 +4693,13 @@
         Object.assign(existing, data);
         markGoogleDirty(existing);
       } else {
-        markGoogleDirty(data);
-        state.schedules.push(data);
+        const copies = recurringScheduleCopies(data, data.recurrence);
+        state.schedules.push(...copies);
       }
       save();
       if (closeAfter) scheduleDialog.close();
       render();
-      toast(existing ? "일정을 수정했습니다." : "일정을 등록했습니다.");
+      toast(existing ? "일정을 수정했습니다." : (data.recurrence && data.recurrence !== "none" ? "반복 일정을 등록했습니다." : "일정을 등록했습니다."));
       scheduleGoogleAutoSync("schedule-save");
       return true;
     }
@@ -4482,6 +4748,7 @@
       save();
     };
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
+    closeScheduleActionDialogBtn.onclick = () => scheduleActionDialog.close();
     closeCalendarSearchDialogBtn.onclick = () => calendarSearchDialog.close();
     cancelCalendarJumpBtn.onclick = () => calendarJumpDialog.close();
     applyCalendarJumpBtn.onclick = applyCalendarJump;
@@ -4567,7 +4834,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, photoSourceDialog, dayScheduleDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
