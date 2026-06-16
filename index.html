@@ -636,6 +636,7 @@
       flex-direction: column;
       gap: 5px;
       background: #fff;
+      position: relative;
     }
     .week-events {
       position: absolute;
@@ -4294,7 +4295,7 @@
     }
     window.captureReport = id => {
       state.currentReportOrgId = id;
-      photoSourceDialog.showModal();
+      openReportInput(reportGalleryInput);
     };
     window.openReports = async id => {
       state.currentReportOrgId = id;
