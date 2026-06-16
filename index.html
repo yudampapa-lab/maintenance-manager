@@ -30,6 +30,78 @@
       color: var(--ink);
       min-height: 100vh;
     }
+    body.auth-locked {
+      overflow: hidden;
+    }
+    body.auth-locked .app-shell,
+    body.auth-locked .bottom-nav,
+    body.auth-locked .ai-command-fab,
+    body.auth-locked dialog {
+      display: none !important;
+    }
+    body:not(.auth-locked) .login-screen {
+      display: none;
+    }
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(0, 122, 255, .12), transparent 30%),
+        radial-gradient(circle at 82% 10%, rgba(52, 199, 89, .12), transparent 28%),
+        linear-gradient(180deg, #f7fbff 0%, #f5f5f7 100%);
+    }
+    .login-card {
+      width: min(420px, 100%);
+      border: 1px solid rgba(60, 60, 67, .12);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .78);
+      box-shadow: 0 24px 70px rgba(28, 35, 45, .14);
+      backdrop-filter: blur(24px) saturate(170%);
+      -webkit-backdrop-filter: blur(24px) saturate(170%);
+      padding: 28px;
+      text-align: center;
+    }
+    .login-logo {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 16px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, #007aff, #34c759 52%, #af52de);
+      box-shadow: 0 14px 30px rgba(0, 122, 255, .24);
+    }
+    .login-logo svg {
+      width: 28px;
+      height: 28px;
+    }
+    .login-card h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.15;
+    }
+    .login-card p {
+      margin: 9px 0 20px;
+      color: rgba(60, 60, 67, .7);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+    .login-google-slot {
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      margin: 6px 0 12px;
+    }
+    .login-message {
+      min-height: 18px;
+      color: var(--rose);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-line;
+    }
     button, input, select, textarea { font: inherit; }
     button {
       border: 0;
@@ -1838,7 +1910,18 @@
     }
   </style>
 </head>
-<body>
+<body class="auth-locked">
+  <section class="login-screen" aria-label="ReportMate 로그인">
+    <div class="login-card">
+      <div class="login-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M15 3v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+      </div>
+      <h1 class="brand-title">ReportMate</h1>
+      <p>허용된 Google 계정으로만 사용할 수 있습니다.<br>이 기기에서는 로그인 상태가 계속 유지됩니다.</p>
+      <div id="loginGoogleButton" class="login-google-slot"></div>
+      <div id="loginMessage" class="login-message"></div>
+    </div>
+  </section>
   <div class="app-shell">
     <header>
       <div class="topbar">
@@ -1963,11 +2046,19 @@
               <div class="field"><label>Google OAuth Client ID</label><input id="googleClientId" placeholder="000000000000-xxxx.apps.googleusercontent.com"></div>
               <div class="field"><label>구글캘린더 ID</label><input id="googleCalendarId" placeholder="primary 또는 example@gmail.com"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
+              <div class="field"><label>Firestore Project ID</label><input id="firestoreProjectId" placeholder="firebase-project-id"></div>
+              <div class="field"><label>Firestore Web API Key</label><input id="firestoreApiKey" placeholder="AIza..."></div>
+              <div class="field"><label>클라우드 작업공간 ID</label><input id="cloudWorkspaceId" placeholder="reportmate-main"></div>
+              <div class="field"><label>클라우드 자동 동기화</label><select id="cloudAutoSync"><option value="on">사용</option><option value="off">사용 안함</option></select></div>
             </div>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
+              <button class="secondary" id="cloudUploadBtn" type="button">클라우드 업로드</button>
+              <button class="secondary" id="cloudDownloadBtn" type="button">클라우드 불러오기</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
+              <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
+            <p class="panel-sub" id="cloudSyncStatus" style="margin-top:10px">클라우드 설정을 입력하면 모바일과 PC가 같은 데이터를 사용할 수 있습니다.</p>
           </div>
         </section>
       </section>
@@ -2262,6 +2353,8 @@
 
   <script>
     const defaultGoogleClientId = "799426628695-uih32dh5mqqpst3o3tmblaq3n77pvd2r.apps.googleusercontent.com";
+    const allowedLoginEmail = "yudampapa@gmail.com";
+    const loginSessionKey = "reportmate_login_session";
     const googleAutoSyncVisibleIntervalMs = 8 * 1000;
     const googleAutoSyncHiddenIntervalMs = 60 * 1000;
     const googleSyncLookbackMs = 2 * 60 * 1000;
@@ -2288,7 +2381,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", firestoreProjectId: "", firestoreApiKey: "", cloudWorkspaceId: "reportmate-main", cloudAutoSync: "off", cloudLastSync: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2303,11 +2396,17 @@
       googleAutoSyncIntervalMs: 0,
       googleSyncInProgress: false,
       googleSyncPending: false,
+      cloudSaveTimer: null,
+      cloudPullTimer: null,
+      cloudSyncInProgress: false,
+      cloudApplying: false,
       scheduleTimeGuardUntil: 0
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
+    state.settings.cloudWorkspaceId = state.settings.cloudWorkspaceId || "reportmate-main";
+    state.settings.cloudAutoSync = state.settings.cloudAutoSync || "off";
     normalizeOrgs();
     normalizeSchedules();
     normalizeVehicle();
@@ -2315,6 +2414,110 @@
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+    function loginClientId() {
+      return state?.settings?.googleClientId || defaultGoogleClientId;
+    }
+    function setLoginMessage(message = "") {
+      if (window.loginMessage) loginMessage.textContent = message;
+    }
+    function parseJwtPayload(token) {
+      const payload = token.split(".")[1] || "";
+      const normalized = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
+      const json = decodeURIComponent(atob(normalized).split("").map(ch => "%" + ch.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+      return JSON.parse(json);
+    }
+    function readLoginSession() {
+      try {
+        const session = JSON.parse(localStorage.getItem(loginSessionKey) || "null");
+        return session?.email === allowedLoginEmail ? session : null;
+      } catch {
+        return null;
+      }
+    }
+    function unlockApp(session) {
+      document.body.classList.remove("auth-locked");
+      setLoginMessage("");
+      state.loginSession = session;
+      renderSettings();
+      startCloudAutoSync({ immediate: true });
+    }
+    function lockApp(message = "") {
+      document.body.classList.add("auth-locked");
+      setLoginMessage(message);
+      setTimeout(initLoginGate, 80);
+    }
+    function storeLoginSession(profile) {
+      const session = {
+        email: profile.email,
+        name: profile.name || "",
+        picture: profile.picture || "",
+        loginAt: new Date().toISOString()
+      };
+      localStorage.setItem(loginSessionKey, JSON.stringify(session));
+      unlockApp(session);
+    }
+    function handleLoginCredential(response) {
+      try {
+        const profile = parseJwtPayload(response.credential || "");
+        if (profile.aud !== loginClientId()) {
+          setLoginMessage("로그인 Client ID가 현재 앱 설정과 맞지 않습니다.");
+          return;
+        }
+        if (String(profile.email || "").toLowerCase() !== allowedLoginEmail) {
+          localStorage.removeItem(loginSessionKey);
+          setLoginMessage(`${profile.email || "이 계정"}은 허용된 계정이 아닙니다.`);
+          return;
+        }
+        storeLoginSession(profile);
+      } catch (error) {
+        console.warn(error);
+        setLoginMessage("Google 로그인 정보를 확인하지 못했습니다. 다시 시도해주세요.");
+      }
+    }
+    function waitForGoogleIdentity(tries = 0) {
+      if (window.google?.accounts?.id) return Promise.resolve(true);
+      if (tries > 60) return Promise.resolve(false);
+      return new Promise(resolve => setTimeout(() => resolve(waitForGoogleIdentity(tries + 1)), 100));
+    }
+    async function initLoginGate() {
+      if (!document.body.classList.contains("auth-locked")) return;
+      if (location.protocol === "file:") {
+        setLoginMessage("Google 로그인은 GitHub Pages HTTPS 주소에서 테스트해주세요.");
+        return;
+      }
+      const ready = await waitForGoogleIdentity();
+      if (!ready) {
+        setLoginMessage("Google 로그인 스크립트를 불러오지 못했습니다. 네트워크를 확인해주세요.");
+        return;
+      }
+      const target = document.getElementById("loginGoogleButton");
+      if (!target) return;
+      target.innerHTML = "";
+      google.accounts.id.initialize({
+        client_id: loginClientId(),
+        callback: handleLoginCredential,
+        auto_select: false,
+        cancel_on_tap_outside: false
+      });
+      google.accounts.id.renderButton(target, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        shape: "pill",
+        text: "signin_with",
+        width: Math.min(340, target.clientWidth || 340)
+      });
+    }
+    function restoreLoginSession() {
+      const session = readLoginSession();
+      if (session) unlockApp(session);
+      else lockApp();
+    }
+    function logoutReportMate() {
+      localStorage.removeItem(loginSessionKey);
+      try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
+      lockApp("로그아웃되었습니다.");
     }
     function uid() {
       if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -2365,7 +2568,7 @@
         records: Array.isArray(state.vehicle?.records) ? state.vehicle.records : []
       };
     }
-    function save() {
+    function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
@@ -2374,6 +2577,7 @@
       localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
       localStorage.setItem("maint_vehicle", JSON.stringify(state.vehicle));
       localStorage.setItem("maint_settings", JSON.stringify(state.settings));
+      if (!options.skipCloud && !state.cloudApplying) scheduleCloudSave("local-save");
     }
     function localDateISO(date) {
       const pad = value => String(value).padStart(2, "0");
@@ -4179,6 +4383,182 @@
       googleClientId.value = state.settings.googleClientId || defaultGoogleClientId;
       googleCalendarId.value = state.settings.googleCalendarId || "primary";
       tmapKey.value = state.settings.tmapKey || "";
+      firestoreProjectId.value = state.settings.firestoreProjectId || "";
+      firestoreApiKey.value = state.settings.firestoreApiKey || "";
+      cloudWorkspaceId.value = state.settings.cloudWorkspaceId || "reportmate-main";
+      cloudAutoSync.value = state.settings.cloudAutoSync || "off";
+      updateCloudStatus();
+    }
+    const cloudDataKeys = ["orgs", "schedules", "memos", "dayNotes", "vehicle"];
+    function cloudConfigured() {
+      return Boolean(state.settings.firestoreProjectId && state.settings.firestoreApiKey && state.settings.cloudWorkspaceId);
+    }
+    function canUseCloudSync() {
+      return cloudConfigured() && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
+    }
+    function cloudDataValue(key) {
+      if (key === "orgs") return state.orgs;
+      if (key === "schedules") return state.schedules;
+      if (key === "memos") return state.memos;
+      if (key === "dayNotes") return state.dayNotes || {};
+      if (key === "vehicle") return state.vehicle || { records: [] };
+      return null;
+    }
+    function applyCloudValue(key, value) {
+      if (key === "orgs" && Array.isArray(value)) state.orgs = value;
+      if (key === "schedules" && Array.isArray(value)) state.schedules = value;
+      if (key === "memos" && Array.isArray(value)) state.memos = value;
+      if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
+      if (key === "vehicle" && value && typeof value === "object") state.vehicle = value;
+    }
+    function cloudDocUrl(key) {
+      const projectId = encodeURIComponent(state.settings.firestoreProjectId.trim());
+      const workspaceId = encodeURIComponent(state.settings.cloudWorkspaceId.trim());
+      const docId = encodeURIComponent(key);
+      const apiKey = encodeURIComponent(state.settings.firestoreApiKey.trim());
+      return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/reportmateWorkspaces/${workspaceId}/data/${docId}?key=${apiKey}`;
+    }
+    function firestoreBody(value) {
+      return {
+        fields: {
+          payload: { stringValue: JSON.stringify(value) },
+          updatedAt: { timestampValue: new Date().toISOString() },
+          app: { stringValue: "ReportMate" }
+        }
+      };
+    }
+    function parseFirestorePayload(doc) {
+      const raw = doc?.fields?.payload?.stringValue;
+      if (!raw) return undefined;
+      return JSON.parse(raw);
+    }
+    function cloudErrorMessage(error) {
+      const message = String(error?.message || error || "");
+      if (location.protocol === "file:") return "클라우드 동기화는 GitHub Pages 같은 HTTPS 주소에서 사용해주세요. 현재 file:// 주소에서는 브라우저 보안 때문에 막힐 수 있습니다.";
+      if (message.includes("403")) return "Firestore 권한이 거부되었습니다. Firebase 보안 규칙에서 해당 작업공간 읽기/쓰기를 허용했는지 확인해주세요.";
+      if (message.includes("404")) return "Firestore 프로젝트 또는 문서를 찾지 못했습니다. Project ID와 작업공간 ID를 확인해주세요.";
+      if (message.includes("400")) return "Firestore 요청이 거절되었습니다. Web API Key와 Project ID를 확인해주세요.";
+      return "클라우드 동기화 중 오류가 발생했습니다. Firestore 설정값과 보안 규칙을 확인해주세요.\n\n세부 오류: " + message;
+    }
+    function updateCloudStatus(text = "") {
+      if (!window.cloudSyncStatus) return;
+      if (text) {
+        cloudSyncStatus.textContent = text;
+        return;
+      }
+      if (!cloudConfigured()) {
+        cloudSyncStatus.textContent = "Firestore 설정을 입력하면 기관, 일정, 차량관리, 기술메모가 기기 간 동기화됩니다.";
+      } else if (location.protocol === "file:") {
+        cloudSyncStatus.textContent = "설정 저장됨. 클라우드 동기화는 GitHub Pages HTTPS 주소에서 사용해주세요.";
+      } else {
+        const last = state.settings.cloudLastSync ? new Date(state.settings.cloudLastSync).toLocaleString("ko-KR") : "아직 없음";
+        cloudSyncStatus.textContent = `클라우드 ${state.settings.cloudAutoSync === "on" ? "자동 동기화 사용" : "수동 동기화"} · 마지막 동기화 ${last}`;
+      }
+    }
+    async function fetchCloudDoc(key) {
+      const response = await fetch(cloudDocUrl(key), { method: "GET" });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+      return response.json();
+    }
+    async function writeCloudDoc(key, value) {
+      const response = await fetch(cloudDocUrl(key), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(firestoreBody(value))
+      });
+      if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
+      return response.json();
+    }
+    async function uploadCloudData({ silent = false } = {}) {
+      if (!canUseCloudSync()) {
+        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("file protocol")));
+        return false;
+      }
+      if (state.cloudSyncInProgress) return false;
+      state.cloudSyncInProgress = true;
+      try {
+        if (!silent) toast("클라우드에 업로드 중입니다.");
+        for (const key of cloudDataKeys) await writeCloudDoc(key, cloudDataValue(key));
+        state.settings.cloudLastSync = new Date().toISOString();
+        save({ skipCloud: true });
+        updateCloudStatus();
+        if (!silent) toast("클라우드 업로드 완료");
+        return true;
+      } catch (error) {
+        console.warn(error);
+        if (!silent) showInfo("클라우드 업로드 실패", cloudErrorMessage(error));
+        return false;
+      } finally {
+        state.cloudSyncInProgress = false;
+      }
+    }
+    async function downloadCloudData({ silent = false, uploadIfEmpty = false } = {}) {
+      if (!canUseCloudSync()) {
+        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("file protocol")));
+        return false;
+      }
+      if (state.cloudSyncInProgress) return false;
+      state.cloudSyncInProgress = true;
+      try {
+        if (!silent) toast("클라우드에서 불러오는 중입니다.");
+        let found = 0;
+        const loaded = {};
+        for (const key of cloudDataKeys) {
+          const doc = await fetchCloudDoc(key);
+          if (!doc) continue;
+          const payload = parseFirestorePayload(doc);
+          if (payload !== undefined) {
+            loaded[key] = payload;
+            found++;
+          }
+        }
+        if (!found) {
+          state.cloudSyncInProgress = false;
+          if (uploadIfEmpty) return uploadCloudData({ silent });
+          if (!silent) showInfo("클라우드 데이터 없음", "아직 클라우드에 저장된 데이터가 없습니다. 먼저 클라우드 업로드를 눌러 현재 데이터를 저장해주세요.");
+          return false;
+        }
+        state.cloudApplying = true;
+        Object.entries(loaded).forEach(([key, value]) => applyCloudValue(key, value));
+        normalizeOrgs();
+        normalizeSchedules();
+        normalizeVehicle();
+        state.settings.cloudLastSync = new Date().toISOString();
+        save({ skipCloud: true });
+        state.cloudApplying = false;
+        render();
+        updateCloudStatus();
+        if (!silent) toast("클라우드 데이터 불러오기 완료");
+        return true;
+      } catch (error) {
+        console.warn(error);
+        state.cloudApplying = false;
+        if (!silent) showInfo("클라우드 불러오기 실패", cloudErrorMessage(error));
+        return false;
+      } finally {
+        state.cloudSyncInProgress = false;
+      }
+    }
+    function scheduleCloudSave(reason = "change", delay = 900) {
+      if (state.settings.cloudAutoSync !== "on" || !canUseCloudSync()) return;
+      if (state.cloudSaveTimer) clearTimeout(state.cloudSaveTimer);
+      state.cloudSaveTimer = setTimeout(() => uploadCloudData({ silent: true }), delay);
+    }
+    function startCloudAutoSync({ immediate = false } = {}) {
+      if (state.cloudPullTimer) {
+        clearInterval(state.cloudPullTimer);
+        state.cloudPullTimer = null;
+      }
+      if (state.settings.cloudAutoSync !== "on" || !canUseCloudSync()) {
+        updateCloudStatus();
+        return;
+      }
+      state.cloudPullTimer = setInterval(() => {
+        if (!document.hidden) downloadCloudData({ silent: true });
+      }, 25000);
+      if (immediate) downloadCloudData({ silent: true, uploadIfEmpty: true });
+      updateCloudStatus();
     }
     function render() {
       todayDateTag.textContent = formatDate(todayISO());
@@ -5075,9 +5455,22 @@
     saveSettingsBtn.onclick = async () => {
       const nextGoogleCalendarId = googleCalendarId.value.trim() || "primary";
       const calendarChanged = nextGoogleCalendarId !== (state.settings.googleCalendarId || "primary");
-      state.settings = { ...state.settings, kakaoWebhook: kakaoWebhook.value.trim(), billingNotice: billingNotice.value, googleClientId: googleClientId.value.trim() || defaultGoogleClientId, googleCalendarId: nextGoogleCalendarId, tmapKey: tmapKey.value.trim() };
+      const cloudAutoChanged = (cloudAutoSync.value || "off") !== (state.settings.cloudAutoSync || "off");
+      state.settings = {
+        ...state.settings,
+        kakaoWebhook: kakaoWebhook.value.trim(),
+        billingNotice: billingNotice.value,
+        googleClientId: googleClientId.value.trim() || defaultGoogleClientId,
+        googleCalendarId: nextGoogleCalendarId,
+        tmapKey: tmapKey.value.trim(),
+        firestoreProjectId: firestoreProjectId.value.trim(),
+        firestoreApiKey: firestoreApiKey.value.trim(),
+        cloudWorkspaceId: cloudWorkspaceId.value.trim() || "reportmate-main",
+        cloudAutoSync: cloudAutoSync.value || "off"
+      };
       if (calendarChanged) state.settings.googleLastSync = "";
       save();
+      if (cloudAutoChanged || state.settings.cloudAutoSync === "on") startCloudAutoSync({ immediate: state.settings.cloudAutoSync === "on" });
       saveSettingsBtn.disabled = true;
       try {
         const connected = await connectGoogleFromSettingsSave();
@@ -5156,15 +5549,19 @@
     });
     document.getElementById("syncGoogleBtn")?.addEventListener("click", manualGoogleSync);
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
+    cloudUploadBtn.onclick = () => uploadCloudData();
+    cloudDownloadBtn.onclick = () => downloadCloudData();
+    logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
-      if (!canAutoSyncGoogle()) return;
-      startGoogleAutoSync({ immediate: !document.hidden });
+      if (canAutoSyncGoogle()) startGoogleAutoSync({ immediate: !document.hidden });
+      if (!document.hidden) startCloudAutoSync({ immediate: true });
     });
     window.addEventListener("focus", () => {
       if (canAutoSyncGoogle()) {
         startGoogleAutoSync({ immediate: true });
         scheduleGoogleAutoSync("focus", 250);
       }
+      startCloudAutoSync({ immediate: true });
     });
     testKakaoBtn.onclick = () => {
       showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
@@ -5194,6 +5591,7 @@
     } else {
       render();
     }
+    restoreLoginSession();
   </script>
 </body>
 </html>
