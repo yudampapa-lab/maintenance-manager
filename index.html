@@ -2539,12 +2539,10 @@
     function firebaseGoogleProvider() {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ login_hint: allowedLoginEmail });
-      provider.addScope("https://www.googleapis.com/auth/calendar.events");
       return provider;
     }
     function prefersRedirectAuth() {
-      const ua = navigator.userAgent || "";
-      return /Android|iPhone|iPad|iPod|SamsungBrowser|Mobile/i.test(ua);
+      return false;
     }
     function handleFirebaseUser(user) {
       if (String(user?.email || "").toLowerCase() !== allowedLoginEmail) return false;
@@ -2587,11 +2585,7 @@
         await services.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
         const provider = firebaseGoogleProvider();
         if (options.pendingAction) localStorage.setItem(firebasePendingActionKey, options.pendingAction);
-        if (prefersRedirectAuth()) {
-          setLoginMessage("Google 로그인 화면으로 이동합니다. 완료 후 자동으로 ReportMate로 돌아옵니다.");
-          await services.auth.signInWithRedirect(provider);
-          return { redirecting: true };
-        }
+        setLoginMessage("Google 로그인 창을 여는 중입니다.");
         const result = await services.auth.signInWithPopup(provider);
         const user = result.user;
         if (!handleFirebaseUser(user)) {
@@ -2606,15 +2600,8 @@
         console.warn(error);
         const code = String(error?.code || "");
         if (code.includes("popup") || code.includes("cancelled") || code.includes("unsupported")) {
-          try {
-            const provider = firebaseGoogleProvider();
-            if (options.pendingAction) localStorage.setItem(firebasePendingActionKey, options.pendingAction);
-            setLoginMessage("팝업 로그인이 불안정해서 Google 로그인 화면으로 이동합니다.");
-            await services.auth.signInWithRedirect(provider);
-            return { redirecting: true };
-          } catch (redirectError) {
-            console.warn(redirectError);
-          }
+          setLoginMessage("Google 로그인 창이 차단되었거나 닫혔습니다. 브라우저 팝업을 허용한 뒤 다시 눌러주세요.");
+          return;
         }
         localStorage.removeItem(firebasePendingActionKey);
         setLoginMessage("Firebase Google 로그인을 완료하지 못했습니다.\n" + (error.message || ""));
@@ -2628,22 +2615,22 @@
     async function initLoginGate() {
       if (!document.body.classList.contains("auth-locked")) return;
       if (location.protocol === "file:") {
-        setLoginMessage("?? ??????? ???? ?????. ?? ??? GitHub Pages?? ??????.");
+        setLoginMessage("로컬 미리보기에서는 로그인을 건너뜁니다. 서버 연동은 GitHub Pages에서 확인해주세요.");
         return;
       }
       const target = document.getElementById("loginGoogleButton");
       if (!target) return;
       if (!firebaseConfigured()) {
         target.innerHTML = "";
-        setLoginMessage("Firebase ?? ??? ???? ?????. outputs/firebase-config.js ??? ??? ??????.");
+        setLoginMessage("Firebase 설정 파일을 불러오지 못했습니다. outputs/firebase-config.js 업로드 상태를 확인해주세요.");
         return;
       }
       if (!window.firebase) {
         target.innerHTML = "";
-        setLoginMessage("Firebase ??? ????? ???? ?????. ????? ??? ? ????????.");
+        setLoginMessage("Firebase 로그인 스크립트를 불러오지 못했습니다. 네트워크를 확인한 뒤 새로고침해주세요.");
         return;
       }
-      target.innerHTML = '<button type="button" class="secondary" id="firebaseLoginBtn">Google? ???</button>';
+      target.innerHTML = '<button type="button" class="secondary" id="firebaseLoginBtn">Google로 로그인</button>';
       document.getElementById("firebaseLoginBtn").onclick = () => signInWithFirebaseGoogle();
       const services = initFirebaseServices();
       services?.auth?.onAuthStateChanged(user => {
@@ -2655,7 +2642,7 @@
     }
     function restoreLoginSession() {
       if (location.protocol === "file:") {
-        unlockApp({ email: allowedLoginEmail, name: "?? ????", localPreview: true, loginAt: new Date().toISOString() });
+        unlockApp({ email: allowedLoginEmail, name: "로컬 미리보기", localPreview: true, loginAt: new Date().toISOString() });
         return;
       }
       localStorage.removeItem(loginSessionKey);
@@ -2671,12 +2658,12 @@
         else {
           services.auth.signOut();
           localStorage.removeItem(firebasePendingActionKey);
-          lockApp((user.email || "? ??") + "? ??? ??? ????.");
+          lockApp((user.email || "이 계정") + "은 허용된 계정이 아닙니다.");
         }
       }).catch(error => {
         console.warn(error);
         localStorage.removeItem(firebasePendingActionKey);
-        lockApp("Firebase Google ??? ?? ?? ? ??? ??????.\n" + (error.message || ""));
+        lockApp("Firebase Google 로그인 복귀 처리 중 오류가 발생했습니다.\n" + (error.message || ""));
       });
       services.auth.onAuthStateChanged(user => {
         if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
