@@ -2053,6 +2053,8 @@
             </div>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
+              <button class="secondary" id="googleReconnectBtn" type="button">구글 권한 연결</button>
+              <button class="secondary" id="googleReloadBtn" type="button">구글 일정 불러오기</button>
               <button class="secondary" id="cloudUploadBtn" type="button">클라우드 업로드</button>
               <button class="secondary" id="cloudDownloadBtn" type="button">클라우드 불러오기</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
@@ -2510,6 +2512,10 @@
       });
     }
     function restoreLoginSession() {
+      if (location.protocol === "file:") {
+        unlockApp({ email: allowedLoginEmail, name: "로컬 미리보기", localPreview: true, loginAt: new Date().toISOString() });
+        return;
+      }
       const session = readLoginSession();
       if (session) unlockApp(session);
       else lockApp();
@@ -5141,9 +5147,17 @@
       const d = new Date(value);
       return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     }
+    function inferOrgFromGoogleEvent(event) {
+      const text = normalizeOrgKeyword([event.summary, event.location, event.description].filter(Boolean).join(" "));
+      if (!text) return null;
+      return state.orgs
+        .slice()
+        .sort((a, b) => b.name.length - a.name.length)
+        .find(org => text.includes(normalizeOrgKeyword(org.name)));
+    }
     function scheduleFromGoogleEvent(event) {
       const privateProps = event.extendedProperties?.private || {};
-      const org = privateProps.maintenanceManagerOrgId ? state.orgs.find(item => item.id === privateProps.maintenanceManagerOrgId) : null;
+      const org = privateProps.maintenanceManagerOrgId ? state.orgs.find(item => item.id === privateProps.maintenanceManagerOrgId) : inferOrgFromGoogleEvent(event);
       const privateType = ["visit", "remote", "team", "personal"].includes(privateProps.maintenanceManagerType) ? privateProps.maintenanceManagerType : "";
       const startRaw = event.start?.dateTime || event.start?.date;
       const endRaw = event.end?.dateTime || event.end?.date || startRaw;
@@ -5299,7 +5313,7 @@
         return null;
       }
     }
-    async function syncGoogleCalendar({ silent = false } = {}) {
+    async function syncGoogleCalendar({ silent = false, full = false } = {}) {
       if (state.googleSyncInProgress) {
         state.googleSyncPending = true;
         if (!silent) toast("동기화가 진행 중입니다. 잠시 뒤 다시 반영됩니다.");
@@ -5311,7 +5325,7 @@
         startGoogleAutoSync();
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
-        const googleEvents = await listGoogleCalendarEvents({ incremental: silent && Boolean(state.settings.googleLastSync) });
+        const googleEvents = await listGoogleCalendarEvents({ incremental: !full && silent && Boolean(state.settings.googleLastSync) });
         const pulled = mergeGoogleEventsIntoLocal(googleEvents);
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
@@ -5541,14 +5555,26 @@
         if (location.protocol !== "file:") showInfo("구글 연결 실패", "Google OAuth Client ID, 승인된 JavaScript 원본, 캘린더 권한 설정을 확인해주세요.");
       }
     }
+    async function reloadGoogleCalendarEvents() {
+      try {
+        await requestGoogleAccessToken(state.googleAccessToken ? "" : "consent");
+        const result = await syncGoogleCalendar({ silent: false, full: true });
+        if (result) startGoogleAutoSync({ immediate: true });
+      } catch (error) {
+        console.warn(error);
+        showInfo("구글 일정 불러오기 실패", googleErrorMessage(error));
+      }
+    }
     document.getElementById("googleHelpBtn")?.addEventListener("click", () => connectGoogleCalendar());
     document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
-    const manualGoogleSync = () => syncGoogleCalendar().catch(error => {
+    const manualGoogleSync = () => syncGoogleCalendar({ full: true }).catch(error => {
       console.warn(error);
-      showInfo("구글 동기화 실패", "권한이 만료되었거나 캘린더 ID가 맞지 않습니다. 구글 연결 후 다시 동기화해주세요.");
+      showInfo("구글 동기화 실패", googleErrorMessage(error));
     });
     document.getElementById("syncGoogleBtn")?.addEventListener("click", manualGoogleSync);
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
+    googleReconnectBtn.onclick = connectGoogleCalendar;
+    googleReloadBtn.onclick = reloadGoogleCalendarEvents;
     cloudUploadBtn.onclick = () => uploadCloudData();
     cloudDownloadBtn.onclick = () => downloadCloudData();
     logoutBtn.onclick = logoutReportMate;
