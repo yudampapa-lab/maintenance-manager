@@ -1531,7 +1531,7 @@
       box-shadow: var(--shadow-soft);
     }
     .calendar-week {
-      min-height: calc(82px + var(--event-rows) * 31px);
+      min-height: calc(76px + var(--event-rows) * 25px);
     }
     .day-name {
       background: rgba(248, 248, 250, .86);
@@ -1545,8 +1545,8 @@
     .calendar-week .day-cell { min-height: inherit; }
     .week-events {
       top: 34px;
-      grid-auto-rows: minmax(25px, auto);
-      gap: 6px 0;
+      grid-auto-rows: minmax(21px, auto);
+      gap: 4px 0;
     }
     .day-cell.muted { background: rgba(248, 248, 250, .62); }
     .day-cell.sunday .day-number,
@@ -1616,10 +1616,10 @@
       border-radius: 7px;
       background: rgba(0, 122, 255, .13);
       color: #0057b8;
-      padding: 6px 7px;
-      font-size: 12px;
-      line-height: 1.32;
-      -webkit-line-clamp: 3;
+      padding: 4px 6px;
+      font-size: 10.5px;
+      line-height: 1.18;
+      -webkit-line-clamp: 2;
       box-shadow: inset 0 0 0 1px rgba(0, 122, 255, .08);
       transition: transform .16s cubic-bezier(.2, .8, .2, 1), box-shadow .16s ease, background .16s ease;
     }
@@ -1759,7 +1759,7 @@
       .calendar-search input {
         flex: 1;
       }
-      .calendar-week { min-height: calc(74px + var(--event-rows) * 29px); }
+      .calendar-week { min-height: calc(68px + var(--event-rows) * 23px); }
       .calendar-week .day-cell {
         min-height: inherit;
         padding: 5px;
@@ -1775,16 +1775,16 @@
       }
       .week-events {
         top: 31px;
-        grid-auto-rows: minmax(23px, auto);
-        gap: 5px 0;
+        grid-auto-rows: minmax(19px, auto);
+        gap: 3px 0;
       }
       .event-pill {
-        font-size: 9.5px;
-        padding: 4px 5px;
-        line-height: 1.2;
+        font-size: 8.8px;
+        padding: 3px 4px;
+        line-height: 1.12;
       }
       .event-pill.calendar-bar {
-        min-height: 22px;
+        min-height: 18px;
         margin: 0 2px;
         justify-content: flex-start;
         overflow: hidden;
@@ -1819,11 +1819,11 @@
         padding: 0 2px;
       }
       .event-pill {
-        font-size: 8.8px;
-        padding: 3px 4px;
+        font-size: 8.2px;
+        padding: 2px 3px;
       }
       .event-pill.calendar-bar {
-        min-height: 20px;
+        min-height: 17px;
         margin: 0 1px;
       }
     }
@@ -4694,7 +4694,20 @@
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`${response.status} ${text || "Google Calendar API error"}`);
+        let detail = text;
+        try {
+          const json = JSON.parse(text);
+          const firstError = json.error?.errors?.[0];
+          detail = [
+            json.error?.message,
+            firstError?.reason,
+            firstError?.domain
+          ].filter(Boolean).join(" / ");
+        } catch {}
+        const error = new Error(`${response.status} ${detail || "Google Calendar API error"}`);
+        error.status = response.status;
+        error.detail = detail;
+        throw error;
       }
       return response.status === 204 ? null : response.json();
     }
@@ -5028,14 +5041,19 @@
     };
     function googleErrorMessage(error) {
       const message = String(error?.message || error || "");
+      const detail = String(error?.detail || "");
+      const full = `${message} ${detail}`;
+      const suffix = message && !message.includes("prepare_failed") ? `\n\n세부 오류: ${message}` : "";
       if (location.protocol === "file:") return "현재 파일로 직접 열려 있어서 Google OAuth가 동작하지 않습니다. GitHub Pages 주소에서 열고 설정 저장을 눌러주세요.";
-      if (message.includes("popup") || message.includes("popup_failed_to_open")) return "브라우저가 구글 인증 팝업을 막았습니다. 팝업 허용 후 다시 설정 저장을 눌러주세요.";
-      if (message.includes("access_denied")) return "구글 권한 동의가 취소되었습니다. 다시 설정 저장을 누르고 캘린더 권한을 허용해주세요.";
-      if (message.includes("invalid_client") || message.includes("401")) return "Google OAuth Client ID가 맞지 않거나 승인된 JavaScript 원본 설정이 잘못되었습니다.";
-      if (message.includes("403")) return "Google Calendar API 권한이 없거나 API가 비활성화되어 있습니다. Google Cloud Console에서 Calendar API와 OAuth 동의 화면을 확인해주세요.";
-      if (message.includes("404")) return "구글캘린더 ID를 찾지 못했습니다. 보통은 primary를 쓰고, 별도 캘린더면 캘린더 설정의 캘린더 ID를 입력해야 합니다.";
-      if (message.includes("400")) return "구글 요청 형식이 거절되었습니다. 캘린더 ID와 OAuth 설정을 확인한 뒤 다시 시도해주세요.";
-      return "구글 연결 또는 동기화 중 오류가 발생했습니다. OAuth Client ID, 승인된 JavaScript 원본, 캘린더 ID를 확인해주세요.";
+      if (full.includes("popup") || full.includes("popup_failed_to_open")) return "브라우저가 구글 인증 팝업을 막았습니다. 팝업 허용 후 다시 설정 저장을 눌러주세요." + suffix;
+      if (full.includes("access_denied")) return "구글 권한 동의가 취소되었습니다. 다시 설정 저장을 누르고 캘린더 권한을 허용해주세요." + suffix;
+      if (full.includes("origin") || full.includes("redirect_uri_mismatch")) return "승인된 JavaScript 원본 설정이 맞지 않습니다. Google Cloud Console의 OAuth 클라이언트에 https://yudampapa-lab.github.io 를 추가해주세요." + suffix;
+      if (full.includes("invalid_client") || full.includes("401")) return "Google OAuth Client ID가 맞지 않거나 현재 주소가 OAuth 클라이언트에 허용되어 있지 않습니다." + suffix;
+      if (full.includes("accessNotConfigured") || full.includes("API has not been used") || full.includes("disabled")) return "Google Calendar API가 아직 활성화되지 않았습니다. Google Cloud Console에서 Calendar API를 사용 설정해주세요." + suffix;
+      if (full.includes("insufficientPermissions") || full.includes("forbidden") || full.includes("403")) return "캘린더 읽기/쓰기 권한이 부족합니다. OAuth 동의 화면에서 Calendar 권한을 허용했는지, 해당 캘린더에 쓰기 권한이 있는지 확인해주세요." + suffix;
+      if (full.includes("notFound") || full.includes("404")) return "구글캘린더 ID를 찾지 못했습니다. 보통은 primary를 쓰고, 별도 캘린더면 캘린더 설정의 캘린더 ID를 입력해야 합니다." + suffix;
+      if (full.includes("400")) return "구글 요청 형식이 거절되었습니다. 캘린더 ID와 OAuth 설정을 확인한 뒤 다시 시도해주세요." + suffix;
+      return "구글 연결 또는 동기화 중 오류가 발생했습니다. 아래 세부 오류를 확인해주세요." + suffix;
     }
     async function connectGoogleFromSettingsSave() {
       if (location.protocol === "file:" || !window.google?.accounts?.oauth2) {
@@ -5099,6 +5117,7 @@
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: state.settings.googleClientId,
           scope: "https://www.googleapis.com/auth/calendar.events",
+          include_granted_scopes: true,
           callback: response => {
             if (response.error) {
               reject(new Error(`${response.error}: ${response.error_description || ""}`));
