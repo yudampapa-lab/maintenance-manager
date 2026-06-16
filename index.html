@@ -2043,24 +2043,16 @@
             <div class="settings-grid">
               <div class="field"><label>카카오워크 Incoming Webhook URL</label><input id="kakaoWebhook" placeholder="https://..."></div>
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
-              <div class="field"><label>Google OAuth Client ID</label><input id="googleClientId" placeholder="000000000000-xxxx.apps.googleusercontent.com"></div>
-              <div class="field"><label>구글캘린더 ID</label><input id="googleCalendarId" placeholder="primary 또는 example@gmail.com"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
-              <div class="field"><label>Firestore Project ID</label><input id="firestoreProjectId" placeholder="firebase-project-id"></div>
-              <div class="field"><label>Firestore Web API Key</label><input id="firestoreApiKey" placeholder="AIza..."></div>
-              <div class="field"><label>클라우드 작업공간 ID</label><input id="cloudWorkspaceId" placeholder="reportmate-main"></div>
-              <div class="field"><label>클라우드 자동 동기화</label><select id="cloudAutoSync"><option value="on">사용</option><option value="off">사용 안함</option></select></div>
             </div>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
-              <button class="secondary" id="googleReconnectBtn" type="button">구글 권한 연결</button>
-              <button class="secondary" id="googleReloadBtn" type="button">구글 일정 불러오기</button>
-              <button class="secondary" id="cloudUploadBtn" type="button">클라우드 업로드</button>
-              <button class="secondary" id="cloudDownloadBtn" type="button">클라우드 불러오기</button>
+              <button class="secondary" id="serverGoogleConnectBtn" type="button">서버 구글 연동</button>
+              <button class="secondary" id="serverGoogleSyncBtn" type="button">서버 일정 동기화</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
               <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
-            <p class="panel-sub" id="cloudSyncStatus" style="margin-top:10px">클라우드 설정을 입력하면 모바일과 PC가 같은 데이터를 사용할 수 있습니다.</p>
+            <p class="panel-sub" id="cloudSyncStatus" style="margin-top:10px">Firebase 설정이 연결되면 모바일과 PC 데이터가 자동으로 동기화됩니다.</p>
           </div>
         </section>
       </section>
@@ -2351,6 +2343,11 @@
     </svg>
   </button>
   <div class="toast" id="toast" role="status"></div>
+  <script src="./firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script>
@@ -2383,7 +2380,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", firestoreProjectId: "", firestoreApiKey: "", cloudWorkspaceId: "reportmate-main", cloudAutoSync: "off", cloudLastSync: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", cloudLastSync: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2399,16 +2396,16 @@
       googleSyncInProgress: false,
       googleSyncPending: false,
       cloudSaveTimer: null,
-      cloudPullTimer: null,
+      cloudUnsubscribe: null,
       cloudSyncInProgress: false,
       cloudApplying: false,
+      firebase: null,
+      firebaseReady: false,
       scheduleTimeGuardUntil: 0
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
-    state.settings.cloudWorkspaceId = state.settings.cloudWorkspaceId || "reportmate-main";
-    state.settings.cloudAutoSync = state.settings.cloudAutoSync || "off";
     normalizeOrgs();
     normalizeSchedules();
     normalizeVehicle();
@@ -2416,6 +2413,37 @@
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+    function firebaseConfig() {
+      return window.REPORTMATE_FIREBASE_CONFIG || {};
+    }
+    function firebaseConfigured() {
+      const config = firebaseConfig();
+      return Boolean(config.apiKey && config.authDomain && config.projectId && config.appId);
+    }
+    function initFirebaseServices() {
+      if (state.firebaseReady) return state.firebase;
+      if (!firebaseConfigured() || !window.firebase) return null;
+      const config = firebaseConfig();
+      const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(config);
+      const auth = firebase.auth();
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.warn);
+      const db = firebase.firestore();
+      const functions = firebase.app().functions(config.functionsRegion || "asia-northeast3");
+      state.firebase = { app, auth, db, functions, config };
+      state.firebaseReady = true;
+      return state.firebase;
+    }
+    function userStateDoc() {
+      const services = initFirebaseServices();
+      const uid = services?.auth?.currentUser?.uid;
+      if (!services || !uid) return null;
+      return services.db.collection("reportmateUsers").doc(uid).collection("state").doc("current");
+    }
+    function callFirebaseFunction(name, payload = {}) {
+      const services = initFirebaseServices();
+      if (!services?.auth?.currentUser) throw new Error("Firebase 로그인 후 사용 가능합니다.");
+      return services.functions.httpsCallable(name)(payload);
     }
     function loginClientId() {
       return state?.settings?.googleClientId || defaultGoogleClientId;
@@ -2477,6 +2505,30 @@
         setLoginMessage("Google 로그인 정보를 확인하지 못했습니다. 다시 시도해주세요.");
       }
     }
+    async function signInWithFirebaseGoogle() {
+      const services = initFirebaseServices();
+      if (!services) {
+        setLoginMessage("Firebase 설정이 필요합니다. outputs/firebase-config.js 파일에 Firebase 웹 앱 설정을 입력해주세요.");
+        return;
+      }
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ login_hint: allowedLoginEmail });
+        provider.addScope("https://www.googleapis.com/auth/calendar.events");
+        const result = await services.auth.signInWithPopup(provider);
+        const user = result.user;
+        if (String(user?.email || "").toLowerCase() !== allowedLoginEmail) {
+          await services.auth.signOut();
+          localStorage.removeItem(loginSessionKey);
+          setLoginMessage(`${user?.email || "이 계정"}은 허용된 계정이 아닙니다.`);
+          return;
+        }
+        storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
+      } catch (error) {
+        console.warn(error);
+        setLoginMessage("Firebase Google 로그인을 완료하지 못했습니다.\n" + (error.message || ""));
+      }
+    }
     function waitForGoogleIdentity(tries = 0) {
       if (window.google?.accounts?.id) return Promise.resolve(true);
       if (tries > 60) return Promise.resolve(false);
@@ -2488,13 +2540,25 @@
         setLoginMessage("Google 로그인은 GitHub Pages HTTPS 주소에서 테스트해주세요.");
         return;
       }
+      const target = document.getElementById("loginGoogleButton");
+      if (!target) return;
+      if (firebaseConfigured() && window.firebase) {
+        target.innerHTML = '<button type="button" class="secondary" id="firebaseLoginBtn">Google로 로그인</button>';
+        document.getElementById("firebaseLoginBtn").onclick = signInWithFirebaseGoogle;
+        const services = initFirebaseServices();
+        services?.auth?.onAuthStateChanged(user => {
+          if (!document.body.classList.contains("auth-locked")) return;
+          if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
+            storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
+          }
+        });
+        return;
+      }
       const ready = await waitForGoogleIdentity();
       if (!ready) {
         setLoginMessage("Google 로그인 스크립트를 불러오지 못했습니다. 네트워크를 확인해주세요.");
         return;
       }
-      const target = document.getElementById("loginGoogleButton");
-      if (!target) return;
       target.innerHTML = "";
       google.accounts.id.initialize({
         client_id: loginClientId(),
@@ -2516,12 +2580,25 @@
         unlockApp({ email: allowedLoginEmail, name: "로컬 미리보기", localPreview: true, loginAt: new Date().toISOString() });
         return;
       }
+      if (firebaseConfigured() && window.firebase) {
+        const services = initFirebaseServices();
+        services.auth.onAuthStateChanged(user => {
+          if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
+            storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
+          } else {
+            localStorage.removeItem(loginSessionKey);
+            lockApp();
+          }
+        });
+        return;
+      }
       const session = readLoginSession();
       if (session) unlockApp(session);
       else lockApp();
     }
     function logoutReportMate() {
       localStorage.removeItem(loginSessionKey);
+      try { initFirebaseServices()?.auth?.signOut(); } catch {}
       try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
       lockApp("로그아웃되었습니다.");
     }
@@ -4386,29 +4463,12 @@
     function renderSettings() {
       kakaoWebhook.value = state.settings.kakaoWebhook || "";
       billingNotice.value = state.settings.billingNotice || "3";
-      googleClientId.value = state.settings.googleClientId || defaultGoogleClientId;
-      googleCalendarId.value = state.settings.googleCalendarId || "primary";
       tmapKey.value = state.settings.tmapKey || "";
-      firestoreProjectId.value = state.settings.firestoreProjectId || "";
-      firestoreApiKey.value = state.settings.firestoreApiKey || "";
-      cloudWorkspaceId.value = state.settings.cloudWorkspaceId || "reportmate-main";
-      cloudAutoSync.value = state.settings.cloudAutoSync || "off";
       updateCloudStatus();
     }
     const cloudDataKeys = ["orgs", "schedules", "memos", "dayNotes", "vehicle"];
-    function cloudConfigured() {
-      return Boolean(state.settings.firestoreProjectId && state.settings.firestoreApiKey && state.settings.cloudWorkspaceId);
-    }
     function canUseCloudSync() {
-      return cloudConfigured() && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
-    }
-    function cloudDataValue(key) {
-      if (key === "orgs") return state.orgs;
-      if (key === "schedules") return state.schedules;
-      if (key === "memos") return state.memos;
-      if (key === "dayNotes") return state.dayNotes || {};
-      if (key === "vehicle") return state.vehicle || { records: [] };
-      return null;
+      return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
     function applyCloudValue(key, value) {
       if (key === "orgs" && Array.isArray(value)) state.orgs = value;
@@ -4417,34 +4477,13 @@
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
       if (key === "vehicle" && value && typeof value === "object") state.vehicle = value;
     }
-    function cloudDocUrl(key) {
-      const projectId = encodeURIComponent(state.settings.firestoreProjectId.trim());
-      const workspaceId = encodeURIComponent(state.settings.cloudWorkspaceId.trim());
-      const docId = encodeURIComponent(key);
-      const apiKey = encodeURIComponent(state.settings.firestoreApiKey.trim());
-      return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/reportmateWorkspaces/${workspaceId}/data/${docId}?key=${apiKey}`;
-    }
-    function firestoreBody(value) {
-      return {
-        fields: {
-          payload: { stringValue: JSON.stringify(value) },
-          updatedAt: { timestampValue: new Date().toISOString() },
-          app: { stringValue: "ReportMate" }
-        }
-      };
-    }
-    function parseFirestorePayload(doc) {
-      const raw = doc?.fields?.payload?.stringValue;
-      if (!raw) return undefined;
-      return JSON.parse(raw);
-    }
     function cloudErrorMessage(error) {
       const message = String(error?.message || error || "");
       if (location.protocol === "file:") return "클라우드 동기화는 GitHub Pages 같은 HTTPS 주소에서 사용해주세요. 현재 file:// 주소에서는 브라우저 보안 때문에 막힐 수 있습니다.";
-      if (message.includes("403")) return "Firestore 권한이 거부되었습니다. Firebase 보안 규칙에서 해당 작업공간 읽기/쓰기를 허용했는지 확인해주세요.";
-      if (message.includes("404")) return "Firestore 프로젝트 또는 문서를 찾지 못했습니다. Project ID와 작업공간 ID를 확인해주세요.";
-      if (message.includes("400")) return "Firestore 요청이 거절되었습니다. Web API Key와 Project ID를 확인해주세요.";
-      return "클라우드 동기화 중 오류가 발생했습니다. Firestore 설정값과 보안 규칙을 확인해주세요.\n\n세부 오류: " + message;
+      if (!firebaseConfigured()) return "Firebase 설정이 없습니다. outputs/firebase-config.js 파일에 Firebase 웹 앱 설정을 입력해주세요.";
+      if (!state.firebase?.auth?.currentUser) return "Firebase 로그인 후 클라우드 동기화를 사용할 수 있습니다.";
+      if (message.includes("permission-denied")) return "Firestore 권한이 거부되었습니다. firestore.rules 배포 상태를 확인해주세요.";
+      return "클라우드 동기화 중 오류가 발생했습니다.\n\n세부 오류: " + message;
     }
     function updateCloudStatus(text = "") {
       if (!window.cloudSyncStatus) return;
@@ -4452,40 +4491,54 @@
         cloudSyncStatus.textContent = text;
         return;
       }
-      if (!cloudConfigured()) {
-        cloudSyncStatus.textContent = "Firestore 설정을 입력하면 기관, 일정, 차량관리, 기술메모가 기기 간 동기화됩니다.";
+      if (!firebaseConfigured()) {
+        cloudSyncStatus.textContent = "Firebase 설정 파일을 입력하면 모바일과 PC 데이터가 자동 동기화됩니다.";
       } else if (location.protocol === "file:") {
-        cloudSyncStatus.textContent = "설정 저장됨. 클라우드 동기화는 GitHub Pages HTTPS 주소에서 사용해주세요.";
+        cloudSyncStatus.textContent = "로컬 미리보기에서는 클라우드 동기화를 건너뜁니다. GitHub Pages에서 동작합니다.";
+      } else if (!state.firebase?.auth?.currentUser) {
+        cloudSyncStatus.textContent = "로그인 후 Firestore 실시간 동기화가 시작됩니다.";
       } else {
         const last = state.settings.cloudLastSync ? new Date(state.settings.cloudLastSync).toLocaleString("ko-KR") : "아직 없음";
-        cloudSyncStatus.textContent = `클라우드 ${state.settings.cloudAutoSync === "on" ? "자동 동기화 사용" : "수동 동기화"} · 마지막 동기화 ${last}`;
+        cloudSyncStatus.textContent = `Firestore 실시간 동기화 연결됨 · 마지막 동기화 ${last}`;
       }
     }
-    async function fetchCloudDoc(key) {
-      const response = await fetch(cloudDocUrl(key), { method: "GET" });
-      if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
-      return response.json();
+    function cloudSnapshotPayload() {
+      return {
+        orgs: state.orgs,
+        schedules: state.schedules,
+        memos: state.memos,
+        dayNotes: state.dayNotes || {},
+        vehicle: state.vehicle || { records: [] },
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
+        schemaVersion: 2
+      };
     }
-    async function writeCloudDoc(key, value) {
-      const response = await fetch(cloudDocUrl(key), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(firestoreBody(value))
+    function applyCloudSnapshot(data) {
+      if (!data) return;
+      state.cloudApplying = true;
+      cloudDataKeys.forEach(key => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
       });
-      if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
-      return response.json();
+      normalizeOrgs();
+      normalizeSchedules();
+      normalizeVehicle();
+      state.settings.cloudLastSync = new Date().toISOString();
+      save({ skipCloud: true });
+      state.cloudApplying = false;
+      render();
+      updateCloudStatus();
     }
     async function uploadCloudData({ silent = false } = {}) {
       if (!canUseCloudSync()) {
-        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("file protocol")));
+        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("not ready")));
         return false;
       }
       if (state.cloudSyncInProgress) return false;
       state.cloudSyncInProgress = true;
       try {
         if (!silent) toast("클라우드에 업로드 중입니다.");
-        for (const key of cloudDataKeys) await writeCloudDoc(key, cloudDataValue(key));
+        await userStateDoc().set(cloudSnapshotPayload(), { merge: true });
         state.settings.cloudLastSync = new Date().toISOString();
         save({ skipCloud: true });
         updateCloudStatus();
@@ -4501,40 +4554,21 @@
     }
     async function downloadCloudData({ silent = false, uploadIfEmpty = false } = {}) {
       if (!canUseCloudSync()) {
-        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("file protocol")));
+        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("not ready")));
         return false;
       }
       if (state.cloudSyncInProgress) return false;
       state.cloudSyncInProgress = true;
       try {
         if (!silent) toast("클라우드에서 불러오는 중입니다.");
-        let found = 0;
-        const loaded = {};
-        for (const key of cloudDataKeys) {
-          const doc = await fetchCloudDoc(key);
-          if (!doc) continue;
-          const payload = parseFirestorePayload(doc);
-          if (payload !== undefined) {
-            loaded[key] = payload;
-            found++;
-          }
-        }
-        if (!found) {
+        const snap = await userStateDoc().get();
+        if (!snap.exists) {
           state.cloudSyncInProgress = false;
           if (uploadIfEmpty) return uploadCloudData({ silent });
           if (!silent) showInfo("클라우드 데이터 없음", "아직 클라우드에 저장된 데이터가 없습니다. 먼저 클라우드 업로드를 눌러 현재 데이터를 저장해주세요.");
           return false;
         }
-        state.cloudApplying = true;
-        Object.entries(loaded).forEach(([key, value]) => applyCloudValue(key, value));
-        normalizeOrgs();
-        normalizeSchedules();
-        normalizeVehicle();
-        state.settings.cloudLastSync = new Date().toISOString();
-        save({ skipCloud: true });
-        state.cloudApplying = false;
-        render();
-        updateCloudStatus();
+        applyCloudSnapshot(snap.data());
         if (!silent) toast("클라우드 데이터 불러오기 완료");
         return true;
       } catch (error) {
@@ -4547,22 +4581,29 @@
       }
     }
     function scheduleCloudSave(reason = "change", delay = 900) {
-      if (state.settings.cloudAutoSync !== "on" || !canUseCloudSync()) return;
+      if (!canUseCloudSync()) return;
       if (state.cloudSaveTimer) clearTimeout(state.cloudSaveTimer);
       state.cloudSaveTimer = setTimeout(() => uploadCloudData({ silent: true }), delay);
     }
     function startCloudAutoSync({ immediate = false } = {}) {
-      if (state.cloudPullTimer) {
-        clearInterval(state.cloudPullTimer);
-        state.cloudPullTimer = null;
+      if (state.cloudUnsubscribe) {
+        state.cloudUnsubscribe();
+        state.cloudUnsubscribe = null;
       }
-      if (state.settings.cloudAutoSync !== "on" || !canUseCloudSync()) {
+      if (!canUseCloudSync()) {
         updateCloudStatus();
         return;
       }
-      state.cloudPullTimer = setInterval(() => {
-        if (!document.hidden) downloadCloudData({ silent: true });
-      }, 25000);
+      state.cloudUnsubscribe = userStateDoc().onSnapshot(snapshot => {
+        if (!snapshot.exists) {
+          uploadCloudData({ silent: true });
+          return;
+        }
+        applyCloudSnapshot(snapshot.data());
+      }, error => {
+        console.warn(error);
+        updateCloudStatus("Firestore 실시간 동기화 오류: " + (error.message || error));
+      });
       if (immediate) downloadCloudData({ silent: true, uploadIfEmpty: true });
       updateCloudStatus();
     }
@@ -5467,35 +5508,19 @@
       }
     }
     saveSettingsBtn.onclick = async () => {
-      const nextGoogleCalendarId = googleCalendarId.value.trim() || "primary";
-      const calendarChanged = nextGoogleCalendarId !== (state.settings.googleCalendarId || "primary");
-      const cloudAutoChanged = (cloudAutoSync.value || "off") !== (state.settings.cloudAutoSync || "off");
       state.settings = {
         ...state.settings,
         kakaoWebhook: kakaoWebhook.value.trim(),
         billingNotice: billingNotice.value,
-        googleClientId: googleClientId.value.trim() || defaultGoogleClientId,
-        googleCalendarId: nextGoogleCalendarId,
-        tmapKey: tmapKey.value.trim(),
-        firestoreProjectId: firestoreProjectId.value.trim(),
-        firestoreApiKey: firestoreApiKey.value.trim(),
-        cloudWorkspaceId: cloudWorkspaceId.value.trim() || "reportmate-main",
-        cloudAutoSync: cloudAutoSync.value || "off"
+        tmapKey: tmapKey.value.trim()
       };
-      if (calendarChanged) state.settings.googleLastSync = "";
       save();
-      if (cloudAutoChanged || state.settings.cloudAutoSync === "on") startCloudAutoSync({ immediate: state.settings.cloudAutoSync === "on" });
-      saveSettingsBtn.disabled = true;
-      try {
-        const connected = await connectGoogleFromSettingsSave();
-        if (!connected) toast("연동 설정은 저장되었습니다.");
-      } finally {
-        saveSettingsBtn.disabled = false;
-      }
+      startCloudAutoSync({ immediate: true });
+      toast("연동 설정이 저장되었습니다.");
     };
     function prepareGoogleSettings() {
-      state.settings.googleClientId = googleClientId.value.trim() || defaultGoogleClientId;
-      state.settings.googleCalendarId = googleCalendarId.value.trim() || "primary";
+      state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
+      state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
       save();
       if (!state.settings.googleClientId.endsWith(".apps.googleusercontent.com")) {
         showInfo("OAuth Client ID 확인", "Google OAuth Client ID는 보통 000000000000-xxxx.apps.googleusercontent.com 형식입니다.");
@@ -5565,6 +5590,32 @@
         showInfo("구글 일정 불러오기 실패", googleErrorMessage(error));
       }
     }
+    function functionBaseUrl(name) {
+      const config = firebaseConfig();
+      const region = config.functionsRegion || "asia-northeast3";
+      if (!config.projectId) throw new Error("Firebase Project ID가 필요합니다.");
+      return `https://${region}-${config.projectId}.cloudfunctions.net/${name}`;
+    }
+    function connectServerGoogleCalendar() {
+      const services = initFirebaseServices();
+      const user = services?.auth?.currentUser;
+      if (!user) {
+        showInfo("서버 구글 연동", "Firebase 로그인 후 사용할 수 있습니다.");
+        return;
+      }
+      const url = `${functionBaseUrl("googleAuthStart")}?uid=${encodeURIComponent(user.uid)}`;
+      window.open(url, "_blank");
+    }
+    async function syncServerGoogleCalendar() {
+      try {
+        toast("서버에서 구글 일정을 동기화합니다.");
+        const result = await callFirebaseFunction("syncCalendarNow", {});
+        toast(`서버 동기화 완료: ${result.data?.count || 0}건`);
+      } catch (error) {
+        console.warn(error);
+        showInfo("서버 일정 동기화 실패", String(error.message || error));
+      }
+    }
     document.getElementById("googleHelpBtn")?.addEventListener("click", () => connectGoogleCalendar());
     document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
     const manualGoogleSync = () => syncGoogleCalendar({ full: true }).catch(error => {
@@ -5573,10 +5624,8 @@
     });
     document.getElementById("syncGoogleBtn")?.addEventListener("click", manualGoogleSync);
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
-    googleReconnectBtn.onclick = connectGoogleCalendar;
-    googleReloadBtn.onclick = reloadGoogleCalendarEvents;
-    cloudUploadBtn.onclick = () => uploadCloudData();
-    cloudDownloadBtn.onclick = () => downloadCloudData();
+    serverGoogleConnectBtn.onclick = connectServerGoogleCalendar;
+    serverGoogleSyncBtn.onclick = syncServerGoogleCalendar;
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
       if (canAutoSyncGoogle()) startGoogleAutoSync({ immediate: !document.hidden });
