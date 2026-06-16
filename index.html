@@ -2617,79 +2617,64 @@
     async function initLoginGate() {
       if (!document.body.classList.contains("auth-locked")) return;
       if (location.protocol === "file:") {
-        setLoginMessage("Google 로그인은 GitHub Pages HTTPS 주소에서 테스트해주세요.");
+        setLoginMessage("?? ??????? ???? ?????. ?? ??? GitHub Pages?? ??????.");
         return;
       }
       const target = document.getElementById("loginGoogleButton");
       if (!target) return;
-      if (firebaseConfigured() && window.firebase) {
-        target.innerHTML = '<button type="button" class="secondary" id="firebaseLoginBtn">Google로 로그인</button>';
-        document.getElementById("firebaseLoginBtn").onclick = signInWithFirebaseGoogle;
-        const services = initFirebaseServices();
-        services?.auth?.onAuthStateChanged(user => {
-          if (!document.body.classList.contains("auth-locked")) return;
-          if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
-            storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
-          }
-        });
+      if (!firebaseConfigured()) {
+        target.innerHTML = "";
+        setLoginMessage("Firebase ?? ??? ???? ?????. outputs/firebase-config.js ??? ??? ??????.");
         return;
       }
-      const ready = await waitForGoogleIdentity();
-      if (!ready) {
-        setLoginMessage("Google 로그인 스크립트를 불러오지 못했습니다. 네트워크를 확인해주세요.");
+      if (!window.firebase) {
+        target.innerHTML = "";
+        setLoginMessage("Firebase ??? ????? ???? ?????. ????? ??? ? ????????.");
         return;
       }
-      target.innerHTML = "";
-      google.accounts.id.initialize({
-        client_id: loginClientId(),
-        callback: handleLoginCredential,
-        auto_select: false,
-        cancel_on_tap_outside: false
-      });
-      google.accounts.id.renderButton(target, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        shape: "pill",
-        text: "signin_with",
-        width: Math.min(340, target.clientWidth || 340)
+      target.innerHTML = '<button type="button" class="secondary" id="firebaseLoginBtn">Google? ???</button>';
+      document.getElementById("firebaseLoginBtn").onclick = () => signInWithFirebaseGoogle();
+      const services = initFirebaseServices();
+      services?.auth?.onAuthStateChanged(user => {
+        if (!document.body.classList.contains("auth-locked")) return;
+        if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
+          handleFirebaseUser(user);
+        }
       });
     }
     function restoreLoginSession() {
       if (location.protocol === "file:") {
-        unlockApp({ email: allowedLoginEmail, name: "로컬 미리보기", localPreview: true, loginAt: new Date().toISOString() });
+        unlockApp({ email: allowedLoginEmail, name: "?? ????", localPreview: true, loginAt: new Date().toISOString() });
         return;
       }
-      if (firebaseConfigured() && window.firebase) {
-        const services = initFirebaseServices();
-        services.auth.getRedirectResult().then(result => {
-          const user = result?.user || services.auth.currentUser;
-          if (!user) return;
-          if (handleFirebaseUser(user)) completePendingFirebaseAction();
-          else {
-            services.auth.signOut();
-            localStorage.removeItem(loginSessionKey);
-            localStorage.removeItem(firebasePendingActionKey);
-            lockApp(`${user.email || "이 계정"}은 허용된 계정이 아닙니다.`);
-          }
-        }).catch(error => {
-          console.warn(error);
+      localStorage.removeItem(loginSessionKey);
+      if (!firebaseConfigured() || !window.firebase) {
+        lockApp();
+        return;
+      }
+      const services = initFirebaseServices();
+      services.auth.getRedirectResult().then(result => {
+        const user = result?.user || services.auth.currentUser;
+        if (!user) return;
+        if (handleFirebaseUser(user)) completePendingFirebaseAction();
+        else {
+          services.auth.signOut();
           localStorage.removeItem(firebasePendingActionKey);
-          lockApp("Firebase Google 로그인 복귀 처리 중 오류가 발생했습니다.\n" + (error.message || ""));
-        });
-        services.auth.onAuthStateChanged(user => {
-          if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
-            storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
-          } else {
-            localStorage.removeItem(loginSessionKey);
-            lockApp();
-          }
-        });
-        return;
-      }
-      const session = readLoginSession();
-      if (session) unlockApp(session);
-      else lockApp();
+          lockApp((user.email || "? ??") + "? ??? ??? ????.");
+        }
+      }).catch(error => {
+        console.warn(error);
+        localStorage.removeItem(firebasePendingActionKey);
+        lockApp("Firebase Google ??? ?? ?? ? ??? ??????.\n" + (error.message || ""));
+      });
+      services.auth.onAuthStateChanged(user => {
+        if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
+          handleFirebaseUser(user);
+        } else {
+          localStorage.removeItem(firebasePendingActionKey);
+          lockApp();
+        }
+      });
     }
     function logoutReportMate() {
       localStorage.removeItem(loginSessionKey);
