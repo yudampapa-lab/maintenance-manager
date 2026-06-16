@@ -2354,6 +2354,7 @@
     const defaultGoogleClientId = "799426628695-uih32dh5mqqpst3o3tmblaq3n77pvd2r.apps.googleusercontent.com";
     const allowedLoginEmail = "yudampapa@gmail.com";
     const loginSessionKey = "reportmate_login_session";
+    const firebasePendingActionKey = "reportmate_firebase_pending_action";
     const googleAutoSyncVisibleIntervalMs = 8 * 1000;
     const googleAutoSyncHiddenIntervalMs = 60 * 1000;
     const googleSyncLookbackMs = 2 * 60 * 1000;
@@ -2457,12 +2458,13 @@
         const timer = setTimeout(() => finish(null), timeoutMs);
       });
     }
-    async function ensureFirebaseUser({ promptLogin = false } = {}) {
+    async function ensureFirebaseUser({ promptLogin = false, pendingAction = "" } = {}) {
       const services = initFirebaseServices();
       if (!services?.auth) return null;
       let user = services.auth.currentUser || await waitForFirebaseAuthUser();
       if (!user && promptLogin && location.protocol !== "file:") {
-        await signInWithFirebaseGoogle();
+        const result = await signInWithFirebaseGoogle({ pendingAction });
+        if (result?.redirecting) return null;
         user = services.auth.currentUser || await waitForFirebaseAuthUser();
       }
       return user;
@@ -2514,6 +2516,29 @@
       localStorage.setItem(loginSessionKey, JSON.stringify(session));
       unlockApp(session);
     }
+    function firebaseGoogleProvider() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ login_hint: allowedLoginEmail });
+      provider.addScope("https://www.googleapis.com/auth/calendar.events");
+      return provider;
+    }
+    function prefersRedirectAuth() {
+      const ua = navigator.userAgent || "";
+      return /Android|iPhone|iPad|iPod|SamsungBrowser|Mobile/i.test(ua);
+    }
+    function handleFirebaseUser(user) {
+      if (String(user?.email || "").toLowerCase() !== allowedLoginEmail) return false;
+      storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
+      return true;
+    }
+    async function completePendingFirebaseAction() {
+      const action = localStorage.getItem(firebasePendingActionKey);
+      if (!action) return;
+      localStorage.removeItem(firebasePendingActionKey);
+      if (action === "serverGoogleConnect") {
+        setTimeout(() => connectServerGoogleCalendar(), 350);
+      }
+    }
     function handleLoginCredential(response) {
       try {
         const profile = parseJwtPayload(response.credential || "");
@@ -2532,27 +2557,45 @@
         setLoginMessage("Google 로그인 정보를 확인하지 못했습니다. 다시 시도해주세요.");
       }
     }
-    async function signInWithFirebaseGoogle() {
+    async function signInWithFirebaseGoogle(options = {}) {
       const services = initFirebaseServices();
       if (!services) {
         setLoginMessage("Firebase 설정이 필요합니다. outputs/firebase-config.js 파일에 Firebase 웹 앱 설정을 입력해주세요.");
         return;
       }
       try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.setCustomParameters({ login_hint: allowedLoginEmail });
-        provider.addScope("https://www.googleapis.com/auth/calendar.events");
+        const provider = firebaseGoogleProvider();
+        if (options.pendingAction) localStorage.setItem(firebasePendingActionKey, options.pendingAction);
+        if (prefersRedirectAuth()) {
+          setLoginMessage("Google 로그인 화면으로 이동합니다. 완료 후 자동으로 ReportMate로 돌아옵니다.");
+          await services.auth.signInWithRedirect(provider);
+          return { redirecting: true };
+        }
         const result = await services.auth.signInWithPopup(provider);
         const user = result.user;
-        if (String(user?.email || "").toLowerCase() !== allowedLoginEmail) {
+        if (!handleFirebaseUser(user)) {
           await services.auth.signOut();
           localStorage.removeItem(loginSessionKey);
+          localStorage.removeItem(firebasePendingActionKey);
           setLoginMessage(`${user?.email || "이 계정"}은 허용된 계정이 아닙니다.`);
           return;
         }
-        storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
+        await completePendingFirebaseAction();
       } catch (error) {
         console.warn(error);
+        const code = String(error?.code || "");
+        if (code.includes("popup") || code.includes("cancelled") || code.includes("unsupported")) {
+          try {
+            const provider = firebaseGoogleProvider();
+            if (options.pendingAction) localStorage.setItem(firebasePendingActionKey, options.pendingAction);
+            setLoginMessage("팝업 로그인이 불안정해서 Google 로그인 화면으로 이동합니다.");
+            await services.auth.signInWithRedirect(provider);
+            return { redirecting: true };
+          } catch (redirectError) {
+            console.warn(redirectError);
+          }
+        }
+        localStorage.removeItem(firebasePendingActionKey);
         setLoginMessage("Firebase Google 로그인을 완료하지 못했습니다.\n" + (error.message || ""));
       }
     }
@@ -2609,6 +2652,21 @@
       }
       if (firebaseConfigured() && window.firebase) {
         const services = initFirebaseServices();
+        services.auth.getRedirectResult().then(result => {
+          const user = result?.user || services.auth.currentUser;
+          if (!user) return;
+          if (handleFirebaseUser(user)) completePendingFirebaseAction();
+          else {
+            services.auth.signOut();
+            localStorage.removeItem(loginSessionKey);
+            localStorage.removeItem(firebasePendingActionKey);
+            lockApp(`${user.email || "이 계정"}은 허용된 계정이 아닙니다.`);
+          }
+        }).catch(error => {
+          console.warn(error);
+          localStorage.removeItem(firebasePendingActionKey);
+          lockApp("Firebase Google 로그인 복귀 처리 중 오류가 발생했습니다.\n" + (error.message || ""));
+        });
         services.auth.onAuthStateChanged(user => {
           if (String(user?.email || "").toLowerCase() === allowedLoginEmail) {
             storeLoginSession({ email: user.email, name: user.displayName, picture: user.photoURL });
@@ -5625,7 +5683,7 @@
     }
     async function connectServerGoogleCalendar() {
       const services = initFirebaseServices();
-      const user = await ensureFirebaseUser({ promptLogin: true });
+      const user = await ensureFirebaseUser({ promptLogin: true, pendingAction: "serverGoogleConnect" });
       if (!user) {
         const guide = location.protocol === "file:"
           ? "로컬 파일 미리보기에서는 서버 구글 연동을 사용할 수 없습니다. GitHub Pages 주소에서 로그인 후 다시 눌러주세요."
