@@ -2734,6 +2734,7 @@
         googleUpdated: schedule.googleUpdated || "",
         googleHtmlLink: schedule.googleHtmlLink || "",
         googleSyncedAt: schedule.googleSyncedAt || "",
+        googleDirty: Boolean(schedule.googleDirty),
         createdAt: schedule.createdAt || new Date().toISOString(),
         updatedAt: schedule.updatedAt || ""
       }));
@@ -2741,6 +2742,10 @@
     }
     function normalizedScheduleText(value = "") {
       return String(value).toLowerCase().replace(/\s+/g, "");
+    }
+    function markGoogleDirty(schedule) {
+      if (!schedule) return;
+      schedule.googleDirty = true;
     }
     function scheduleDedupeKey(schedule = {}) {
       if (schedule.googleEventId) return "google:" + schedule.googleEventId;
@@ -2965,6 +2970,7 @@
       schedule.color = selected;
       state.editingScheduleColor = selected;
       schedule.updatedAt = new Date().toISOString();
+      markGoogleDirty(schedule);
       save();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
@@ -4046,6 +4052,7 @@
         schedule.date = targetDate;
         schedule.endDate = addDaysISO(targetDate, duration);
         schedule.updatedAt = new Date().toISOString();
+        markGoogleDirty(schedule);
         save();
         render();
         toast("일정을 " + formatDate(targetDate) + "로 이동했습니다.");
@@ -4418,7 +4425,9 @@
       };
       if (existing) {
         Object.assign(existing, data);
+        markGoogleDirty(existing);
       } else {
+        markGoogleDirty(data);
         state.schedules.push(data);
       }
       save();
@@ -5317,6 +5326,7 @@
       schedule.googleUpdated = event.updated || "";
       schedule.googleHtmlLink = event.htmlLink || "";
       schedule.googleSyncedAt = new Date().toISOString();
+      schedule.googleDirty = false;
       return event;
     }
     async function patchGoogleCalendarEvent(schedule) {
@@ -5329,6 +5339,7 @@
         schedule.googleUpdated = event.updated || "";
         schedule.googleHtmlLink = event.htmlLink || "";
         schedule.googleSyncedAt = new Date().toISOString();
+        schedule.googleDirty = false;
         return event;
       } catch (error) {
         if (String(error.message || "").includes("404")) return insertGoogleCalendarEvent(schedule);
@@ -5385,6 +5396,7 @@
         googleUpdated: event.updated || "",
         googleHtmlLink: event.htmlLink || "",
         googleSyncedAt: new Date().toISOString(),
+        googleDirty: false,
         createdAt: event.created || new Date().toISOString(),
         updatedAt: event.updated || new Date().toISOString()
       };
@@ -5533,7 +5545,7 @@
         if (!schedule.googleEventId) {
           await insertGoogleCalendarEvent(schedule);
           inserted++;
-        } else if (localChangedAt > googleSeenAt) {
+        } else if (schedule.googleDirty || !schedule.googleUpdated || localChangedAt > googleSeenAt) {
           await patchGoogleCalendarEvent(schedule);
           updated++;
         }
@@ -5777,11 +5789,18 @@
         tokenClient.requestAccessToken(prompt ? { prompt } : {});
       });
     }
+    async function requestGoogleAccessTokenQuietly() {
+      try {
+        return await requestGoogleAccessToken("");
+      } catch (error) {
+        return requestGoogleAccessToken("consent");
+      }
+    }
     async function ensureGoogleAccess() {
       if (state.googleAccessToken && (!state.googleAccessTokenExpiresAt || Date.now() < state.googleAccessTokenExpiresAt)) return state.googleAccessToken;
       state.googleAccessToken = "";
       state.googleAccessTokenExpiresAt = 0;
-      return requestGoogleAccessToken("");
+      return requestGoogleAccessTokenQuietly();
     }
     async function connectGoogleCalendar() {
       try {
@@ -5795,7 +5814,7 @@
     }
     async function reloadGoogleCalendarEvents() {
       try {
-        await requestGoogleAccessToken(state.googleAccessToken ? "" : "consent");
+        await requestGoogleAccessTokenQuietly();
         const result = await syncGoogleCalendar({ silent: false, full: true });
         if (result) startGoogleAutoSync({ immediate: true });
       } catch (error) {
@@ -5808,7 +5827,8 @@
     async function manualGoogleCalendarSync() {
       try {
         const needsConsent = !state.googleAccessToken || Date.now() > (state.googleAccessTokenExpiresAt || 0) - 60000;
-        await requestGoogleAccessToken(needsConsent ? "consent" : "");
+        if (needsConsent) await requestGoogleAccessTokenQuietly();
+        else await requestGoogleAccessToken("");
         await syncGoogleCalendar({ silent: false, full: true });
       } catch (error) {
         console.warn(error);
