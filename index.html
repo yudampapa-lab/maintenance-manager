@@ -811,6 +811,87 @@
       overflow: hidden;
       background: white;
     }
+    .calendar-layout {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      align-items: start;
+    }
+    .monthly-maintenance-panel {
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.86);
+      overflow: visible;
+      position: sticky;
+      top: 92px;
+    }
+    .monthly-maintenance-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .monthly-maintenance-head h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+    .monthly-maintenance-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .monthly-maintenance-list {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      max-height: calc(100vh - 260px);
+      overflow-y: auto;
+      overflow-x: visible;
+    }
+    .maintenance-drag-card {
+      display: grid;
+      gap: 5px;
+      width: 100%;
+      min-height: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      box-shadow: none;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .maintenance-drag-card strong {
+      font-size: 13px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .maintenance-drag-card span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    .maintenance-drag-card.dragging {
+      position: relative;
+      z-index: 70;
+      opacity: .92;
+      cursor: grabbing;
+      box-shadow: 0 14px 28px rgba(22, 34, 45, .18);
+    }
+    .maintenance-group-label {
+      margin: 8px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
     .calendar-day-names,
     .calendar-week {
       display: grid;
@@ -861,6 +942,7 @@
     .day-cell.muted { background: #f7f9fb; color: #a0aab4; }
     .day-cell.today { box-shadow: inset 0 0 0 2px var(--teal); }
     .day-cell.drop-target { background: #e8f7f2; box-shadow: inset 0 0 0 2px var(--teal); }
+    .monthly-maintenance-panel.drop-target { background: #eef8ff; box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .38); }
     .day-cell.range-select { background: #eef8ff; box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .38); }
     .day-number { font-size: 12px; font-weight: 800; }
     .event-pill {
@@ -1454,6 +1536,8 @@
 
     @media (max-width: 920px) {
       .dashboard-grid, .cards, .settings-grid { grid-template-columns: 1fr; }
+      .calendar-layout { grid-template-columns: 1fr; }
+      .monthly-maintenance-panel { display: none; }
       .vehicle-grid { grid-template-columns: 1fr; }
       .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .contact-row { grid-template-columns: 1fr; border: 1px solid var(--line); padding: 10px; border-radius: 8px; }
@@ -2154,13 +2238,12 @@
     <header>
       <div class="topbar">
         <div class="brand">
-          <div><strong class="brand-title">ReportMate</strong><span>방문, 청구, 담당자, 기술메모 관리</span></div>
+          <div><strong class="brand-title">ReportMate</strong></div>
         </div>
         <div class="top-actions">
           <button type="button" class="icon secondary header-gear" id="dashboardSettingsBtn" title="설정" aria-label="설정">
             <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.66 1.8 1.8 0 0 0-2 .36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.06a1.8 1.8 0 0 0 1.66-1.1 1.8 1.8 0 0 0-.36-2l-.04-.04A2.1 2.1 0 0 1 6.29 3.3l.04.04a1.8 1.8 0 0 0 2 .36h.01A1.8 1.8 0 0 0 9.44 2V2a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.66 1.8 1.8 0 0 0 2-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.66 1.1H21a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"/></svg>
           </button>
-          <button class="secondary" id="exportIcsBtn" title="캘린더 파일 내보내기">ICS</button>
         </div>
       </div>
     </header>
@@ -2233,7 +2316,18 @@
 
       <section class="view" id="view-calendar" aria-label="전체 캘린더">
         <section class="panel">
-          <div class="panel-body"><div id="mainCalendar" class="calendar-wrap"></div></div>
+          <div class="panel-body">
+            <div class="calendar-layout">
+              <div id="mainCalendar" class="calendar-wrap"></div>
+              <aside class="monthly-maintenance-panel" id="monthlyMaintenancePanel" aria-label="일정미정">
+                <div class="monthly-maintenance-head">
+                  <h3>일정미정</h3>
+                  <p id="monthlyMaintenanceSub"></p>
+                </div>
+                <div class="monthly-maintenance-list" id="monthlyMaintenanceList"></div>
+              </aside>
+            </div>
+          </div>
         </section>
       </section>
 
@@ -2281,6 +2375,7 @@
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
+              <button class="secondary" id="exportIcsBtn" type="button">캘린더 파일 내보내기</button>
               <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
             <p class="panel-sub" id="cloudSyncStatus" style="margin-top:10px">Firebase 설정이 연결되면 모바일과 PC 데이터가 자동으로 동기화됩니다.</p>
@@ -2671,6 +2766,7 @@
       todayCopySelections: {},
       scheduleClipboard: null,
       scheduleContextTimer: null,
+      maintenanceOrgDrag: null,
       dayContextTimer: null,
       scheduleColorTouched: false,
       pendingMemoFiles: [],
@@ -3554,6 +3650,52 @@
       const end = schedule.endDate || schedule.date;
       return schedule.date <= date && date <= end;
     }
+    function monthRangeForCursor(cursor = state.monthCursor) {
+      const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+      return { start: localDateISO(start), end: localDateISO(end), year: cursor.getFullYear(), month: cursor.getMonth() + 1 };
+    }
+    const maintenanceCycleOrder = { "매월 점검": 0, "분기 점검": 1, "반기 점검": 2, "연간 점검": 3 };
+    function maintenanceCycleRank(cycle = "") {
+      return Object.prototype.hasOwnProperty.call(maintenanceCycleOrder, cycle) ? maintenanceCycleOrder[cycle] : 99;
+    }
+    function monthDiffFromStart(startDate = "", range = monthRangeForCursor()) {
+      if (!startDate) return null;
+      const [startYear, startMonth] = startDate.split("-").map(Number);
+      if (!startYear || !startMonth) return null;
+      return (range.year - startYear) * 12 + (range.month - startMonth);
+    }
+    function isOrgDueForMonth(org = {}, range = monthRangeForCursor()) {
+      const cycle = org.cycle || "해당없음";
+      if (!org.startDate || cycle === "해당없음") return false;
+      if (org.endDate && org.endDate < range.start) return false;
+      if (org.startDate > range.end) return false;
+      const diff = monthDiffFromStart(org.startDate, range);
+      if (diff === null || diff < 0) return false;
+      if (cycle === "매월 점검") return true;
+      if (cycle === "분기 점검") return diff % 3 === 0;
+      if (cycle === "반기 점검") return diff % 6 === 0;
+      if (cycle === "연간 점검") return diff % 12 === 0;
+      return false;
+    }
+    function scheduleOverlapsMonth(schedule = {}, range = monthRangeForCursor()) {
+      const start = schedule.date || "";
+      const end = schedule.endDate || schedule.date || "";
+      return start <= range.end && end >= range.start;
+    }
+    function hasOrgInspectionScheduleInMonth(orgId, range = monthRangeForCursor()) {
+      return state.schedules.some(schedule =>
+        schedule.orgId === orgId
+        && ["visit", "remote", "org"].includes(schedule.type || "")
+        && scheduleOverlapsMonth(schedule, range)
+      );
+    }
+    function monthlyMaintenanceOrgs(range = monthRangeForCursor()) {
+      return state.orgs
+        .filter(org => isOrgDueForMonth(org, range))
+        .filter(org => !hasOrgInspectionScheduleInMonth(org.id, range))
+        .sort((a, b) => maintenanceCycleRank(a.cycle) - maintenanceCycleRank(b.cycle) || orgSearchSort(a, b));
+    }
     function saveGeoCache() {
       try { localStorage.setItem("maint_geo_cache", JSON.stringify(state.geoCache || {})); } catch {}
     }
@@ -4120,7 +4262,7 @@
       return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
-          <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
+          ${o.cycle && o.cycle !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>` : ""}
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
@@ -4193,7 +4335,7 @@
       }
       const orgMatches = state.orgs
         .filter(org => dashboardSearchText(org).includes(q))
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+        .sort(orgSearchSort);
       const scheduleMatches = state.schedules
         .filter(schedule => dashboardScheduleSearchText(schedule).includes(q))
         .sort((a, b) => `${a.date} ${a.startTime || ""}`.localeCompare(`${b.date} ${b.startTime || ""}`));
@@ -4299,7 +4441,7 @@
         if (region && full.includes(region)) score += 15;
         return { org, score };
       }).filter(item => item.score > 0);
-      scored.sort((a, b) => b.score - a.score || b.org.name.length - a.org.name.length);
+      scored.sort((a, b) => b.score - a.score || orgContractPrioritySort(a.org, b.org) || b.org.name.length - a.org.name.length);
       return scored[0]?.org || null;
     }
     function aiSchedulesForOrg(org, command = "") {
@@ -4537,7 +4679,7 @@
     }
     function renderOrgs() {
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
-      const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort(orgSearchSort);
       const pageCount = Math.max(1, Math.ceil(filtered.length / orgPageSize));
       state.orgPage = Math.min(Math.max(Number(state.orgPage) || 1, 1), pageCount);
       const startIndex = (state.orgPage - 1) * orgPageSize;
@@ -4551,7 +4693,7 @@
           </div>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
-        <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
+        ${orgStatusTags(o)}
         <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${nextScheduleLabel(o.id)} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
         <div class="org-actions">
           <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
@@ -4755,6 +4897,145 @@
         return "";
       }
     }
+    function renderMonthlyMaintenancePanel() {
+      const list = document.getElementById("monthlyMaintenanceList");
+      const sub = document.getElementById("monthlyMaintenanceSub");
+      if (!list || !sub) return;
+      const range = monthRangeForCursor();
+      const orgs = monthlyMaintenanceOrgs(range);
+      sub.textContent = `${range.year}년 ${range.month}월 · ${orgs.length}곳`;
+      if (!orgs.length) {
+        list.innerHTML = '<div class="empty">이번 달 일정미정 기관이 없습니다.</div>';
+        return;
+      }
+      let lastCycle = "";
+      list.innerHTML = orgs.map(org => {
+        const label = org.cycle || "해당없음";
+        const group = label !== lastCycle ? `<div class="maintenance-group-label">${escapeHTML(label)}</div>` : "";
+        lastCycle = label;
+        return `${group}<button type="button" class="maintenance-drag-card" data-org-id="${escapeAttr(org.id)}" title="캘린더 날짜로 드래그해서 일정 등록" onpointerdown="maintenanceOrgPointerStart(event, '${escapeAttr(org.id)}')" onpointermove="maintenanceOrgPointerMove(event, '${escapeAttr(org.id)}')" onpointerup="maintenanceOrgPointerEnd(event, '${escapeAttr(org.id)}')" onpointercancel="maintenanceOrgPointerCancel(event, '${escapeAttr(org.id)}')">
+          <strong>${escapeHTML(org.name)}</strong>
+          <span>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.method || "점검수단 미입력")}</span>
+        </button>`;
+      }).join("");
+    }
+    function monthlyMaintenancePanelFromPoint(x, y, draggedEl) {
+      if (draggedEl) draggedEl.style.visibility = "hidden";
+      const panel = document.elementFromPoint(x, y)?.closest("#monthlyMaintenancePanel");
+      if (draggedEl) draggedEl.style.visibility = "";
+      return panel;
+    }
+    function clearMaintenanceDropTarget() {
+      document.getElementById("monthlyMaintenancePanel")?.classList.remove("drop-target");
+    }
+    function canMoveScheduleToUnscheduled(schedule = {}) {
+      const org = orgForSchedule(schedule);
+      return Boolean(org && ["visit", "remote", "org"].includes(schedule.type || "") && isOrgDueForMonth(org, monthRangeForCursor()) && scheduleOverlapsMonth(schedule, monthRangeForCursor()));
+    }
+    function moveScheduleToUnscheduled(id) {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule || !canMoveScheduleToUnscheduled(schedule)) return false;
+      const org = orgForSchedule(schedule);
+      const googleDeleteIds = [schedule.googleEventId, ...(schedule.googleDuplicateEventIds || [])].filter(Boolean);
+      if (googleDeleteIds.length) {
+        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleDeleteIds])];
+      }
+      state.schedules = state.schedules.filter(item => item.id !== id);
+      save();
+      render();
+      toast(`${org?.name || "일정"}을 일정미정으로 되돌렸습니다.`);
+      scheduleGoogleAutoSync("monthly-maintenance-unscheduled");
+      return true;
+    }
+    function createInspectionScheduleFromOrg(orgId, date) {
+      const org = state.orgs.find(item => item.id === orgId);
+      if (!org || !date) return null;
+      const now = new Date().toISOString();
+      const type = org.method === "원격점검" ? "remote" : "visit";
+      const schedule = {
+        id: uid(),
+        type,
+        orgId: org.id,
+        title: org.name,
+        date,
+        endDate: date,
+        startTime: "",
+        endTime: "",
+        color: type === "remote" ? "green" : "blue",
+        recurrence: "none",
+        recurrenceRootId: "",
+        googleEventId: "",
+        googleDuplicateEventIds: [],
+        googleUpdated: "",
+        googleHtmlLink: "",
+        googleSyncedAt: "",
+        googleDirty: true,
+        createdAt: now,
+        updatedAt: now
+      };
+      state.schedules.push(schedule);
+      save();
+      render();
+      toast(`${org.name} 방문일정을 ${formatDate(date)}에 등록했습니다.`);
+      scheduleGoogleAutoSync("monthly-maintenance-drop");
+      return schedule;
+    }
+    window.maintenanceOrgPointerStart = (event, orgId) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const el = event.currentTarget;
+      el.setPointerCapture?.(event.pointerId);
+      state.maintenanceOrgDrag = { orgId, el, startX: event.clientX, startY: event.clientY, moved: false };
+      hapticTap(10);
+    };
+    window.maintenanceOrgPointerMove = (event, orgId) => {
+      const drag = state.maintenanceOrgDrag;
+      if (!drag || drag.orgId !== orgId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
+      if (!drag.moved) return;
+      if (!drag.fixed) {
+        const rect = drag.el.getBoundingClientRect();
+        drag.width = rect.width;
+        drag.fixed = true;
+        drag.el.style.position = "fixed";
+        drag.el.style.width = `${rect.width}px`;
+        drag.el.style.left = `${rect.left}px`;
+        drag.el.style.top = `${rect.top}px`;
+      }
+      drag.el.classList.add("dragging");
+      drag.el.style.left = `${event.clientX - (drag.width || drag.el.offsetWidth) / 2}px`;
+      drag.el.style.top = `${event.clientY - 24}px`;
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      dateCellFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
+    };
+    window.maintenanceOrgPointerEnd = (event, orgId) => {
+      const drag = state.maintenanceOrgDrag;
+      if (!drag || drag.orgId !== orgId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
+      drag.el.classList.remove("dragging");
+      ["position", "width", "left", "top", "transform"].forEach(prop => drag.el.style[prop] = "");
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      state.maintenanceOrgDrag = null;
+      const targetDate = targetCell?.dataset.date;
+      if (targetDate) createInspectionScheduleFromOrg(orgId, targetDate);
+    };
+    window.maintenanceOrgPointerCancel = (event, orgId) => {
+      const drag = state.maintenanceOrgDrag;
+      if (!drag || drag.orgId !== orgId) return;
+      drag.el.classList.remove("dragging");
+      ["position", "width", "left", "top", "transform"].forEach(prop => drag.el.style[prop] = "");
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      state.maintenanceOrgDrag = null;
+    };
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -4805,6 +5086,7 @@
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
+      renderMonthlyMaintenancePanel();
     }
     function installSwipe(target) {
       target.onpointerdown = null;
@@ -4896,7 +5178,11 @@
       drag.el.classList.add("dragging");
       drag.el.style.transform = `translate(${dx}px, ${dy}px)`;
       clearDropTarget();
+      clearMaintenanceDropTarget();
       dateCellFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
+      if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
+        monthlyMaintenancePanelFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
+      }
     };
     window.schedulePointerEnd = (event, id) => {
       const drag = state.calendarDrag;
@@ -4906,16 +5192,19 @@
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
+      const targetPanel = drag.moved ? monthlyMaintenancePanelFromPoint(event.clientX, event.clientY, drag.el) : null;
       drag.el.classList.remove("drag-ready");
       drag.el.classList.remove("dragging");
       drag.el.style.transform = "";
       clearDropTarget();
+      clearMaintenanceDropTarget();
       state.calendarDrag = null;
       if (!drag.armed && !drag.cancelled) {
         openScheduleEditor(id);
         return;
       }
       if (drag.armed && !drag.moved) return;
+      if (targetPanel && moveScheduleToUnscheduled(id)) return;
       const targetDate = targetCell?.dataset.date;
       const schedule = state.schedules.find(item => item.id === id);
       if (schedule && targetDate) {
@@ -4939,6 +5228,7 @@
       drag.el.classList.remove("dragging");
       drag.el.style.transform = "";
       clearDropTarget();
+      clearMaintenanceDropTarget();
       state.calendarDrag = null;
     };
     window.calendarRangeStart = (event, date) => {
@@ -5167,6 +5457,25 @@
     function orgSearchText(org) {
       return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address, org.closedDay || extractClosedDayFromNote(org.note)].filter(Boolean).join(" "));
     }
+    function orgHasContractDate(org = {}) {
+      return Boolean(String(org.contractDate || "").trim());
+    }
+    function orgContractPrioritySort(a, b) {
+      return Number(orgHasContractDate(b)) - Number(orgHasContractDate(a));
+    }
+    function orgNameSort(a, b) {
+      return (a.name || "").localeCompare(b.name || "", "ko")
+        || (a.region || "").localeCompare(b.region || "", "ko");
+    }
+    function orgSearchSort(a, b) {
+      return orgContractPrioritySort(a, b) || orgNameSort(a, b);
+    }
+    function orgStatusTags(org = {}) {
+      const tags = [];
+      if (org.cycle && org.cycle !== "해당없음") tags.push(`<span class="tag">${escapeHTML(org.cycle)}</span>`);
+      if (org.method && org.method !== "해당없음") tags.push(`<span class="tag gray">${escapeHTML(org.method)}</span>`);
+      return tags.length ? `<div>${tags.join(" ")}</div>` : "";
+    }
     function seoulProximityRank(org = {}) {
       const text = `${org.region || ""} ${org.address || ""}`;
       if (/서울|서울특별시/.test(text)) return 0;
@@ -5180,9 +5489,9 @@
       return 8;
     }
     function scheduleOrgSort(a, b) {
-      return seoulProximityRank(a) - seoulProximityRank(b)
-        || (a.name || "").localeCompare(b.name || "", "ko")
-        || (a.region || "").localeCompare(b.region || "", "ko");
+      return orgContractPrioritySort(a, b)
+        || seoulProximityRank(a) - seoulProximityRank(b)
+        || orgNameSort(a, b);
     }
     function matchingScheduleOrgs(value = "", limit = 20) {
       const keyword = normalizeOrgKeyword(value);
@@ -5195,7 +5504,7 @@
     function refreshScheduleOrgOptions() {
       scheduleOrgList.innerHTML = state.orgs
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        .sort(orgSearchSort)
         .map(org => `<option value="${escapeAttr(orgOptionLabel(org))}"></option>`)
         .join("");
       renderScheduleOrgSuggestions(false);
