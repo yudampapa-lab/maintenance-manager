@@ -815,16 +815,18 @@
       display: grid;
       gap: 12px;
       grid-template-columns: minmax(0, 1fr) 260px;
-      align-items: start;
+      align-items: stretch;
     }
     .monthly-maintenance-panel {
-      display: block;
+      display: flex;
+      flex-direction: column;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: rgba(255,255,255,.86);
       overflow: visible;
       position: sticky;
       top: 92px;
+      min-height: 100%;
     }
     .monthly-maintenance-head {
       padding: 12px;
@@ -844,9 +846,11 @@
     }
     .monthly-maintenance-list {
       display: grid;
+      align-content: start;
       gap: 8px;
       padding: 10px;
-      max-height: calc(100vh - 260px);
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: visible;
     }
@@ -885,6 +889,9 @@
       opacity: .92;
       cursor: grabbing;
       box-shadow: 0 14px 28px rgba(22, 34, 45, .18);
+    }
+    .maintenance-drag-card.drag-ready {
+      box-shadow: 0 0 0 2px rgba(0, 122, 255, .28), 0 8px 18px rgba(22, 34, 45, .1);
     }
     .maintenance-group-label {
       margin: 8px 2px 0;
@@ -4942,6 +4949,22 @@
     function clearMaintenanceDropTarget() {
       document.getElementById("monthlyMaintenancePanel")?.classList.remove("drop-target");
     }
+    function resetMaintenanceDragElement(el) {
+      if (!el) return;
+      el.classList.remove("drag-ready");
+      el.classList.remove("dragging");
+      ["position", "width", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
+    }
+    function syncMonthlyMaintenancePanelHeight() {
+      const panel = document.getElementById("monthlyMaintenancePanel");
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (!panel || !grid) return;
+      if (window.matchMedia("(max-width: 540px)").matches) {
+        panel.style.height = "";
+        return;
+      }
+      panel.style.height = `${Math.round(grid.getBoundingClientRect().height)}px`;
+    }
     function canMoveScheduleToUnscheduled(schedule = {}) {
       const org = orgForSchedule(schedule);
       return Boolean(org && ["visit", "remote", "org"].includes(schedule.type || "") && isOrgDueForMonth(org, monthRangeForCursor()) && scheduleOverlapsMonth(schedule, monthRangeForCursor()));
@@ -4961,6 +4984,23 @@
       scheduleGoogleAutoSync("monthly-maintenance-unscheduled");
       return true;
     }
+    window.copyMaintenanceOrgText = async orgId => {
+      const org = state.orgs.find(item => item.id === orgId);
+      if (!org) return;
+      await copyTextToClipboard(org.name || "");
+      toast("기관명을 복사했습니다.");
+    };
+    window.openMaintenanceOrgAction = orgId => {
+      const org = state.orgs.find(item => item.id === orgId);
+      if (!org) return;
+      const buttons = [
+        actionButton("기관수정", "edit", `scheduleActionDialog.close(); editOrg('${orgId}')`),
+        actionButton("텍스트복사", "text", `scheduleActionDialog.close(); copyMaintenanceOrgText('${orgId}')`),
+        actionButton("전화", "phone", `scheduleActionDialog.close(); openCall('${orgId}')`),
+        actionButton("Tmap", "map", `scheduleActionDialog.close(); openTmap('${orgId}')`)
+      ];
+      showScheduleActionDialog(org.name || "기관", `${org.cycle || ""} · ${org.region || "지역 미입력"}`, buttons);
+    };
     function createInspectionScheduleFromOrg(orgId, date) {
       const org = state.orgs.find(item => item.id === orgId);
       if (!org || !date) return null;
@@ -4999,8 +5039,25 @@
       event.stopPropagation();
       const el = event.currentTarget;
       el.setPointerCapture?.(event.pointerId);
-      state.maintenanceOrgDrag = { orgId, el, startX: event.clientX, startY: event.clientY, moved: false };
-      hapticTap(10);
+      const drag = { orgId, el, startX: event.clientX, startY: event.clientY, moved: false, armed: false, cancelled: false };
+      drag.longPressTimer = setTimeout(() => {
+        if (state.maintenanceOrgDrag !== drag || drag.cancelled) return;
+        drag.armed = true;
+        drag.startX = event.clientX;
+        drag.startY = event.clientY;
+        el.classList.add("drag-ready");
+        hapticTap(18);
+      }, 520);
+      drag.contextTimer = setTimeout(() => {
+        if (state.maintenanceOrgDrag !== drag || drag.cancelled || drag.moved) return;
+        drag.cancelled = true;
+        clearTimeout(drag.longPressTimer);
+        resetMaintenanceDragElement(el);
+        state.maintenanceOrgDrag = null;
+        hapticTap(20);
+        openMaintenanceOrgAction(orgId);
+      }, 1120);
+      state.maintenanceOrgDrag = drag;
     };
     window.maintenanceOrgPointerMove = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
@@ -5009,7 +5066,18 @@
       event.stopPropagation();
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
-      if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
+      if (!drag.armed) {
+        if (Math.abs(dx) + Math.abs(dy) > 12) {
+          drag.cancelled = true;
+          clearTimeout(drag.longPressTimer);
+          clearTimeout(drag.contextTimer);
+        }
+        return;
+      }
+      if (Math.abs(dx) + Math.abs(dy) > 8) {
+        drag.moved = true;
+        clearTimeout(drag.contextTimer);
+      }
       if (!drag.moved) return;
       if (!drag.fixed) {
         const rect = drag.el.getBoundingClientRect();
@@ -5020,6 +5088,7 @@
         drag.el.style.left = `${rect.left}px`;
         drag.el.style.top = `${rect.top}px`;
       }
+      drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
       drag.el.style.left = `${event.clientX - (drag.width || drag.el.offsetWidth) / 2}px`;
       drag.el.style.top = `${event.clientY - 24}px`;
@@ -5032,20 +5101,24 @@
       if (!drag || drag.orgId !== orgId) return;
       event.preventDefault();
       event.stopPropagation();
+      clearTimeout(drag.longPressTimer);
+      clearTimeout(drag.contextTimer);
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
-      drag.el.classList.remove("dragging");
-      ["position", "width", "left", "top", "transform"].forEach(prop => drag.el.style[prop] = "");
+      resetMaintenanceDragElement(drag.el);
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.maintenanceOrgDrag = null;
+      if (!drag.armed || drag.cancelled) return;
+      if (drag.armed && !drag.moved) return;
       const targetDate = targetCell?.dataset.date;
       if (targetDate) createInspectionScheduleFromOrg(orgId, targetDate);
     };
     window.maintenanceOrgPointerCancel = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
       if (!drag || drag.orgId !== orgId) return;
-      drag.el.classList.remove("dragging");
-      ["position", "width", "left", "top", "transform"].forEach(prop => drag.el.style[prop] = "");
+      clearTimeout(drag.longPressTimer);
+      clearTimeout(drag.contextTimer);
+      resetMaintenanceDragElement(drag.el);
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.maintenanceOrgDrag = null;
@@ -5101,6 +5174,7 @@
       </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
       renderMonthlyMaintenancePanel();
+      requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     }
     function installSwipe(target) {
       target.onpointerdown = null;
@@ -7374,6 +7448,9 @@
     });
     window.addEventListener("focus", () => {
       startCloudAutoSync({ immediate: true });
+    });
+    window.addEventListener("resize", () => {
+      requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     });
     testKakaoBtn.onclick = () => {
       showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
