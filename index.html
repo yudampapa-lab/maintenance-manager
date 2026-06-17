@@ -35,6 +35,16 @@
     body.auth-locked {
       overflow: hidden;
     }
+    body.auth-pending {
+      overflow: hidden;
+    }
+    body.auth-pending .app-shell,
+    body.auth-pending .bottom-nav,
+    body.auth-pending .ai-command-fab,
+    body.auth-pending dialog,
+    body.auth-pending .login-screen {
+      display: none !important;
+    }
     body.auth-locked .app-shell,
     body.auth-locked .bottom-nav,
     body.auth-locked .ai-command-fab,
@@ -2128,7 +2138,7 @@
     }
   </style>
 </head>
-<body class="auth-locked">
+<body class="auth-pending">
   <section class="login-screen" aria-label="ReportMate 로그인">
     <div class="login-card">
       <div class="login-logo" aria-hidden="true">
@@ -2824,6 +2834,7 @@
       }
     }
     function unlockApp(session) {
+      document.body.classList.remove("auth-pending");
       document.body.classList.remove("auth-locked");
       setLoginMessage("");
       state.loginSession = session;
@@ -2831,6 +2842,7 @@
       startCloudAutoSync({ immediate: true });
     }
     function lockApp(message = "") {
+      document.body.classList.remove("auth-pending");
       document.body.classList.add("auth-locked");
       setLoginMessage(message);
       setTimeout(initLoginGate, 80);
