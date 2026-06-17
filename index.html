@@ -393,6 +393,20 @@
       margin-bottom: 12px;
       overflow: hidden;
     }
+    .map-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .map-head-actions .icon {
+      width: 34px;
+      min-height: 34px;
+      border-radius: 11px;
+    }
+    .map-head-actions .icon svg {
+      width: 17px;
+      height: 17px;
+    }
     .destination-map-panel .panel-body {
       padding-top: 0;
     }
@@ -1164,8 +1178,39 @@
       border-radius: 6px;
       background: var(--soft);
     }
+    .report-thumb {
+      width: 86px;
+      min-height: 0;
+      padding: 0;
+      border-radius: 6px;
+      background: transparent;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .report-thumb:active {
+      transform: scale(.98);
+    }
     .report-card h3 { margin: 0; font-size: 14px; }
     .report-card p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .photo-preview-dialog {
+      width: min(760px, calc(100vw - 24px));
+    }
+    .photo-preview-frame {
+      margin-top: 12px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #0b0f14;
+      display: grid;
+      place-items: center;
+      max-height: min(72vh, 680px);
+    }
+    .photo-preview-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: min(72vh, 680px);
+      object-fit: contain;
+    }
     #todayTaskTitle {
       touch-action: manipulation;
       user-select: none;
@@ -2082,10 +2127,18 @@
         </section>
         <section class="panel destination-map-panel">
           <div class="panel-head">
-            <div><h2 class="panel-title">오늘 가야 될 곳</h2><p class="panel-sub" id="todayDestinationMapSub"></p></div>
-            <button type="button" class="icon secondary" id="locateTodayMapBtn" title="내 위치 표시" aria-label="내 위치 표시">
-              <svg viewBox="0 0 24 24"><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </button>
+            <div><h2 class="panel-title">오늘의 지도</h2><p class="panel-sub" id="todayDestinationMapSub"></p></div>
+            <div class="map-head-actions">
+              <button type="button" class="icon secondary" title="집으로 Tmap" aria-label="집으로 Tmap" onclick="openTmapAddress('집', '서울시 구로구 중앙로15길 125')">
+                <svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+              </button>
+              <button type="button" class="icon secondary" title="회사로 Tmap" aria-label="회사로 Tmap" onclick="openTmapAddress('회사', '서울시 강서구 마곡중앙2로 39')">
+                <svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 21v-5h4v5"/><path d="M8 7h1"/><path d="M13 7h1"/><path d="M8 11h1"/><path d="M13 11h1"/><path d="M20 21h-2"/></svg>
+              </button>
+              <button type="button" class="icon secondary" id="locateTodayMapBtn" title="내 위치 표시" aria-label="내 위치 표시">
+                <svg viewBox="0 0 24 24"><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              </button>
+            </div>
           </div>
           <div class="panel-body">
             <div id="todayDestinationMap" class="destination-map" aria-label="오늘 방문 기관 지도"></div>
@@ -2254,6 +2307,17 @@
     <div class="modal-actions">
       <button class="secondary" id="addReportFromDialogBtn">사진 추가</button>
       <button id="closeReportDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="photoPreviewDialog" class="photo-preview-dialog">
+    <div class="modal-body">
+      <h2 class="panel-title" id="photoPreviewTitle">사진 미리보기</h2>
+      <p class="panel-sub" id="photoPreviewSub"></p>
+      <div class="photo-preview-frame"><img id="photoPreviewImage" alt="레포트 사진 미리보기"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closePhotoPreviewDialogBtn">닫기</button>
     </div>
   </dialog>
 
@@ -3081,6 +3145,15 @@
     }
     function formatDateWithYear(iso) {
       return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
+    }
+    function formatDateTimeWithYear(iso) {
+      if (!iso) return "";
+      const value = String(iso);
+      const date = value.includes("T") ? new Date(value) : new Date(value + "T00:00:00");
+      return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+    }
+    function reportDateLabel(report = {}) {
+      return formatDateTimeWithYear(report.capturedAt || report.createdAt || report.visitDate || todayISO());
     }
     function toast(msg) {
       const el = document.getElementById("toast");
@@ -5133,7 +5206,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -5543,9 +5616,9 @@
       reportTitle.textContent = org ? `${org.name} 레포트 내역` : "레포트 내역";
       reportSub.textContent = reports.length ? `${reports.length}건 저장됨` : "저장된 레포트 사진이 없습니다.";
       reportList.innerHTML = reports.length ? reports.map(r => `<article class="report-card">
-        <a href="${r.dataUrl}" target="_blank" title="원본 보기"><img src="${r.dataUrl}" alt="레포트 사진"></a>
+        <button type="button" class="report-thumb" title="사진 미리보기" onclick="previewReport('${r.id}')"><img src="${r.dataUrl}" alt="레포트 사진"></button>
         <div>
-          <h3>${formatDate(r.visitDate || r.createdAt.slice(0, 10))}</h3>
+          <h3>${escapeHTML(reportDateLabel(r))}</h3>
           <p>${r.width}x${r.height} · 약 ${Math.max(1, Math.round(r.bytes / 1024))}KB</p>
           <div class="visit-actions" style="margin-top:8px">
             <button class="secondary" onclick="downloadReport('${r.id}')">다운로드</button>
@@ -5578,6 +5651,15 @@
       a.download = `maintenance-report-${report.createdAt.slice(0, 10)}.jpg`;
       a.click();
     };
+    window.previewReport = async id => {
+      const reports = await getReports(state.currentReportOrgId);
+      const report = reports.find(r => r.id === id);
+      if (!report) return;
+      photoPreviewTitle.textContent = report.orgName ? `${report.orgName} 레포트` : "레포트 사진";
+      photoPreviewSub.textContent = reportDateLabel(report);
+      photoPreviewImage.src = report.dataUrl;
+      photoPreviewDialog.showModal();
+    };
     window.deleteReport = async (id, orgId) => {
       if (!confirm("이 레포트 사진을 삭제할까요?")) return;
       await removeReport(id);
@@ -5592,10 +5674,11 @@
       const file = input.files?.[0];
       const org = state.orgs.find(o => o.id === state.currentReportOrgId);
       if (!file || !org) return;
+      const capturedAt = new Date().toISOString();
       enqueueImageTask({
         kind: "report",
         file,
-        meta: { orgId: org.id, orgName: org.name, visitDate: org.nextVisit || todayISO() },
+        meta: { orgId: org.id, orgName: org.name, visitDate: capturedAt.slice(0, 10), capturedAt },
         onDone: async () => { if (reportDialog.open) await renderReportList(org.id); }
       });
     }
@@ -5607,6 +5690,7 @@
     photoFileBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportFileInput); };
     closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
     closeReportDialogBtn.onclick = () => reportDialog.close();
+    closePhotoPreviewDialogBtn.onclick = () => photoPreviewDialog.close();
     addReportFromDialogBtn.onclick = () => {
       if (state.currentReportOrgId) captureReport(state.currentReportOrgId);
     };
@@ -5807,6 +5891,25 @@
       } catch (error) {
         console.warn(error);
         showInfo("Tmap 길찾기", "주소를 Tmap 좌표로 변환하지 못했습니다. 상세 주소를 도로명/지번까지 조금 더 정확하게 입력하거나 Tmap 앱키 설정을 확인해주세요.");
+      }
+    };
+    window.openTmapAddress = async (name, address) => {
+      const target = String(address || "").trim();
+      if (!target) return;
+      const appKey = (state.settings.tmapKey || "").trim();
+      if (!appKey) {
+        window.open(`https://www.tmap.co.kr/search?keyword=${encodeURIComponent(target)}`, "_blank");
+        toast(`${name} 주소를 Tmap 검색으로 열었습니다.`);
+        return;
+      }
+      try {
+        toast(`${name} 목적지를 찾고 있습니다.`);
+        const coordinate = await fetchTmapCoordinates(target, appKey);
+        openTmapRoute({ name }, target, coordinate);
+      } catch (error) {
+        console.warn(error);
+        window.open(`https://www.tmap.co.kr/search?keyword=${encodeURIComponent(target)}`, "_blank");
+        toast("좌표 변환 대신 Tmap 검색으로 열었습니다.");
       }
     };
     function scheduleDetails(schedule) {
