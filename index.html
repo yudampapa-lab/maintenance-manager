@@ -2712,6 +2712,7 @@
     normalizeSchedules();
     normalizeVehicle();
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
+    ensureNationalLibraryBase();
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
@@ -3046,6 +3047,7 @@
         || String(org.endDate || "").trim()
         || Number(org.billingDay || 0)
         || String(org.solution || "").trim()
+        || String(org.updatedAt || "").trim()
         || hasCustomOrgNote(org)
         || (Array.isArray(org.issues) && org.issues.length)
         || hasCustomContacts
@@ -3059,13 +3061,31 @@
       if (org.id) return "id:" + org.id;
       return "name-address:" + normalizeOrgKeyword(org.name || "") + ":" + normalizeOrgKeyword(org.address || "");
     }
+    function orgRecordTime(org = {}) {
+      return Date.parse(org.updatedAt || org.createdAt || "") || 0;
+    }
+    function betterOrgRecord(local = {}, incoming = {}) {
+      const localTime = orgRecordTime(local);
+      const incomingTime = orgRecordTime(incoming);
+      const newer = incomingTime >= localTime ? incoming : local;
+      const older = newer === incoming ? local : incoming;
+      return {
+        ...older,
+        ...newer,
+        id: local.id || incoming.id || uid(),
+        sourceId: local.sourceId || incoming.sourceId || "",
+        sourceName: local.sourceName || incoming.sourceName || "",
+        issues: Array.isArray(newer.issues) ? newer.issues : (Array.isArray(older.issues) ? older.issues : []),
+        contacts: Array.isArray(newer.contacts) ? newer.contacts : (Array.isArray(older.contacts) ? older.contacts : [])
+      };
+    }
     function mergeOrgLists(localOrgs = [], cloudOrgs = []) {
       const merged = new Map();
       localOrgs.forEach(org => merged.set(orgMergeKey(org), org));
       cloudOrgs.forEach(org => {
         const key = orgMergeKey(org);
         const local = merged.get(key);
-        merged.set(key, local ? { ...local, ...org, issues: org.issues || local.issues || [], contacts: org.contacts || local.contacts || [] } : org);
+        merged.set(key, local ? betterOrgRecord(local, org) : org);
       });
       return [...merged.values()].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
     }
@@ -6033,6 +6053,7 @@
       const org = state.orgs.find(o => o.id === orgId);
       if (!org) return;
       org.issues = (org.issues || []).filter(item => item.id !== issueId);
+      org.updatedAt = new Date().toISOString();
       save();
       renderIssueList(orgId);
       render();
@@ -6062,6 +6083,7 @@
       } else {
         org.issues.unshift({ id: uid(), date: issueDate.value, text: issueText.value.trim(), createdAt: new Date().toISOString() });
       }
+      org.updatedAt = new Date().toISOString();
       save();
       renderIssueList(org.id);
       render();
@@ -6075,23 +6097,26 @@
     closeOrgDialogBtn.onclick = () => orgDialog.close();
     orgForm.onsubmit = e => {
       e.preventDefault();
+      const now = new Date().toISOString();
+      const index = state.orgs.findIndex(o => o.id === (orgId.value || ""));
+      const existing = index >= 0 ? state.orgs[index] : null;
       const data = {
         id: orgId.value || uid(), region: region.value.trim(), type: orgType.value, name: orgName.value.trim(),
         contractor: contractor.value.trim(), contractDate: contractDate.value, cycle: cycle.value, method: method.value, startDate: startDate.value, endDate: endDate.value,
         nextVisit: "", billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
-        closedDay: closedDay.value.trim(), note: orgNote.value.trim(), contacts: contactsFromForm(), issues: []
+        closedDay: closedDay.value.trim(), note: orgNote.value.trim(), contacts: contactsFromForm(), issues: [],
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
       };
-      const index = state.orgs.findIndex(o => o.id === data.id);
-      const existingIssues = index >= 0 ? (state.orgs[index].issues || []) : [];
-      const existingNextVisit = index >= 0 ? state.orgs[index].nextVisit : "";
+      const existingIssues = existing ? (existing.issues || []) : [];
+      const existingNextVisit = existing ? existing.nextVisit : "";
       if (index >= 0) {
-        data.sourceId = state.orgs[index].sourceId || "";
-        data.sourceName = state.orgs[index].sourceName || "";
+        data.sourceId = existing.sourceId || "";
+        data.sourceName = existing.sourceName || "";
       }
       data.issues = existingIssues;
       data.nextVisit = existingNextVisit || startDate.value || todayISO();
       if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
-      const now = new Date().toISOString();
       state.schedules.forEach(schedule => {
         if (schedule.orgId === data.id) schedule.updatedAt = now;
       });
@@ -6133,6 +6158,9 @@
         if (org.sourceId && org.sourceId === library.sourceId) return true;
         return normalizeOrgKeyword(org.name) === libraryName && normalizeOrgKeyword(org.address) === libraryAddress;
       });
+    }
+    function libraryNameAddressKey(library = {}) {
+      return normalizeOrgKeyword(library.name || "") + "::" + normalizeOrgKeyword(library.address || "");
     }
     function regionFromLibraryAddress(address = "") {
       const parts = String(address || "").replace(/\([^)]*\)/g, "").trim().split(/\s+/).filter(Boolean);
@@ -6214,16 +6242,30 @@
     function mergeLibrariesIntoOrgs(libraries) {
       const added = [];
       const skipped = [];
+      const sourceIds = new Set(state.orgs.map(org => org.sourceId).filter(Boolean));
+      const nameAddressKeys = new Set(state.orgs.map(org => libraryNameAddressKey(org)));
       libraries.forEach(library => {
-        if (isDuplicateLibraryOrg(library)) {
+        const nameAddressKey = libraryNameAddressKey(library);
+        if ((library.sourceId && sourceIds.has(library.sourceId)) || nameAddressKeys.has(nameAddressKey)) {
           skipped.push(library.name);
           return;
         }
         const org = libraryToOrg(library);
         state.orgs.push(org);
+        if (org.sourceId) sourceIds.add(org.sourceId);
+        nameAddressKeys.add(nameAddressKey);
         added.push(org.name);
       });
       return { added, skipped };
+    }
+    function ensureNationalLibraryBase() {
+      const libraries = normalizedStaticLibraries();
+      if (!libraries.length) return { added: [], skipped: [] };
+      const result = mergeLibrariesIntoOrgs(libraries);
+      if (result.added.length) {
+        save({ skipCloud: true });
+      }
+      return result;
     }
     function normalizedStaticLibraries() {
       return (Array.isArray(window.nationalLibraryStaticData) ? window.nationalLibraryStaticData : [])

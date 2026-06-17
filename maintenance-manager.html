@@ -25,6 +25,7 @@
     }
 
     * { box-sizing: border-box; }
+    .hidden { display: none !important; }
     body {
       margin: 0;
       background: linear-gradient(180deg, #edf4f8 0%, #f7f9fb 42%, #eef3f6 100%);
@@ -33,6 +34,16 @@
     }
     body.auth-locked {
       overflow: hidden;
+    }
+    body.auth-pending {
+      overflow: hidden;
+    }
+    body.auth-pending .app-shell,
+    body.auth-pending .bottom-nav,
+    body.auth-pending .ai-command-fab,
+    body.auth-pending dialog,
+    body.auth-pending .login-screen {
+      display: none !important;
     }
     body.auth-locked .app-shell,
     body.auth-locked .bottom-nav,
@@ -1065,6 +1076,11 @@
       background: rgba(118, 118, 128, .12);
       box-shadow: none;
     }
+    .org-suggestions .empty {
+      padding: 10px;
+      font-size: 11px;
+      border-radius: 8px;
+    }
     .contact-row {
       display: grid;
       grid-template-columns: .7fr 1fr 1fr 1fr 1.2fr 1.4fr auto;
@@ -1242,23 +1258,47 @@
     .vehicle-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
     .attachment-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
       gap: 8px;
       margin-top: 10px;
     }
-    .attachment-grid a {
-      display: block;
-      aspect-ratio: 1;
+    .attachment-card {
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--soft);
+    }
+    .attachment-thumb {
+      width: 100%;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+      aspect-ratio: 1;
+      display: block;
+      overflow: hidden;
     }
     .attachment-grid img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+    .attachment-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding: 5px;
+      background: rgba(255,255,255,.76);
+    }
+    .attachment-actions button {
+      min-height: 28px;
+      padding: 4px 6px;
+      border-radius: 7px;
+      font-size: 11px;
+      box-shadow: none;
     }
     .file-hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .settings-grid {
@@ -2098,7 +2138,7 @@
     }
   </style>
 </head>
-<body class="auth-locked">
+<body class="auth-pending">
   <section class="login-screen" aria-label="ReportMate 로그인">
     <div class="login-card">
       <div class="login-logo" aria-hidden="true">
@@ -2183,8 +2223,8 @@
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
         <div class="toolbar">
           <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
-          <button type="button" class="secondary" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
-          <button type="button" class="secondary" id="importNationalLibrariesBtn">전국 도서관</button>
+          <button type="button" class="secondary hidden" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
+          <button type="button" class="secondary hidden" id="importNationalLibrariesBtn">전국 도서관</button>
           <button id="newOrgBtn">기관 등록</button>
         </div>
         <div class="cards" id="orgCards"></div>
@@ -2582,6 +2622,7 @@
     const allowedLoginEmail = "yudampapa@gmail.com";
     const loginSessionKey = "reportmate_login_session";
     const firebasePendingActionKey = "reportmate_firebase_pending_action";
+    const googleTokenStorageKey = "reportmate_google_calendar_token";
     const googleAutoSyncVisibleIntervalMs = 8 * 1000;
     const googleAutoSyncHiddenIntervalMs = 60 * 1000;
     const googleSyncLookbackMs = 2 * 60 * 1000;
@@ -2657,6 +2698,8 @@
       currentLocationMarker: null,
       currentPosition: null,
       currentPositionAsked: false,
+      currentPositionAutoRequestedAt: 0,
+      currentPositionAutoTimer: null,
       destinationMapRenderTimer: null,
       destinationMapRenderToken: 0,
       orgPage: 1
@@ -2664,13 +2707,53 @@
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
+    restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
     normalizeVehicle();
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
+    ensureNationalLibraryBase();
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+    function restoreGoogleAccessToken() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(googleTokenStorageKey) || "{}");
+        if (!saved.accessToken || !saved.expiresAt || saved.clientId !== state.settings.googleClientId) {
+          clearGoogleAccessToken();
+          return false;
+        }
+        if (Date.now() > Number(saved.expiresAt) - 60000) {
+          clearGoogleAccessToken();
+          return false;
+        }
+        state.googleAccessToken = saved.accessToken;
+        state.googleAccessTokenExpiresAt = Number(saved.expiresAt);
+        return true;
+      } catch {
+        clearGoogleAccessToken();
+        return false;
+      }
+    }
+    function rememberGoogleAccessToken(accessToken, expiresIn = 3600) {
+      const expiresAt = Date.now() + Math.max(60, Number(expiresIn || 3600) - 90) * 1000;
+      state.googleAccessToken = accessToken || "";
+      state.googleAccessTokenExpiresAt = expiresAt;
+      if (accessToken) {
+        localStorage.setItem(googleTokenStorageKey, JSON.stringify({
+          accessToken,
+          expiresAt,
+          clientId: state.settings.googleClientId,
+          savedAt: new Date().toISOString()
+        }));
+      }
+      return accessToken;
+    }
+    function clearGoogleAccessToken() {
+      state.googleAccessToken = "";
+      state.googleAccessTokenExpiresAt = 0;
+      localStorage.removeItem(googleTokenStorageKey);
     }
     function firebaseConfig() {
       return window.REPORTMATE_FIREBASE_CONFIG || {};
@@ -2754,13 +2837,16 @@
       }
     }
     function unlockApp(session) {
+      document.body.classList.remove("auth-pending");
       document.body.classList.remove("auth-locked");
       setLoginMessage("");
       state.loginSession = session;
       renderSettings();
       startCloudAutoSync({ immediate: true });
+      autoRequestTodayMapLocation();
     }
     function lockApp(message = "") {
+      document.body.classList.remove("auth-pending");
       document.body.classList.add("auth-locked");
       setLoginMessage(message);
       setTimeout(initLoginGate, 80);
@@ -2932,6 +3018,77 @@
         if (!org.closedDay) org.closedDay = extractClosedDayFromNote(org.note);
       });
     }
+    function isNationalStaticOrg(org = {}) {
+      return String(org.sourceId || "").startsWith("data4library-static:")
+        || org.sourceName === "도서관 정보나루 참여도서관 목록"
+        || org.sourceName === "전국 도서관 정적 목록";
+    }
+    function hasCustomOrgNote(org = {}) {
+      return String(org.note || "")
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .some(line => !/^(홈페이지|운영시간|도서관코드|출처)\s*:/.test(line));
+    }
+    function hasUserMaintenanceInfo(org = {}) {
+      const contacts = Array.isArray(org.contacts) ? org.contacts : [];
+      const hasCustomContacts = contacts.some(contact => {
+        const name = String(contact.name || "").trim();
+        const note = String(contact.note || "").trim();
+        return (name && name !== "대표전화")
+          || String(contact.mobile || "").trim()
+          || String(contact.email || "").trim()
+          || (note && !note.startsWith("원본 번호:"));
+      });
+      return Boolean(
+        String(org.contractor || "").trim()
+        || String(org.contractDate || "").trim()
+        || String(org.startDate || "").trim()
+        || String(org.endDate || "").trim()
+        || Number(org.billingDay || 0)
+        || String(org.solution || "").trim()
+        || String(org.updatedAt || "").trim()
+        || hasCustomOrgNote(org)
+        || (Array.isArray(org.issues) && org.issues.length)
+        || hasCustomContacts
+      );
+    }
+    function shouldUploadOrgToCloud(org = {}) {
+      return !isNationalStaticOrg(org) || hasUserMaintenanceInfo(org);
+    }
+    function orgMergeKey(org = {}) {
+      if (org.sourceId) return "source:" + org.sourceId;
+      if (org.id) return "id:" + org.id;
+      return "name-address:" + normalizeOrgKeyword(org.name || "") + ":" + normalizeOrgKeyword(org.address || "");
+    }
+    function orgRecordTime(org = {}) {
+      return Date.parse(org.updatedAt || org.createdAt || "") || 0;
+    }
+    function betterOrgRecord(local = {}, incoming = {}) {
+      const localTime = orgRecordTime(local);
+      const incomingTime = orgRecordTime(incoming);
+      const newer = incomingTime >= localTime ? incoming : local;
+      const older = newer === incoming ? local : incoming;
+      return {
+        ...older,
+        ...newer,
+        id: local.id || incoming.id || uid(),
+        sourceId: local.sourceId || incoming.sourceId || "",
+        sourceName: local.sourceName || incoming.sourceName || "",
+        issues: Array.isArray(newer.issues) ? newer.issues : (Array.isArray(older.issues) ? older.issues : []),
+        contacts: Array.isArray(newer.contacts) ? newer.contacts : (Array.isArray(older.contacts) ? older.contacts : [])
+      };
+    }
+    function mergeOrgLists(localOrgs = [], cloudOrgs = []) {
+      const merged = new Map();
+      localOrgs.forEach(org => merged.set(orgMergeKey(org), org));
+      cloudOrgs.forEach(org => {
+        const key = orgMergeKey(org);
+        const local = merged.get(key);
+        merged.set(key, local ? betterOrgRecord(local, org) : org);
+      });
+      return [...merged.values()].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+    }
     function seedSchedulesFromOrgs() {
       state.schedules = state.orgs
         .filter(org => org.nextVisit)
@@ -3041,9 +3198,32 @@
         records: Array.isArray(state.vehicle?.records) ? state.vehicle.records : []
       };
     }
+    function vehicleRecordTime(record) {
+      return Date.parse(record?.updatedAt || record?.createdAt || record?.date || "") || 0;
+    }
+    function mergeVehicleData(localVehicle = {}, cloudVehicle = {}) {
+      const byId = new Map();
+      const addRecord = record => {
+        if (!record || typeof record !== "object") return;
+        const id = record.id || uid();
+        const normalized = { ...record, id };
+        const current = byId.get(id);
+        if (!current || vehicleRecordTime(normalized) >= vehicleRecordTime(current)) {
+          byId.set(id, { ...current, ...normalized });
+        }
+      };
+      (Array.isArray(localVehicle.records) ? localVehicle.records : []).forEach(addRecord);
+      (Array.isArray(cloudVehicle.records) ? cloudVehicle.records : []).forEach(addRecord);
+      return {
+        ...localVehicle,
+        ...cloudVehicle,
+        records: [...byId.values()].sort((a, b) => `${b.date || ""} ${b.createdAt || ""}`.localeCompare(`${a.date || ""} ${a.createdAt || ""}`))
+      };
+    }
     function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
+      normalizeVehicle();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
@@ -3339,6 +3519,7 @@
       dashboardSettingsBtn.style.display = view === "dashboard" ? "inline-grid" : "none";
       localStorage.setItem("maint_active_view", view);
       render();
+      if (view === "dashboard") autoRequestTodayMapLocation();
     }
 
     function orgForSchedule(schedule) {
@@ -3568,6 +3749,19 @@
         timeout: 9000,
         maximumAge: 120000
       });
+    }
+    function autoRequestTodayMapLocation() {
+      if (!document.getElementById("view-dashboard")?.classList.contains("active")) return;
+      if (document.body.classList.contains("auth-pending") || document.body.classList.contains("auth-locked")) return;
+      if (state.currentPositionAutoTimer) clearTimeout(state.currentPositionAutoTimer);
+      state.currentPositionAutoTimer = setTimeout(() => {
+        if (!document.getElementById("view-dashboard")?.classList.contains("active")) return;
+        if (document.body.classList.contains("auth-pending") || document.body.classList.contains("auth-locked")) return;
+        const now = Date.now();
+        if (now - (state.currentPositionAutoRequestedAt || 0) < 10000) return;
+        state.currentPositionAutoRequestedAt = now;
+        requestTodayMapLocation({ silent: true });
+      }, 360);
     }
     window.requestTodayMapLocation = requestTodayMapLocation;
     function scheduleTextForClipboard(schedule) {
@@ -4966,12 +5160,29 @@
     function orgSearchText(org) {
       return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address, org.closedDay || extractClosedDayFromNote(org.note)].filter(Boolean).join(" "));
     }
-    function matchingScheduleOrgs(value = "", limit = 8) {
+    function seoulProximityRank(org = {}) {
+      const text = `${org.region || ""} ${org.address || ""}`;
+      if (/서울|서울특별시/.test(text)) return 0;
+      if (/경기|경기도|고양|과천|광명|구리|군포|김포|남양주|부천|성남|수원|시흥|안양|양주|의정부|하남|화성|용인|의왕|파주|광주|오산|안산|안성|평택|포천|동두천|여주|이천|가평|양평|연천/.test(text)) return 1;
+      if (/인천|인천광역시/.test(text)) return 2;
+      if (/충남|충청남도|충북|충청북도|세종|대전|대전광역시/.test(text)) return 3;
+      if (/강원|강원특별자치도/.test(text)) return 4;
+      if (/대구|경북|경상북도|전북|전라북도|전북특별자치도/.test(text)) return 5;
+      if (/부산|울산|경남|경상남도|광주|전남|전라남도/.test(text)) return 6;
+      if (/제주/.test(text)) return 7;
+      return 8;
+    }
+    function scheduleOrgSort(a, b) {
+      return seoulProximityRank(a) - seoulProximityRank(b)
+        || (a.name || "").localeCompare(b.name || "", "ko")
+        || (a.region || "").localeCompare(b.region || "", "ko");
+    }
+    function matchingScheduleOrgs(value = "", limit = 20) {
       const keyword = normalizeOrgKeyword(value);
       return state.orgs
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
         .filter(org => !keyword || orgSearchText(org).includes(keyword))
+        .sort(scheduleOrgSort)
         .slice(0, limit);
     }
     function refreshScheduleOrgOptions() {
@@ -4989,10 +5200,12 @@
         return;
       }
       const matches = matchingScheduleOrgs(scheduleOrgSearch.value);
+      const total = state.orgs.filter(org => !normalizeOrgKeyword(scheduleOrgSearch.value) || orgSearchText(org).includes(normalizeOrgKeyword(scheduleOrgSearch.value))).length;
+      const more = total > matches.length ? `<div class="empty">가까운 순으로 ${matches.length}개만 먼저 표시합니다.</div>` : "";
       scheduleOrgSuggestions.innerHTML = matches.length ? matches.map(org => `<button type="button" class="org-suggestion" onclick="selectScheduleOrg('${org.id}')">
         <strong>${escapeHTML(org.name)}</strong>
         <span>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.type || "타입 미입력")}</span>
-      </button>`).join("") : '<div class="empty">검색된 기관이 없습니다.</div>';
+      </button>`).join("") + more : '<div class="empty">검색된 기관이 없습니다.</div>';
       scheduleOrgSuggestions.classList.add("show");
     }
     window.selectScheduleOrg = id => {
@@ -5352,11 +5565,11 @@
       return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
     function applyCloudValue(key, value) {
-      if (key === "orgs" && Array.isArray(value)) state.orgs = value;
+      if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
       if (key === "schedules" && Array.isArray(value)) state.schedules = value;
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
-      if (key === "vehicle" && value && typeof value === "object") state.vehicle = value;
+      if (key === "vehicle" && value && typeof value === "object") state.vehicle = mergeVehicleData(state.vehicle, value);
     }
     function cloudErrorMessage(error) {
       const message = String(error?.message || error || "");
@@ -5384,8 +5597,9 @@
       }
     }
     function cloudSnapshotPayload() {
+      const uploadableOrgs = (state.orgs || []).filter(shouldUploadOrgToCloud);
       return {
-        orgs: state.orgs,
+        orgs: uploadableOrgs,
         schedules: state.schedules,
         memos: state.memos,
         dayNotes: state.dayNotes || {},
@@ -5617,6 +5831,14 @@
         request.onerror = () => reject(request.error);
       });
     }
+    async function getAttachment(id) {
+      const store = await attachmentStore();
+      return new Promise((resolve, reject) => {
+        const request = store.get(id);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      });
+    }
     async function removeAttachment(id) {
       const store = await attachmentStore("readwrite");
       return new Promise((resolve, reject) => {
@@ -5686,7 +5908,13 @@
     async function attachmentGrid(ownerType, ownerId) {
       const items = await getAttachments(ownerType, ownerId);
       if (!items.length) return "";
-      return `<div class="attachment-grid">${items.map(item => `<a href="${item.dataUrl}" target="_blank" title="${escapeAttr(item.name || "첨부 사진")}"><img src="${item.dataUrl}" alt="첨부 사진"></a>`).join("")}</div>`;
+      return `<div class="attachment-grid">${items.map(item => `<div class="attachment-card">
+        <button type="button" class="attachment-thumb" title="사진 미리보기" onclick="previewAttachment('${item.id}')"><img src="${item.dataUrl}" alt="${escapeAttr(item.name || "첨부 사진")}"></button>
+        <div class="attachment-actions">
+          <button type="button" class="secondary" onclick="previewAttachment('${item.id}')">보기</button>
+          <button type="button" class="secondary" onclick="downloadAttachment('${item.id}')">저장</button>
+        </div>
+      </div>`).join("")}</div>`;
     }
     async function renderReportList(orgId) {
       const org = state.orgs.find(o => o.id === orgId);
@@ -5737,6 +5965,30 @@
       photoPreviewSub.textContent = reportDateLabel(report);
       photoPreviewImage.src = report.dataUrl;
       photoPreviewDialog.showModal();
+    };
+    window.previewAttachment = async id => {
+      const item = await getAttachment(id);
+      if (!item) {
+        toast("사진을 찾지 못했습니다.");
+        return;
+      }
+      photoPreviewTitle.textContent = item.name || (item.ownerType === "vehicle" ? "수리내역서 사진" : "첨부 사진");
+      photoPreviewSub.textContent = item.createdAt ? formatDateTimeWithYear(item.createdAt) : "";
+      photoPreviewImage.src = item.dataUrl;
+      photoPreviewDialog.showModal();
+    };
+    window.downloadAttachment = async id => {
+      const item = await getAttachment(id);
+      if (!item) {
+        toast("사진을 찾지 못했습니다.");
+        return;
+      }
+      const safeName = String(item.name || "attachment.jpg").replace(/[\\/:*?"<>|]+/g, "-");
+      const ext = safeName.includes(".") ? "" : ".jpg";
+      const a = document.createElement("a");
+      a.href = item.dataUrl;
+      a.download = `${item.ownerType || "attachment"}-${(item.createdAt || todayISO()).slice(0, 10)}-${safeName}${ext}`;
+      a.click();
     };
     window.deleteReport = async (id, orgId) => {
       if (!confirm("이 레포트 사진을 삭제할까요?")) return;
@@ -5801,6 +6053,7 @@
       const org = state.orgs.find(o => o.id === orgId);
       if (!org) return;
       org.issues = (org.issues || []).filter(item => item.id !== issueId);
+      org.updatedAt = new Date().toISOString();
       save();
       renderIssueList(orgId);
       render();
@@ -5830,6 +6083,7 @@
       } else {
         org.issues.unshift({ id: uid(), date: issueDate.value, text: issueText.value.trim(), createdAt: new Date().toISOString() });
       }
+      org.updatedAt = new Date().toISOString();
       save();
       renderIssueList(org.id);
       render();
@@ -5843,23 +6097,26 @@
     closeOrgDialogBtn.onclick = () => orgDialog.close();
     orgForm.onsubmit = e => {
       e.preventDefault();
+      const now = new Date().toISOString();
+      const index = state.orgs.findIndex(o => o.id === (orgId.value || ""));
+      const existing = index >= 0 ? state.orgs[index] : null;
       const data = {
         id: orgId.value || uid(), region: region.value.trim(), type: orgType.value, name: orgName.value.trim(),
         contractor: contractor.value.trim(), contractDate: contractDate.value, cycle: cycle.value, method: method.value, startDate: startDate.value, endDate: endDate.value,
         nextVisit: "", billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
-        closedDay: closedDay.value.trim(), note: orgNote.value.trim(), contacts: contactsFromForm(), issues: []
+        closedDay: closedDay.value.trim(), note: orgNote.value.trim(), contacts: contactsFromForm(), issues: [],
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
       };
-      const index = state.orgs.findIndex(o => o.id === data.id);
-      const existingIssues = index >= 0 ? (state.orgs[index].issues || []) : [];
-      const existingNextVisit = index >= 0 ? state.orgs[index].nextVisit : "";
+      const existingIssues = existing ? (existing.issues || []) : [];
+      const existingNextVisit = existing ? existing.nextVisit : "";
       if (index >= 0) {
-        data.sourceId = state.orgs[index].sourceId || "";
-        data.sourceName = state.orgs[index].sourceName || "";
+        data.sourceId = existing.sourceId || "";
+        data.sourceName = existing.sourceName || "";
       }
       data.issues = existingIssues;
       data.nextVisit = existingNextVisit || startDate.value || todayISO();
       if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
-      const now = new Date().toISOString();
       state.schedules.forEach(schedule => {
         if (schedule.orgId === data.id) schedule.updatedAt = now;
       });
@@ -5902,6 +6159,9 @@
         return normalizeOrgKeyword(org.name) === libraryName && normalizeOrgKeyword(org.address) === libraryAddress;
       });
     }
+    function libraryNameAddressKey(library = {}) {
+      return normalizeOrgKeyword(library.name || "") + "::" + normalizeOrgKeyword(library.address || "");
+    }
     function regionFromLibraryAddress(address = "") {
       const parts = String(address || "").replace(/\([^)]*\)/g, "").trim().split(/\s+/).filter(Boolean);
       if (!parts.length) return "";
@@ -5916,6 +6176,10 @@
       if (/고등학교|고교/.test(text)) return "고등학교";
       return "도서관";
     }
+    function libraryOrgId(library = {}) {
+      if (!library.sourceId) return uid();
+      return "org-" + String(library.sourceId).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    }
     function libraryToOrg(library) {
       const phone = firstPhoneNumber(library.tel);
       const noteLines = [
@@ -5925,7 +6189,7 @@
         `출처: ${library.sourceName || "도서관 정보나루"}`
       ].filter(Boolean);
       return {
-        id: uid(),
+        id: libraryOrgId(library),
         sourceId: library.sourceId,
         sourceName: library.sourceName || "도서관 정보나루",
         region: library.region || regionFromLibraryAddress(library.address),
@@ -5978,16 +6242,30 @@
     function mergeLibrariesIntoOrgs(libraries) {
       const added = [];
       const skipped = [];
+      const sourceIds = new Set(state.orgs.map(org => org.sourceId).filter(Boolean));
+      const nameAddressKeys = new Set(state.orgs.map(org => libraryNameAddressKey(org)));
       libraries.forEach(library => {
-        if (isDuplicateLibraryOrg(library)) {
+        const nameAddressKey = libraryNameAddressKey(library);
+        if ((library.sourceId && sourceIds.has(library.sourceId)) || nameAddressKeys.has(nameAddressKey)) {
           skipped.push(library.name);
           return;
         }
         const org = libraryToOrg(library);
         state.orgs.push(org);
+        if (org.sourceId) sourceIds.add(org.sourceId);
+        nameAddressKeys.add(nameAddressKey);
         added.push(org.name);
       });
       return { added, skipped };
+    }
+    function ensureNationalLibraryBase() {
+      const libraries = normalizedStaticLibraries();
+      if (!libraries.length) return { added: [], skipped: [] };
+      const result = mergeLibrariesIntoOrgs(libraries);
+      if (result.added.length) {
+        save({ skipCloud: true });
+      }
+      return result;
     }
     function normalizedStaticLibraries() {
       return (Array.isArray(window.nationalLibraryStaticData) ? window.nationalLibraryStaticData : [])
@@ -6026,13 +6304,13 @@
       try {
         toast("내장 도서관 목록을 등록하는 중입니다.");
         const { added, skipped } = mergeLibrariesIntoOrgs(libraries);
-        save();
+        save({ skipCloud: true });
         orgSearch.value = "";
         state.orgPage = 1;
         render();
         showInfo(
           "전국 도서관 등록",
-          `내장 데이터에서 ${libraries.length}개를 확인했습니다.\n신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개\n\n유지보수 기간과 솔루션은 비워두고, 기관 타입은 이름/주소 기준으로 자동 분류했습니다.`
+          `내장 데이터에서 ${libraries.length}개를 확인했습니다.\n신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개\n\n전국 도서관 후보 목록은 이 기기에 저장됩니다. 실제 유지보수 정보가 입력된 기관만 클라우드 동기화 대상에 포함됩니다.`
         );
         toast(`전국 도서관 ${added.length}개를 추가했습니다.`);
       } catch (error) {
@@ -6201,6 +6479,7 @@
         }
       });
       if (!response.ok) {
+        if (response.status === 401) clearGoogleAccessToken();
         const text = await response.text();
         let detail = text;
         try {
@@ -6496,7 +6775,7 @@
     async function runGoogleAutoSync(reason = "auto") {
       return null;
     }
-    async function syncGoogleCalendar({ silent = false, full = false } = {}) {
+    async function syncGoogleCalendar({ silent = false, full = false, interactive = false } = {}) {
       if (state.googleSyncInProgress) {
         state.googleSyncPending = true;
         if (!silent) toast("동기화가 진행 중입니다. 잠시 뒤 다시 반영됩니다.");
@@ -6504,7 +6783,7 @@
       }
       state.googleSyncInProgress = true;
       try {
-        await ensureGoogleAccess();
+        await ensureGoogleAccess({ interactive });
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
         const googleEvents = await listGoogleCalendarEvents({ incremental: !full && silent && Boolean(state.settings.googleLastSync) });
@@ -6529,6 +6808,7 @@
     window.openGoogleEvent = async id => {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
+      restoreGoogleAccessToken();
       if (!state.googleAccessToken) {
         fallbackGoogleEvent(schedule);
         return;
@@ -6597,6 +6877,7 @@
     closeVehicleRecordDialogBtn.onclick = () => vehicleRecordDialog.close();
     vehicleRecordForm.onsubmit = e => {
       e.preventDefault();
+      normalizeVehicle();
       const existing = state.vehicle.records.find(item => item.id === vehicleRecordId.value);
       const record = {
         id: existing?.id || uid(),
@@ -6625,6 +6906,7 @@
       if (location.protocol === "file:") return "현재 파일로 직접 열려 있어서 Google OAuth가 동작하지 않습니다. GitHub Pages 주소에서 열고 설정 저장을 눌러주세요.";
       if (full.includes("popup") || full.includes("popup_failed_to_open")) return "브라우저가 구글 인증 팝업을 막았습니다. 팝업 허용 후 다시 설정 저장을 눌러주세요." + suffix;
       if (full.includes("access_denied")) return "구글 권한 동의가 취소되었습니다. 다시 설정 저장을 누르고 캘린더 권한을 허용해주세요." + suffix;
+      if (full.includes("interaction_required") || full.includes("login_required") || full.includes("consent_required")) return "저장된 Google 권한을 조용히 갱신하지 못했습니다. 설정에서 구글 연결을 한 번만 다시 눌러 권한을 갱신해주세요." + suffix;
       if (full.includes("origin") || full.includes("redirect_uri_mismatch")) return "승인된 JavaScript 원본 설정이 맞지 않습니다. Google Cloud Console의 OAuth 클라이언트에 https://yudampapa-lab.github.io 를 추가해주세요." + suffix;
       if (full.includes("invalid_client") || full.includes("401")) return "Google OAuth Client ID가 맞지 않거나 현재 주소가 OAuth 클라이언트에 허용되어 있지 않습니다." + suffix;
       if (full.includes("accessNotConfigured") || full.includes("API has not been used") || full.includes("disabled")) return "Google Calendar API가 아직 활성화되지 않았습니다. Google Cloud Console에서 Calendar API를 사용 설정해주세요." + suffix;
@@ -6640,7 +6922,7 @@
       }
       try {
         await requestGoogleAccessToken(state.googleAccessToken ? "" : "consent");
-        await syncGoogleCalendar({ silent: false });
+        await syncGoogleCalendar({ silent: false, interactive: false });
         startGoogleAutoSync({ immediate: true });
         return true;
       } catch (error) {
@@ -6698,8 +6980,7 @@
               reject(new Error(`${response.error}: ${response.error_description || ""}`));
               return;
             }
-            state.googleAccessToken = response.access_token;
-            state.googleAccessTokenExpiresAt = Date.now() + Math.max(60, Number(response.expires_in || 3600) - 90) * 1000;
+            rememberGoogleAccessToken(response.access_token, response.expires_in);
             resolve(response.access_token);
           },
           error_callback: error => reject(new Error(error?.type || error?.message || "Google OAuth popup error"))
@@ -6707,18 +6988,19 @@
         tokenClient.requestAccessToken(prompt ? { prompt } : {});
       });
     }
-    async function requestGoogleAccessTokenQuietly() {
+    async function requestGoogleAccessTokenQuietly({ allowInteractiveFallback = false } = {}) {
       try {
         return await requestGoogleAccessToken("");
       } catch (error) {
-        return requestGoogleAccessToken("consent");
+        if (allowInteractiveFallback) return requestGoogleAccessToken("consent");
+        throw error;
       }
     }
-    async function ensureGoogleAccess() {
-      if (state.googleAccessToken && (!state.googleAccessTokenExpiresAt || Date.now() < state.googleAccessTokenExpiresAt)) return state.googleAccessToken;
-      state.googleAccessToken = "";
-      state.googleAccessTokenExpiresAt = 0;
-      return requestGoogleAccessTokenQuietly();
+    async function ensureGoogleAccess({ interactive = false } = {}) {
+      if (state.googleAccessToken && (!state.googleAccessTokenExpiresAt || Date.now() < state.googleAccessTokenExpiresAt - 60000)) return state.googleAccessToken;
+      if (restoreGoogleAccessToken()) return state.googleAccessToken;
+      clearGoogleAccessToken();
+      return requestGoogleAccessTokenQuietly({ allowInteractiveFallback: interactive });
     }
     async function connectGoogleCalendar() {
       try {
@@ -6733,7 +7015,7 @@
     async function reloadGoogleCalendarEvents() {
       try {
         await requestGoogleAccessTokenQuietly();
-        const result = await syncGoogleCalendar({ silent: false, full: true });
+        const result = await syncGoogleCalendar({ silent: false, full: true, interactive: false });
         if (result) startGoogleAutoSync({ immediate: true });
       } catch (error) {
         console.warn(error);
@@ -6744,10 +7026,7 @@
     document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
     async function manualGoogleCalendarSync() {
       try {
-        const needsConsent = !state.googleAccessToken || Date.now() > (state.googleAccessTokenExpiresAt || 0) - 60000;
-        if (needsConsent) await requestGoogleAccessTokenQuietly();
-        else await requestGoogleAccessToken("");
-        await syncGoogleCalendar({ silent: false, full: true });
+        await syncGoogleCalendar({ silent: false, full: true, interactive: false });
       } catch (error) {
         console.warn(error);
         showInfo("Google 동기화 실패", googleErrorMessage(error));
