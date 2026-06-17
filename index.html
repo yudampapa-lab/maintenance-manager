@@ -1553,8 +1553,12 @@
       .form-grid { grid-template-columns: 1fr; }
       .panel-head { align-items: start; }
       .top-actions .secondary { display: none; }
-      .calendar-layout { grid-template-columns: 1fr; }
-      .monthly-maintenance-panel { display: none; }
+      .calendar-layout { grid-template-columns: minmax(0, 1fr) 158px; gap: 6px; }
+      .monthly-maintenance-head h3 { font-size: 12px; }
+      .monthly-maintenance-head p { font-size: 10px; }
+      .maintenance-drag-card { padding: 7px; }
+      .maintenance-drag-card strong { font-size: 11px; }
+      .maintenance-drag-card span { font-size: 9px; }
       .calendar-grid { font-size: 12px; }
       .day-cell { min-height: 96px; padding: 4px; }
       .event-pill { font-size: 10px; padding: 5px; }
@@ -1581,6 +1585,10 @@
       .report-card { grid-template-columns: 74px minmax(0, 1fr); }
       .report-card img { width: 74px; }
       button { min-height: 40px; }
+    }
+    @media (max-width: 540px) {
+      .calendar-layout { grid-template-columns: 1fr; }
+      .monthly-maintenance-panel { display: none; }
     }
 
     /* Apple-inspired polish layer */
