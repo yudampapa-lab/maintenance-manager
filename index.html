@@ -2612,6 +2612,7 @@
     const allowedLoginEmail = "yudampapa@gmail.com";
     const loginSessionKey = "reportmate_login_session";
     const firebasePendingActionKey = "reportmate_firebase_pending_action";
+    const googleTokenStorageKey = "reportmate_google_calendar_token";
     const googleAutoSyncVisibleIntervalMs = 8 * 1000;
     const googleAutoSyncHiddenIntervalMs = 60 * 1000;
     const googleSyncLookbackMs = 2 * 60 * 1000;
@@ -2694,6 +2695,7 @@
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
+    restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
     normalizeVehicle();
@@ -2701,6 +2703,44 @@
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
+    }
+    function restoreGoogleAccessToken() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(googleTokenStorageKey) || "{}");
+        if (!saved.accessToken || !saved.expiresAt || saved.clientId !== state.settings.googleClientId) {
+          clearGoogleAccessToken();
+          return false;
+        }
+        if (Date.now() > Number(saved.expiresAt) - 60000) {
+          clearGoogleAccessToken();
+          return false;
+        }
+        state.googleAccessToken = saved.accessToken;
+        state.googleAccessTokenExpiresAt = Number(saved.expiresAt);
+        return true;
+      } catch {
+        clearGoogleAccessToken();
+        return false;
+      }
+    }
+    function rememberGoogleAccessToken(accessToken, expiresIn = 3600) {
+      const expiresAt = Date.now() + Math.max(60, Number(expiresIn || 3600) - 90) * 1000;
+      state.googleAccessToken = accessToken || "";
+      state.googleAccessTokenExpiresAt = expiresAt;
+      if (accessToken) {
+        localStorage.setItem(googleTokenStorageKey, JSON.stringify({
+          accessToken,
+          expiresAt,
+          clientId: state.settings.googleClientId,
+          savedAt: new Date().toISOString()
+        }));
+      }
+      return accessToken;
+    }
+    function clearGoogleAccessToken() {
+      state.googleAccessToken = "";
+      state.googleAccessTokenExpiresAt = 0;
+      localStorage.removeItem(googleTokenStorageKey);
     }
     function firebaseConfig() {
       return window.REPORTMATE_FIREBASE_CONFIG || {};
@@ -6368,6 +6408,7 @@
         }
       });
       if (!response.ok) {
+        if (response.status === 401) clearGoogleAccessToken();
         const text = await response.text();
         let detail = text;
         try {
@@ -6663,7 +6704,7 @@
     async function runGoogleAutoSync(reason = "auto") {
       return null;
     }
-    async function syncGoogleCalendar({ silent = false, full = false } = {}) {
+    async function syncGoogleCalendar({ silent = false, full = false, interactive = false } = {}) {
       if (state.googleSyncInProgress) {
         state.googleSyncPending = true;
         if (!silent) toast("동기화가 진행 중입니다. 잠시 뒤 다시 반영됩니다.");
@@ -6671,7 +6712,7 @@
       }
       state.googleSyncInProgress = true;
       try {
-        await ensureGoogleAccess();
+        await ensureGoogleAccess({ interactive });
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
         const googleEvents = await listGoogleCalendarEvents({ incremental: !full && silent && Boolean(state.settings.googleLastSync) });
@@ -6696,6 +6737,7 @@
     window.openGoogleEvent = async id => {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
+      restoreGoogleAccessToken();
       if (!state.googleAccessToken) {
         fallbackGoogleEvent(schedule);
         return;
@@ -6793,6 +6835,7 @@
       if (location.protocol === "file:") return "현재 파일로 직접 열려 있어서 Google OAuth가 동작하지 않습니다. GitHub Pages 주소에서 열고 설정 저장을 눌러주세요.";
       if (full.includes("popup") || full.includes("popup_failed_to_open")) return "브라우저가 구글 인증 팝업을 막았습니다. 팝업 허용 후 다시 설정 저장을 눌러주세요." + suffix;
       if (full.includes("access_denied")) return "구글 권한 동의가 취소되었습니다. 다시 설정 저장을 누르고 캘린더 권한을 허용해주세요." + suffix;
+      if (full.includes("interaction_required") || full.includes("login_required") || full.includes("consent_required")) return "저장된 Google 권한을 조용히 갱신하지 못했습니다. 설정에서 구글 연결을 한 번만 다시 눌러 권한을 갱신해주세요." + suffix;
       if (full.includes("origin") || full.includes("redirect_uri_mismatch")) return "승인된 JavaScript 원본 설정이 맞지 않습니다. Google Cloud Console의 OAuth 클라이언트에 https://yudampapa-lab.github.io 를 추가해주세요." + suffix;
       if (full.includes("invalid_client") || full.includes("401")) return "Google OAuth Client ID가 맞지 않거나 현재 주소가 OAuth 클라이언트에 허용되어 있지 않습니다." + suffix;
       if (full.includes("accessNotConfigured") || full.includes("API has not been used") || full.includes("disabled")) return "Google Calendar API가 아직 활성화되지 않았습니다. Google Cloud Console에서 Calendar API를 사용 설정해주세요." + suffix;
@@ -6808,7 +6851,7 @@
       }
       try {
         await requestGoogleAccessToken(state.googleAccessToken ? "" : "consent");
-        await syncGoogleCalendar({ silent: false });
+        await syncGoogleCalendar({ silent: false, interactive: false });
         startGoogleAutoSync({ immediate: true });
         return true;
       } catch (error) {
@@ -6866,8 +6909,7 @@
               reject(new Error(`${response.error}: ${response.error_description || ""}`));
               return;
             }
-            state.googleAccessToken = response.access_token;
-            state.googleAccessTokenExpiresAt = Date.now() + Math.max(60, Number(response.expires_in || 3600) - 90) * 1000;
+            rememberGoogleAccessToken(response.access_token, response.expires_in);
             resolve(response.access_token);
           },
           error_callback: error => reject(new Error(error?.type || error?.message || "Google OAuth popup error"))
@@ -6875,18 +6917,19 @@
         tokenClient.requestAccessToken(prompt ? { prompt } : {});
       });
     }
-    async function requestGoogleAccessTokenQuietly() {
+    async function requestGoogleAccessTokenQuietly({ allowInteractiveFallback = false } = {}) {
       try {
         return await requestGoogleAccessToken("");
       } catch (error) {
-        return requestGoogleAccessToken("consent");
+        if (allowInteractiveFallback) return requestGoogleAccessToken("consent");
+        throw error;
       }
     }
-    async function ensureGoogleAccess() {
-      if (state.googleAccessToken && (!state.googleAccessTokenExpiresAt || Date.now() < state.googleAccessTokenExpiresAt)) return state.googleAccessToken;
-      state.googleAccessToken = "";
-      state.googleAccessTokenExpiresAt = 0;
-      return requestGoogleAccessTokenQuietly();
+    async function ensureGoogleAccess({ interactive = false } = {}) {
+      if (state.googleAccessToken && (!state.googleAccessTokenExpiresAt || Date.now() < state.googleAccessTokenExpiresAt - 60000)) return state.googleAccessToken;
+      if (restoreGoogleAccessToken()) return state.googleAccessToken;
+      clearGoogleAccessToken();
+      return requestGoogleAccessTokenQuietly({ allowInteractiveFallback: interactive });
     }
     async function connectGoogleCalendar() {
       try {
@@ -6901,7 +6944,7 @@
     async function reloadGoogleCalendarEvents() {
       try {
         await requestGoogleAccessTokenQuietly();
-        const result = await syncGoogleCalendar({ silent: false, full: true });
+        const result = await syncGoogleCalendar({ silent: false, full: true, interactive: false });
         if (result) startGoogleAutoSync({ immediate: true });
       } catch (error) {
         console.warn(error);
@@ -6912,10 +6955,7 @@
     document.getElementById("connectGoogleBtn")?.addEventListener("click", () => connectGoogleCalendar());
     async function manualGoogleCalendarSync() {
       try {
-        const needsConsent = !state.googleAccessToken || Date.now() > (state.googleAccessTokenExpiresAt || 0) - 60000;
-        if (needsConsent) await requestGoogleAccessTokenQuietly();
-        else await requestGoogleAccessToken("");
-        await syncGoogleCalendar({ silent: false, full: true });
+        await syncGoogleCalendar({ silent: false, full: true, interactive: false });
       } catch (error) {
         console.warn(error);
         showInfo("Google 동기화 실패", googleErrorMessage(error));
