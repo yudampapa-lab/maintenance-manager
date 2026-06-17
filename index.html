@@ -2309,8 +2309,8 @@
           <div class="field"><label>유지보수 지역명</label><input id="region" required placeholder="예: 전남 신안군 흑산도"></div>
           <div class="field"><label>계약업체</label><input id="contractor" placeholder="계약업체명"></div>
           <div class="field"><label>유지보수 계약일</label><input id="contractDate" type="date"></div>
-          <div class="field"><label>점검 주기</label><select id="cycle"><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
-          <div class="field"><label>점검수단</label><select id="method"><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
+          <div class="field"><label>점검 주기</label><select id="cycle"><option>해당없음</option><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
+          <div class="field"><label>점검수단</label><select id="method"><option>해당없음</option><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
           <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date"></div>
           <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date"></div>
           <div class="field"><label>유지보수료 청구일</label><input id="billingDay" type="number" min="1" max="31" placeholder="매월 일자"></div>
@@ -3016,6 +3016,13 @@
         if (!Array.isArray(org.contacts)) org.contacts = [];
         if (org.contacts.length && !org.contacts.some(contact => contact.primary)) org.contacts[0].primary = true;
         if (!org.closedDay) org.closedDay = extractClosedDayFromNote(org.note);
+        if (!String(org.startDate || "").trim()) {
+          org.cycle = "해당없음";
+          org.method = "해당없음";
+        } else {
+          org.cycle = org.cycle || "해당없음";
+          org.method = org.method || "해당없음";
+        }
       });
     }
     function isNationalStaticOrg(org = {}) {
@@ -5726,10 +5733,12 @@
     function clearOrgForm() {
       orgForm.reset();
       orgId.value = "";
-      contractDate.value = todayISO();
-      startDate.value = currentYearStartISO();
-      endDate.value = currentYearEndISO();
-      billingDay.value = "25";
+      contractDate.value = "";
+      cycle.value = "해당없음";
+      method.value = "해당없음";
+      startDate.value = "";
+      endDate.value = "";
+      billingDay.value = "";
       closedDay.value = "";
       contactRows.innerHTML = "";
       addContactRow({ primary: true });
@@ -6197,8 +6206,8 @@
         name: library.name,
         contractor: "",
         contractDate: "",
-        cycle: "매월 점검",
-        method: "직접점검",
+        cycle: "해당없음",
+        method: "해당없음",
         startDate: "",
         endDate: "",
         nextVisit: "",
