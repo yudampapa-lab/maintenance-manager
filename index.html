@@ -2932,6 +2932,58 @@
         if (!org.closedDay) org.closedDay = extractClosedDayFromNote(org.note);
       });
     }
+    function isNationalStaticOrg(org = {}) {
+      return String(org.sourceId || "").startsWith("data4library-static:")
+        || org.sourceName === "도서관 정보나루 참여도서관 목록"
+        || org.sourceName === "전국 도서관 정적 목록";
+    }
+    function hasCustomOrgNote(org = {}) {
+      return String(org.note || "")
+        .split(/\n+/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .some(line => !/^(홈페이지|운영시간|도서관코드|출처)\s*:/.test(line));
+    }
+    function hasUserMaintenanceInfo(org = {}) {
+      const contacts = Array.isArray(org.contacts) ? org.contacts : [];
+      const hasCustomContacts = contacts.some(contact => {
+        const name = String(contact.name || "").trim();
+        const note = String(contact.note || "").trim();
+        return (name && name !== "대표전화")
+          || String(contact.mobile || "").trim()
+          || String(contact.email || "").trim()
+          || (note && !note.startsWith("원본 번호:"));
+      });
+      return Boolean(
+        String(org.contractor || "").trim()
+        || String(org.contractDate || "").trim()
+        || String(org.startDate || "").trim()
+        || String(org.endDate || "").trim()
+        || Number(org.billingDay || 0)
+        || String(org.solution || "").trim()
+        || hasCustomOrgNote(org)
+        || (Array.isArray(org.issues) && org.issues.length)
+        || hasCustomContacts
+      );
+    }
+    function shouldUploadOrgToCloud(org = {}) {
+      return !isNationalStaticOrg(org) || hasUserMaintenanceInfo(org);
+    }
+    function orgMergeKey(org = {}) {
+      if (org.sourceId) return "source:" + org.sourceId;
+      if (org.id) return "id:" + org.id;
+      return "name-address:" + normalizeOrgKeyword(org.name || "") + ":" + normalizeOrgKeyword(org.address || "");
+    }
+    function mergeOrgLists(localOrgs = [], cloudOrgs = []) {
+      const merged = new Map();
+      localOrgs.forEach(org => merged.set(orgMergeKey(org), org));
+      cloudOrgs.forEach(org => {
+        const key = orgMergeKey(org);
+        const local = merged.get(key);
+        merged.set(key, local ? { ...local, ...org, issues: org.issues || local.issues || [], contacts: org.contacts || local.contacts || [] } : org);
+      });
+      return [...merged.values()].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+    }
     function seedSchedulesFromOrgs() {
       state.schedules = state.orgs
         .filter(org => org.nextVisit)
@@ -5352,7 +5404,7 @@
       return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
     function applyCloudValue(key, value) {
-      if (key === "orgs" && Array.isArray(value)) state.orgs = value;
+      if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
       if (key === "schedules" && Array.isArray(value)) state.schedules = value;
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
@@ -5384,8 +5436,9 @@
       }
     }
     function cloudSnapshotPayload() {
+      const uploadableOrgs = (state.orgs || []).filter(shouldUploadOrgToCloud);
       return {
-        orgs: state.orgs,
+        orgs: uploadableOrgs,
         schedules: state.schedules,
         memos: state.memos,
         dayNotes: state.dayNotes || {},
@@ -5916,6 +5969,10 @@
       if (/고등학교|고교/.test(text)) return "고등학교";
       return "도서관";
     }
+    function libraryOrgId(library = {}) {
+      if (!library.sourceId) return uid();
+      return "org-" + String(library.sourceId).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    }
     function libraryToOrg(library) {
       const phone = firstPhoneNumber(library.tel);
       const noteLines = [
@@ -5925,7 +5982,7 @@
         `출처: ${library.sourceName || "도서관 정보나루"}`
       ].filter(Boolean);
       return {
-        id: uid(),
+        id: libraryOrgId(library),
         sourceId: library.sourceId,
         sourceName: library.sourceName || "도서관 정보나루",
         region: library.region || regionFromLibraryAddress(library.address),
@@ -6026,13 +6083,13 @@
       try {
         toast("내장 도서관 목록을 등록하는 중입니다.");
         const { added, skipped } = mergeLibrariesIntoOrgs(libraries);
-        save();
+        save({ skipCloud: true });
         orgSearch.value = "";
         state.orgPage = 1;
         render();
         showInfo(
           "전국 도서관 등록",
-          `내장 데이터에서 ${libraries.length}개를 확인했습니다.\n신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개\n\n유지보수 기간과 솔루션은 비워두고, 기관 타입은 이름/주소 기준으로 자동 분류했습니다.`
+          `내장 데이터에서 ${libraries.length}개를 확인했습니다.\n신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개\n\n전국 도서관 후보 목록은 이 기기에 저장됩니다. 실제 유지보수 정보가 입력된 기관만 클라우드 동기화 대상에 포함됩니다.`
         );
         toast(`전국 도서관 ${added.length}개를 추가했습니다.`);
       } catch (error) {
