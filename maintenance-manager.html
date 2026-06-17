@@ -393,6 +393,20 @@
       margin-bottom: 12px;
       overflow: hidden;
     }
+    .map-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .map-head-actions .icon {
+      width: 34px;
+      min-height: 34px;
+      border-radius: 11px;
+    }
+    .map-head-actions .icon svg {
+      width: 17px;
+      height: 17px;
+    }
     .destination-map-panel .panel-body {
       padding-top: 0;
     }
@@ -914,6 +928,21 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 14px 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pagination-info {
+      min-width: 132px;
+      text-align: center;
+      font-weight: 700;
+      color: #5c6670;
+    }
     .org-card {
       border: 1px solid var(--line);
       background: white;
@@ -1164,8 +1193,39 @@
       border-radius: 6px;
       background: var(--soft);
     }
+    .report-thumb {
+      width: 86px;
+      min-height: 0;
+      padding: 0;
+      border-radius: 6px;
+      background: transparent;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .report-thumb:active {
+      transform: scale(.98);
+    }
     .report-card h3 { margin: 0; font-size: 14px; }
     .report-card p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .photo-preview-dialog {
+      width: min(760px, calc(100vw - 24px));
+    }
+    .photo-preview-frame {
+      margin-top: 12px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #0b0f14;
+      display: grid;
+      place-items: center;
+      max-height: min(72vh, 680px);
+    }
+    .photo-preview-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: min(72vh, 680px);
+      object-fit: contain;
+    }
     #todayTaskTitle {
       touch-action: manipulation;
       user-select: none;
@@ -2082,10 +2142,18 @@
         </section>
         <section class="panel destination-map-panel">
           <div class="panel-head">
-            <div><h2 class="panel-title">오늘 가야 될 곳</h2><p class="panel-sub" id="todayDestinationMapSub"></p></div>
-            <button type="button" class="icon secondary" id="locateTodayMapBtn" title="내 위치 표시" aria-label="내 위치 표시">
-              <svg viewBox="0 0 24 24"><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </button>
+            <div><h2 class="panel-title">오늘의 지도</h2><p class="panel-sub" id="todayDestinationMapSub"></p></div>
+            <div class="map-head-actions">
+              <button type="button" class="icon secondary" title="집으로 Tmap" aria-label="집으로 Tmap" onclick="openTmapAddress('집', '서울시 구로구 중앙로15길 125')">
+                <svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+              </button>
+              <button type="button" class="icon secondary" title="회사로 Tmap" aria-label="회사로 Tmap" onclick="openTmapAddress('회사', '서울시 강서구 마곡중앙2로 39')">
+                <svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 21v-5h4v5"/><path d="M8 7h1"/><path d="M13 7h1"/><path d="M8 11h1"/><path d="M13 11h1"/><path d="M20 21h-2"/></svg>
+              </button>
+              <button type="button" class="icon secondary" id="locateTodayMapBtn" title="내 위치 표시" aria-label="내 위치 표시">
+                <svg viewBox="0 0 24 24"><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              </button>
+            </div>
           </div>
           <div class="panel-body">
             <div id="todayDestinationMap" class="destination-map" aria-label="오늘 방문 기관 지도"></div>
@@ -2115,9 +2183,12 @@
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
         <div class="toolbar">
           <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
+          <button type="button" class="secondary" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
+          <button type="button" class="secondary" id="importNationalLibrariesBtn">전국 도서관</button>
           <button id="newOrgBtn">기관 등록</button>
         </div>
         <div class="cards" id="orgCards"></div>
+        <div class="pagination" id="orgPagination"></div>
       </section>
 
       <section class="view" id="view-calendar" aria-label="전체 캘린더">
@@ -2200,11 +2271,12 @@
           <div class="field"><label>유지보수 계약일</label><input id="contractDate" type="date"></div>
           <div class="field"><label>점검 주기</label><select id="cycle"><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
           <div class="field"><label>점검수단</label><select id="method"><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
-          <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date" required></div>
-          <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date" required></div>
+          <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date"></div>
+          <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date"></div>
           <div class="field"><label>유지보수료 청구일</label><input id="billingDay" type="number" min="1" max="31" placeholder="매월 일자"></div>
           <div class="field full"><label>솔루션 제품명</label><input id="solution" placeholder="제품명, 버전, 설치 구성"></div>
           <div class="field full"><label>상세 주소</label><input id="address" placeholder="Tmap 목적지로 사용할 주소"></div>
+          <div class="field full"><label>휴관일</label><input id="closedDay" placeholder="예: 매주 월요일, 법정공휴일 / 변경 시 직접 수정"></div>
           <div class="field full"><label>담당자 정보</label><div id="contactRows"></div></div>
           <div class="field full"><label>기관 비고</label><textarea id="orgNote" placeholder="계약 특이사항, 선박 이동 메모 등"></textarea></div>
         </div>
@@ -2254,6 +2326,17 @@
     <div class="modal-actions">
       <button class="secondary" id="addReportFromDialogBtn">사진 추가</button>
       <button id="closeReportDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="photoPreviewDialog" class="photo-preview-dialog">
+    <div class="modal-body">
+      <h2 class="panel-title" id="photoPreviewTitle">사진 미리보기</h2>
+      <p class="panel-sub" id="photoPreviewSub"></p>
+      <div class="photo-preview-frame"><img id="photoPreviewImage" alt="레포트 사진 미리보기"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closePhotoPreviewDialogBtn">닫기</button>
     </div>
   </dialog>
 
@@ -2492,6 +2575,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="./national-libraries.js"></script>
 
   <script>
     const defaultGoogleClientId = "799426628695-uih32dh5mqqpst3o3tmblaq3n77pvd2r.apps.googleusercontent.com";
@@ -2501,6 +2585,7 @@
     const googleAutoSyncVisibleIntervalMs = 8 * 1000;
     const googleAutoSyncHiddenIntervalMs = 60 * 1000;
     const googleSyncLookbackMs = 2 * 60 * 1000;
+    const orgPageSize = 20;
     const islandRegions = [
       "인천 강화군 교동도", "인천 강화군 석모도", "인천 옹진군 백령도", "인천 옹진군 대청도", "인천 옹진군 소청도", "인천 옹진군 연평도", "인천 옹진군 덕적도", "인천 옹진군 자월도", "인천 옹진군 영흥도",
       "충남 보령시 원산도", "충남 보령시 삽시도", "충남 보령시 장고도", "충남 보령시 고대도", "충남 태안군 안면도", "충남 태안군 가의도", "충남 서산시 웅도", "충남 당진시 난지도",
@@ -2517,6 +2602,21 @@
       { id: uid(), region: "경남 통영시 욕지도", type: "도서관", name: "욕지도 작은도서관", contractor: "남해정보", contractDate: todayISO(-75), cycle: "분기 점검", method: "협력업체점검", startDate: todayISO(-60), endDate: todayISO(300), nextVisit: todayISO(0), billingDay: 10, solution: "도서관리 시스템 B", address: "경남 통영시 욕지면", note: "", contacts: [{ name: "박사서", tel: "055-000-2000", mobile: "010-2222-3333", email: "library@example.com", note: "" }] },
       { id: uid(), region: "인천 옹진군 백령도", type: "고등학교", name: "백령고등학교", contractor: "서해시스템", contractDate: todayISO(-45), cycle: "반기 점검", method: "원격점검", startDate: todayISO(-30), endDate: todayISO(400), nextVisit: todayISO(1), billingDay: 5, solution: "학사 네트워크 장비", address: "인천 옹진군 백령면", note: "원격 우선", contacts: [{ name: "이정보", tel: "032-000-3000", mobile: "010-4444-5555", email: "school@example.com", note: "" }] }
     ];
+    const namyangjuPublicLibraries = [
+      { sourceId: "nyj-public-jy", name: "정약용도서관", address: "경기도 남양주시 다산중앙로82번안길 138(다산동)", tel: "031-590-2586", closed: "매달 첫째·셋째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-wabu", name: "와부도서관", address: "경기도 남양주시 와부읍 월문천로 43(덕소리 117-18)", tel: "031-590-8920", closed: "매달 둘째·넷째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-hwado", name: "화도도서관", address: "경기도 남양주시 화도읍 수레로 1260번길 33(창현리 736-4)", tel: "031-590-4587", closed: "매달 첫째·셋째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-leeseokyoung", name: "이석영뉴미디어도서관", address: "경기도 남양주시 화도읍 맷돌로 84", tel: "031-595-8390", closed: "매달 둘째·넷째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-jingeon", name: "진건도서관", address: "경기도 남양주시 진건읍 진건오남로 41-25(사능리 646-7)", tel: "031-590-8260", closed: "매달 둘째·넷째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-pyeongnae", name: "평내도서관", address: "경기도 남양주시 평내동 의안로 134(평내동 605-1)", tel: "031-590-8562~4", closed: "매달 첫째·셋째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-byeollae", name: "별내도서관", address: "경기도 남양주시 별내면 청학로 86-1(별내면 청학리 416)", tel: "031-590-8808", closed: "매달 둘째·넷째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-jinjeop", name: "진접도서관", address: "경기도 남양주시 진접읍 금강로 1554-11(진접읍 장현리 46)", tel: "031-590-5310", closed: "매달 첫째·셋째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-jinjeop-forest", name: "진접푸른숲도서관", address: "경기도 남양주시 진접읍 해밀예당2로 35", tel: "031-590-5330~1", closed: "매달 둘째·넷째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-onam", name: "오남도서관", address: "경기도 남양주시 오남읍 양지로 240번길 12(양지리 512-29)", tel: "031-590-8531~2", closed: "매달 첫째·셋째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-toegyewon", name: "퇴계원도서관", address: "경기도 남양주시 퇴계원읍 도제원로 12(퇴계원리 230-13)", tel: "031-590-3910, 3916", closed: "매달 둘째·넷째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-byeolbit", name: "별빛도서관", address: "경기도 남양주시 별내중앙로 102", tel: "031-590-5349, 5350", closed: "매달 첫째·셋째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
+      { sourceId: "nyj-public-hopyeong", name: "호평도서관", address: "경기도 남양주시 천마산로 67(호평동 369-8번지)", tel: "031-590-8340, 8346", closed: "매달 둘째·넷째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" }
+    ];
 
     const state = {
       orgs: load("maint_orgs", seedOrgs),
@@ -2524,7 +2624,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", cloudLastSync: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2558,7 +2658,8 @@
       currentPosition: null,
       currentPositionAsked: false,
       destinationMapRenderTimer: null,
-      destinationMapRenderToken: 0
+      destinationMapRenderToken: 0,
+      orgPage: 1
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -2819,11 +2920,16 @@
       if (window.crypto?.randomUUID) return window.crypto.randomUUID();
       return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
     }
+    function extractClosedDayFromNote(note = "") {
+      const match = String(note || "").match(/(?:^|\n)\s*휴관\s*:\s*([^\n]+)/);
+      return match ? match[1].trim() : "";
+    }
     function normalizeOrgs() {
       state.orgs.forEach(org => {
         if (!Array.isArray(org.issues)) org.issues = [];
         if (!Array.isArray(org.contacts)) org.contacts = [];
         if (org.contacts.length && !org.contacts.some(contact => contact.primary)) org.contacts[0].primary = true;
+        if (!org.closedDay) org.closedDay = extractClosedDayFromNote(org.note);
       });
     }
     function seedSchedulesFromOrgs() {
@@ -3076,11 +3182,25 @@
       const today = todayISO();
       return (!org.startDate || org.startDate <= today) && (!org.endDate || today <= org.endDate);
     }
+    function maintenancePeriodLabel(org = {}) {
+      if (!org.startDate && !org.endDate) return "-";
+      if (org.startDate && org.endDate) return `${org.startDate} ~ ${org.endDate}`;
+      return org.startDate || org.endDate || "-";
+    }
     function formatDate(iso) {
       return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
     }
     function formatDateWithYear(iso) {
       return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
+    }
+    function formatDateTimeWithYear(iso) {
+      if (!iso) return "";
+      const value = String(iso);
+      const date = value.includes("T") ? new Date(value) : new Date(value + "T00:00:00");
+      return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+    }
+    function reportDateLabel(report = {}) {
+      return formatDateTimeWithYear(report.capturedAt || report.createdAt || report.visitDate || todayISO());
     }
     function toast(msg) {
       const el = document.getElementById("toast");
@@ -3794,6 +3914,7 @@
       }
       const contact = o.contacts?.[0] || {};
       const solution = escapeHTML(o.solution || "제품 미기입");
+      const closed = o.closedDay || extractClosedDayFromNote(o.note);
       const nameClass = isContractActive(o) ? "" : "expired-name";
       return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
@@ -3801,6 +3922,7 @@
           <span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
         <div class="visit-meta">주요 담당자: ${escapeHTML(contact.name || "미등록")} · 특이사항 ${(o.issues || []).length}건</div>
         <div class="visit-actions">
           <button class="icon good" title="담당자 전화" onclick="openCall('${o.id}')">${icon("phone")}</button>
@@ -3828,7 +3950,8 @@
         org?.type,
         org?.contractor,
         org?.solution,
-        org?.address
+        org?.address,
+        org?.closedDay || extractClosedDayFromNote(org?.note)
       ].filter(Boolean).join(" "));
     }
     function memoSnippet(memo, keyword) {
@@ -3850,6 +3973,7 @@
       if (!org) return;
       switchView("orgs");
       orgSearch.value = org.name;
+      state.orgPage = 1;
       renderOrgs();
     };
     window.openMemoFromDashboardSearch = id => {
@@ -3881,7 +4005,7 @@
       dashboardSearchResults.innerHTML = [
         resultSection("기관", orgMatches, "검색된 기관이 없습니다.", org => `<article class="global-result-card">
           <h4 class="${isContractActive(org) ? "" : "expired-name"}">${escapeHTML(org.name)}</h4>
-          <p>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.type || "타입 미입력")}<br>솔루션 ${escapeHTML(org.solution || "미기입")} · 담당자 ${escapeHTML(org.contacts?.[0]?.name || "미등록")}</p>
+          <p>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.type || "타입 미입력")}<br>솔루션 ${escapeHTML(org.solution || "미기입")} · 휴관일 ${escapeHTML(org.closedDay || extractClosedDayFromNote(org.note) || "-")}<br>담당자 ${escapeHTML(org.contacts?.[0]?.name || "미등록")}</p>
           <div class="visit-actions">
             <button class="search-action primary" title="기관 보기" aria-label="기관 보기" onclick="openOrgFromDashboardSearch('${org.id}')"><svg viewBox="0 0 24 24"><path d="M8 6h10"/><path d="M8 12h10"/><path d="M8 18h10"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg></button>
             <button class="icon good" title="연락" onclick="openCall('${org.id}')">${icon("phone")}</button>
@@ -4068,7 +4192,7 @@
         return;
       }
       const contact = org.contacts?.[0] || {};
-      setAiResult(`${org.name}\n${org.region} · ${org.type}\n솔루션: ${org.solution || "미기입"}\n담당자: ${contact.name || "미등록"} ${contact.mobile || contact.tel || ""}\n주소: ${org.address || org.region || "미입력"}`);
+      setAiResult(`${org.name}\n${org.region} · ${org.type}\n솔루션: ${org.solution || "미기입"}\n휴관일: ${org.closedDay || extractClosedDayFromNote(org.note) || "미입력"}\n담당자: ${contact.name || "미등록"} ${contact.mobile || contact.tel || ""}\n주소: ${org.address || org.region || "미입력"}`);
     }
     function handleAiNavigate(command) {
       const org = findOrgForAi(command);
@@ -4213,7 +4337,11 @@
     function renderOrgs() {
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-      document.getElementById("orgCards").innerHTML = filtered.length ? filtered.map(o => `<article class="org-card">
+      const pageCount = Math.max(1, Math.ceil(filtered.length / orgPageSize));
+      state.orgPage = Math.min(Math.max(Number(state.orgPage) || 1, 1), pageCount);
+      const startIndex = (state.orgPage - 1) * orgPageSize;
+      const pageItems = filtered.slice(startIndex, startIndex + orgPageSize);
+      document.getElementById("orgCards").innerHTML = pageItems.length ? pageItems.map(o => `<article class="org-card">
         <div class="org-head">
           <div class="org-head-main"><h3 class="${isContractActive(o) ? "" : "expired-name"}">${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
           <div class="org-head-actions">
@@ -4223,7 +4351,7 @@
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         <div><span class="tag">${escapeHTML(o.cycle)}</span> <span class="tag gray">${escapeHTML(o.method)}</span></div>
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${o.startDate} ~ ${o.endDate}<br>캘린더 일정 ${nextScheduleLabel(o.id)} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${nextScheduleLabel(o.id)} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
         <div class="org-actions">
           <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap" onclick="openTmap('${o.id}')">${icon("map")}</button>
@@ -4231,7 +4359,28 @@
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
         </div>
       </article>`).join("") : '<div class="empty">검색 결과가 없습니다.</div>';
+      renderOrgPagination(filtered.length, startIndex, pageItems.length, pageCount);
     }
+    function renderOrgPagination(total, startIndex, visibleCount, pageCount) {
+      const el = document.getElementById("orgPagination");
+      if (!el) return;
+      if (!total) {
+        el.innerHTML = "";
+        return;
+      }
+      const start = startIndex + 1;
+      const end = startIndex + visibleCount;
+      el.innerHTML = `
+        <button type="button" class="icon tiny secondary" title="이전 페이지" ${state.orgPage <= 1 ? "disabled" : ""} onclick="setOrgPage(${state.orgPage - 1})">‹</button>
+        <span class="pagination-info">${start}-${end} / ${total} · ${state.orgPage}/${pageCount}</span>
+        <button type="button" class="icon tiny secondary" title="다음 페이지" ${state.orgPage >= pageCount ? "disabled" : ""} onclick="setOrgPage(${state.orgPage + 1})">›</button>
+      `;
+    }
+    window.setOrgPage = page => {
+      state.orgPage = page;
+      renderOrgs();
+      document.getElementById("view-orgs")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
     function nextScheduleLabel(orgId) {
       const today = todayISO();
       const schedule = state.schedules
@@ -4291,7 +4440,8 @@
         org?.name,
         org?.region,
         org?.address,
-        org?.solution
+        org?.solution,
+        org?.closedDay || extractClosedDayFromNote(org?.note)
       ].filter(Boolean).join(" "));
     }
     function updateCalendarScheduleSearchList() {
@@ -4814,7 +4964,7 @@
       return String(value).toLowerCase().replace(/\s+/g, "");
     }
     function orgSearchText(org) {
-      return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address].filter(Boolean).join(" "));
+      return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address, org.closedDay || extractClosedDayFromNote(org.note)].filter(Boolean).join(" "));
     }
     function matchingScheduleOrgs(value = "", limit = 8) {
       const keyword = normalizeOrgKeyword(value);
@@ -5133,7 +5283,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -5366,6 +5516,7 @@
       startDate.value = currentYearStartISO();
       endDate.value = currentYearEndISO();
       billingDay.value = "25";
+      closedDay.value = "";
       contactRows.innerHTML = "";
       addContactRow({ primary: true });
     }
@@ -5543,9 +5694,9 @@
       reportTitle.textContent = org ? `${org.name} 레포트 내역` : "레포트 내역";
       reportSub.textContent = reports.length ? `${reports.length}건 저장됨` : "저장된 레포트 사진이 없습니다.";
       reportList.innerHTML = reports.length ? reports.map(r => `<article class="report-card">
-        <a href="${r.dataUrl}" target="_blank" title="원본 보기"><img src="${r.dataUrl}" alt="레포트 사진"></a>
+        <button type="button" class="report-thumb" title="사진 미리보기" onclick="previewReport('${r.id}')"><img src="${r.dataUrl}" alt="레포트 사진"></button>
         <div>
-          <h3>${formatDate(r.visitDate || r.createdAt.slice(0, 10))}</h3>
+          <h3>${escapeHTML(reportDateLabel(r))}</h3>
           <p>${r.width}x${r.height} · 약 ${Math.max(1, Math.round(r.bytes / 1024))}KB</p>
           <div class="visit-actions" style="margin-top:8px">
             <button class="secondary" onclick="downloadReport('${r.id}')">다운로드</button>
@@ -5578,6 +5729,15 @@
       a.download = `maintenance-report-${report.createdAt.slice(0, 10)}.jpg`;
       a.click();
     };
+    window.previewReport = async id => {
+      const reports = await getReports(state.currentReportOrgId);
+      const report = reports.find(r => r.id === id);
+      if (!report) return;
+      photoPreviewTitle.textContent = report.orgName ? `${report.orgName} 레포트` : "레포트 사진";
+      photoPreviewSub.textContent = reportDateLabel(report);
+      photoPreviewImage.src = report.dataUrl;
+      photoPreviewDialog.showModal();
+    };
     window.deleteReport = async (id, orgId) => {
       if (!confirm("이 레포트 사진을 삭제할까요?")) return;
       await removeReport(id);
@@ -5592,10 +5752,11 @@
       const file = input.files?.[0];
       const org = state.orgs.find(o => o.id === state.currentReportOrgId);
       if (!file || !org) return;
+      const capturedAt = new Date().toISOString();
       enqueueImageTask({
         kind: "report",
         file,
-        meta: { orgId: org.id, orgName: org.name, visitDate: org.nextVisit || todayISO() },
+        meta: { orgId: org.id, orgName: org.name, visitDate: capturedAt.slice(0, 10), capturedAt },
         onDone: async () => { if (reportDialog.open) await renderReportList(org.id); }
       });
     }
@@ -5607,6 +5768,7 @@
     photoFileBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportFileInput); };
     closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
     closeReportDialogBtn.onclick = () => reportDialog.close();
+    closePhotoPreviewDialogBtn.onclick = () => photoPreviewDialog.close();
     addReportFromDialogBtn.onclick = () => {
       if (state.currentReportOrgId) captureReport(state.currentReportOrgId);
     };
@@ -5674,6 +5836,8 @@
       toast(existing ? "특이사항을 수정했습니다." : "특이사항을 추가했습니다.");
     };
     closeIssueDialogBtn.onclick = () => issueDialog.close();
+    document.getElementById("importNamyangjuLibrariesBtn")?.addEventListener("click", () => window.importNamyangjuLibraries());
+    document.getElementById("importNationalLibrariesBtn")?.addEventListener("click", () => window.importNationalLibraries());
     newOrgBtn.onclick = () => { clearOrgForm(); orgDialogTitle.textContent = "기관 등록"; orgDialog.showModal(); };
     addContactBtn.onclick = () => addContactRow();
     closeOrgDialogBtn.onclick = () => orgDialog.close();
@@ -5683,11 +5847,15 @@
         id: orgId.value || uid(), region: region.value.trim(), type: orgType.value, name: orgName.value.trim(),
         contractor: contractor.value.trim(), contractDate: contractDate.value, cycle: cycle.value, method: method.value, startDate: startDate.value, endDate: endDate.value,
         nextVisit: "", billingDay: Number(billingDay.value || 0), solution: solution.value.trim(), address: address.value.trim(),
-        note: orgNote.value.trim(), contacts: contactsFromForm(), issues: []
+        closedDay: closedDay.value.trim(), note: orgNote.value.trim(), contacts: contactsFromForm(), issues: []
       };
       const index = state.orgs.findIndex(o => o.id === data.id);
       const existingIssues = index >= 0 ? (state.orgs[index].issues || []) : [];
       const existingNextVisit = index >= 0 ? state.orgs[index].nextVisit : "";
+      if (index >= 0) {
+        data.sourceId = state.orgs[index].sourceId || "";
+        data.sourceName = state.orgs[index].sourceName || "";
+      }
       data.issues = existingIssues;
       data.nextVisit = existingNextVisit || startDate.value || todayISO();
       if (index >= 0) state.orgs[index] = data; else state.orgs.push(data);
@@ -5709,7 +5877,7 @@
       orgId.value = o.id; region.value = o.region; orgType.value = o.type; orgName.value = o.name; contractor.value = o.contractor || "";
       contractDate.value = o.contractDate || "";
       cycle.value = o.cycle; method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate;
-      billingDay.value = o.billingDay || ""; solution.value = o.solution || ""; address.value = o.address || ""; orgNote.value = o.note || "";
+      billingDay.value = o.billingDay || ""; solution.value = o.solution || ""; address.value = o.address || ""; closedDay.value = o.closedDay || extractClosedDayFromNote(o.note) || ""; orgNote.value = o.note || "";
       contactRows.innerHTML = "";
       (o.contacts?.length ? o.contacts : [{}]).forEach(addContactRow);
       orgDialog.showModal();
@@ -5718,6 +5886,164 @@
       if (!confirm("이 기관을 삭제할까요?")) return;
       state.orgs = state.orgs.filter(o => o.id !== id);
       save(); render(); toast("삭제되었습니다.");
+    };
+    function firstPhoneNumber(raw = "") {
+      const text = String(raw || "").trim();
+      if (!text) return "";
+      const first = text.split(",")[0].trim();
+      const range = first.match(/^(\d{2,3}-\d{3,4}-\d{4})/);
+      return range ? range[1] : first;
+    }
+    function isDuplicateLibraryOrg(library) {
+      const libraryName = normalizeOrgKeyword(library.name);
+      const libraryAddress = normalizeOrgKeyword(library.address);
+      return state.orgs.some(org => {
+        if (org.sourceId && org.sourceId === library.sourceId) return true;
+        return normalizeOrgKeyword(org.name) === libraryName && normalizeOrgKeyword(org.address) === libraryAddress;
+      });
+    }
+    function regionFromLibraryAddress(address = "") {
+      const parts = String(address || "").replace(/\([^)]*\)/g, "").trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return "";
+      if (/세종/.test(parts[0])) return parts[0];
+      if (parts[0]?.endsWith("도") && parts[1]?.endsWith("시") && parts[2]?.endsWith("구")) return parts.slice(0, 3).join(" ");
+      if ((parts[0]?.includes("광역시") || parts[0]?.includes("특별시")) && parts[1]) return parts.slice(0, 2).join(" ");
+      return parts.slice(0, Math.min(2, parts.length)).join(" ");
+    }
+    function libraryOrgType(library = {}) {
+      const text = `${library.name || ""} ${library.address || ""} ${library.typeName || ""} ${library.category || ""}`;
+      if (/대학교|대학/.test(text)) return "대학교";
+      if (/고등학교|고교/.test(text)) return "고등학교";
+      return "도서관";
+    }
+    function libraryToOrg(library) {
+      const phone = firstPhoneNumber(library.tel);
+      const noteLines = [
+        library.homepage ? `홈페이지: ${library.homepage}` : "",
+        library.operatingTime ? `운영시간: ${library.operatingTime}` : "",
+        library.libCode ? `도서관코드: ${library.libCode}` : "",
+        `출처: ${library.sourceName || "도서관 정보나루"}`
+      ].filter(Boolean);
+      return {
+        id: uid(),
+        sourceId: library.sourceId,
+        sourceName: library.sourceName || "도서관 정보나루",
+        region: library.region || regionFromLibraryAddress(library.address),
+        type: library.type || libraryOrgType(library),
+        name: library.name,
+        contractor: "",
+        contractDate: "",
+        cycle: "매월 점검",
+        method: "직접점검",
+        startDate: "",
+        endDate: "",
+        nextVisit: "",
+        billingDay: 0,
+        solution: "",
+        address: library.address,
+        closedDay: library.closed || "",
+        note: noteLines.join("\n"),
+        contacts: phone ? [{ name: "대표전화", tel: phone, mobile: "", email: "", note: library.tel !== phone ? `원본 번호: ${library.tel}` : "", primary: true }] : [],
+        issues: []
+      };
+    }
+    window.importNamyangjuLibraries = () => {
+      const added = [];
+      const skipped = [];
+      namyangjuPublicLibraries.forEach(library => {
+        const normalizedLibrary = { ...library, sourceName: "남양주시도서관 공공도서관 현황", region: "경기도 남양주시", type: "도서관" };
+        if (isDuplicateLibraryOrg(normalizedLibrary)) {
+          skipped.push(library.name);
+          return;
+        }
+        const org = libraryToOrg(normalizedLibrary);
+        state.orgs.push(org);
+        added.push(org.name);
+      });
+      if (added.length) {
+        save();
+        orgSearch.value = "남양주시";
+        state.orgPage = 1;
+        render();
+        toast(`남양주시립 도서관 ${added.length}개를 추가했습니다.`);
+      } else {
+        renderOrgs();
+        toast("추가할 신규 도서관이 없습니다.");
+      }
+      showInfo(
+        "남양주시립 도서관 등록",
+        `신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개${skipped.length ? "\n\n중복: " + skipped.join(", ") : ""}`
+      );
+    };
+    function mergeLibrariesIntoOrgs(libraries) {
+      const added = [];
+      const skipped = [];
+      libraries.forEach(library => {
+        if (isDuplicateLibraryOrg(library)) {
+          skipped.push(library.name);
+          return;
+        }
+        const org = libraryToOrg(library);
+        state.orgs.push(org);
+        added.push(org.name);
+      });
+      return { added, skipped };
+    }
+    function normalizedStaticLibraries() {
+      return (Array.isArray(window.nationalLibraryStaticData) ? window.nationalLibraryStaticData : [])
+        .map((library, index) => {
+          const name = library.name || library.libName || library.libraryName || "";
+          const address = library.address || library.addr || "";
+          return {
+            ...library,
+            sourceId: library.sourceId || library.libCode || `static-national:${normalizeOrgKeyword(name)}:${normalizeOrgKeyword(address)}:${index}`,
+            sourceName: library.sourceName || "전국 도서관 정적 목록",
+            libCode: library.libCode || library.code || "",
+            name,
+            address,
+            tel: library.tel || library.phone || "",
+            closed: library.closed || library.closedDay || library.closeDay || "",
+            homepage: library.homepage || library.homepageUrl || library.url || "",
+            operatingTime: library.operatingTime || library.openTime || ""
+          };
+        })
+        .filter(library => library.name);
+    }
+    window.importNationalLibraries = () => {
+      const button = document.getElementById("importNationalLibrariesBtn");
+      const libraries = normalizedStaticLibraries();
+      if (!libraries.length) {
+        showInfo("전국 도서관 데이터 없음", "outputs/national-libraries.js 파일에 전국 도서관 목록이 아직 들어있지 않습니다.\n\nCSV/엑셀 원본을 받으면 이 파일에 변환해 넣어서 API 없이 바로 등록되게 구성해뒀습니다.");
+        return;
+      }
+      const confirmed = confirm(`내장된 전국 도서관 ${libraries.length}개를 중복 없이 기관목록에 추가할까요?`);
+      if (!confirmed) return;
+      const originalText = button?.textContent || "";
+      if (button) {
+        button.disabled = true;
+        button.textContent = "등록 중...";
+      }
+      try {
+        toast("내장 도서관 목록을 등록하는 중입니다.");
+        const { added, skipped } = mergeLibrariesIntoOrgs(libraries);
+        save();
+        orgSearch.value = "";
+        state.orgPage = 1;
+        render();
+        showInfo(
+          "전국 도서관 등록",
+          `내장 데이터에서 ${libraries.length}개를 확인했습니다.\n신규 추가: ${added.length}개\n중복 제외: ${skipped.length}개\n\n유지보수 기간과 솔루션은 비워두고, 기관 타입은 이름/주소 기준으로 자동 분류했습니다.`
+        );
+        toast(`전국 도서관 ${added.length}개를 추가했습니다.`);
+      } catch (error) {
+        console.warn(error);
+        showInfo("전국 도서관 등록 실패", "내장 도서관 데이터 처리 중 오류가 발생했습니다.\n\n세부 오류: " + (error.message || error));
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
     };
     window.openCall = id => {
       const o = state.orgs.find(x => x.id === id);
@@ -5807,6 +6133,25 @@
       } catch (error) {
         console.warn(error);
         showInfo("Tmap 길찾기", "주소를 Tmap 좌표로 변환하지 못했습니다. 상세 주소를 도로명/지번까지 조금 더 정확하게 입력하거나 Tmap 앱키 설정을 확인해주세요.");
+      }
+    };
+    window.openTmapAddress = async (name, address) => {
+      const target = String(address || "").trim();
+      if (!target) return;
+      const appKey = (state.settings.tmapKey || "").trim();
+      if (!appKey) {
+        window.open(`https://www.tmap.co.kr/search?keyword=${encodeURIComponent(target)}`, "_blank");
+        toast(`${name} 주소를 Tmap 검색으로 열었습니다.`);
+        return;
+      }
+      try {
+        toast(`${name} 목적지를 찾고 있습니다.`);
+        const coordinate = await fetchTmapCoordinates(target, appKey);
+        openTmapRoute({ name }, target, coordinate);
+      } catch (error) {
+        console.warn(error);
+        window.open(`https://www.tmap.co.kr/search?keyword=${encodeURIComponent(target)}`, "_blank");
+        toast("좌표 변환 대신 Tmap 검색으로 열었습니다.");
       }
     };
     function scheduleDetails(schedule) {
@@ -6423,7 +6768,10 @@
       showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
     };
     closeInfoDialogBtn.onclick = () => infoDialog.close();
-    orgSearch.oninput = renderOrgs;
+    orgSearch.oninput = () => {
+      state.orgPage = 1;
+      renderOrgs();
+    };
     memoSearch.oninput = renderMemos;
     dashboardSearch.oninput = renderDashboardSearch;
     clearDashboardSearchBtn.onclick = () => {
