@@ -3099,9 +3099,32 @@
         records: Array.isArray(state.vehicle?.records) ? state.vehicle.records : []
       };
     }
+    function vehicleRecordTime(record) {
+      return Date.parse(record?.updatedAt || record?.createdAt || record?.date || "") || 0;
+    }
+    function mergeVehicleData(localVehicle = {}, cloudVehicle = {}) {
+      const byId = new Map();
+      const addRecord = record => {
+        if (!record || typeof record !== "object") return;
+        const id = record.id || uid();
+        const normalized = { ...record, id };
+        const current = byId.get(id);
+        if (!current || vehicleRecordTime(normalized) >= vehicleRecordTime(current)) {
+          byId.set(id, { ...current, ...normalized });
+        }
+      };
+      (Array.isArray(localVehicle.records) ? localVehicle.records : []).forEach(addRecord);
+      (Array.isArray(cloudVehicle.records) ? cloudVehicle.records : []).forEach(addRecord);
+      return {
+        ...localVehicle,
+        ...cloudVehicle,
+        records: [...byId.values()].sort((a, b) => `${b.date || ""} ${b.createdAt || ""}`.localeCompare(`${a.date || ""} ${a.createdAt || ""}`))
+      };
+    }
     function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
+      normalizeVehicle();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
@@ -5433,7 +5456,7 @@
       if (key === "schedules" && Array.isArray(value)) state.schedules = value;
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
-      if (key === "vehicle" && value && typeof value === "object") state.vehicle = value;
+      if (key === "vehicle" && value && typeof value === "object") state.vehicle = mergeVehicleData(state.vehicle, value);
     }
     function cloudErrorMessage(error) {
       const message = String(error?.message || error || "");
@@ -6679,6 +6702,7 @@
     closeVehicleRecordDialogBtn.onclick = () => vehicleRecordDialog.close();
     vehicleRecordForm.onsubmit = e => {
       e.preventDefault();
+      normalizeVehicle();
       const existing = state.vehicle.records.find(item => item.id === vehicleRecordId.value);
       const record = {
         id: existing?.id || uid(),
