@@ -25,6 +25,7 @@
     }
 
     * { box-sizing: border-box; }
+    .hidden { display: none !important; }
     body {
       margin: 0;
       background: linear-gradient(180deg, #edf4f8 0%, #f7f9fb 42%, #eef3f6 100%);
@@ -2183,8 +2184,8 @@
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
         <div class="toolbar">
           <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
-          <button type="button" class="secondary" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
-          <button type="button" class="secondary" id="importNationalLibrariesBtn">전국 도서관</button>
+          <button type="button" class="secondary hidden" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
+          <button type="button" class="secondary hidden" id="importNationalLibrariesBtn">전국 도서관</button>
           <button id="newOrgBtn">기관 등록</button>
         </div>
         <div class="cards" id="orgCards"></div>
