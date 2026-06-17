@@ -2698,6 +2698,8 @@
       currentLocationMarker: null,
       currentPosition: null,
       currentPositionAsked: false,
+      currentPositionAutoRequestedAt: 0,
+      currentPositionAutoTimer: null,
       destinationMapRenderTimer: null,
       destinationMapRenderToken: 0,
       orgPage: 1
@@ -2840,6 +2842,7 @@
       state.loginSession = session;
       renderSettings();
       startCloudAutoSync({ immediate: true });
+      autoRequestTodayMapLocation();
     }
     function lockApp(message = "") {
       document.body.classList.remove("auth-pending");
@@ -3496,6 +3499,7 @@
       dashboardSettingsBtn.style.display = view === "dashboard" ? "inline-grid" : "none";
       localStorage.setItem("maint_active_view", view);
       render();
+      if (view === "dashboard") autoRequestTodayMapLocation();
     }
 
     function orgForSchedule(schedule) {
@@ -3725,6 +3729,19 @@
         timeout: 9000,
         maximumAge: 120000
       });
+    }
+    function autoRequestTodayMapLocation() {
+      if (!document.getElementById("view-dashboard")?.classList.contains("active")) return;
+      if (document.body.classList.contains("auth-pending") || document.body.classList.contains("auth-locked")) return;
+      if (state.currentPositionAutoTimer) clearTimeout(state.currentPositionAutoTimer);
+      state.currentPositionAutoTimer = setTimeout(() => {
+        if (!document.getElementById("view-dashboard")?.classList.contains("active")) return;
+        if (document.body.classList.contains("auth-pending") || document.body.classList.contains("auth-locked")) return;
+        const now = Date.now();
+        if (now - (state.currentPositionAutoRequestedAt || 0) < 10000) return;
+        state.currentPositionAutoRequestedAt = now;
+        requestTodayMapLocation({ silent: true });
+      }, 360);
     }
     window.requestTodayMapLocation = requestTodayMapLocation;
     function scheduleTextForClipboard(schedule) {
