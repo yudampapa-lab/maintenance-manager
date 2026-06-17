@@ -1536,8 +1536,12 @@
 
     @media (max-width: 920px) {
       .dashboard-grid, .cards, .settings-grid { grid-template-columns: 1fr; }
-      .calendar-layout { grid-template-columns: 1fr; }
-      .monthly-maintenance-panel { display: none; }
+      .calendar-layout { grid-template-columns: minmax(0, 1fr) 190px; gap: 8px; }
+      .monthly-maintenance-head { padding: 9px; }
+      .monthly-maintenance-list { padding: 8px; gap: 6px; }
+      .maintenance-drag-card { padding: 8px; }
+      .maintenance-drag-card strong { font-size: 12px; }
+      .maintenance-drag-card span { font-size: 10px; }
       .vehicle-grid { grid-template-columns: 1fr; }
       .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .contact-row { grid-template-columns: 1fr; border: 1px solid var(--line); padding: 10px; border-radius: 8px; }
@@ -1549,6 +1553,8 @@
       .form-grid { grid-template-columns: 1fr; }
       .panel-head { align-items: start; }
       .top-actions .secondary { display: none; }
+      .calendar-layout { grid-template-columns: 1fr; }
+      .monthly-maintenance-panel { display: none; }
       .calendar-grid { font-size: 12px; }
       .day-cell { min-height: 96px; padding: 4px; }
       .event-pill { font-size: 10px; padding: 5px; }
