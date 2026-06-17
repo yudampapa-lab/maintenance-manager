@@ -1066,6 +1066,11 @@
       background: rgba(118, 118, 128, .12);
       box-shadow: none;
     }
+    .org-suggestions .empty {
+      padding: 10px;
+      font-size: 11px;
+      border-radius: 8px;
+    }
     .contact-row {
       display: grid;
       grid-template-columns: .7fr 1fr 1fr 1fr 1.2fr 1.4fr auto;
@@ -5019,12 +5024,29 @@
     function orgSearchText(org) {
       return normalizeOrgKeyword([org.name, org.region, org.type, org.contractor, org.solution, org.address, org.closedDay || extractClosedDayFromNote(org.note)].filter(Boolean).join(" "));
     }
-    function matchingScheduleOrgs(value = "", limit = 8) {
+    function seoulProximityRank(org = {}) {
+      const text = `${org.region || ""} ${org.address || ""}`;
+      if (/서울|서울특별시/.test(text)) return 0;
+      if (/경기|경기도|고양|과천|광명|구리|군포|김포|남양주|부천|성남|수원|시흥|안양|양주|의정부|하남|화성|용인|의왕|파주|광주|오산|안산|안성|평택|포천|동두천|여주|이천|가평|양평|연천/.test(text)) return 1;
+      if (/인천|인천광역시/.test(text)) return 2;
+      if (/충남|충청남도|충북|충청북도|세종|대전|대전광역시/.test(text)) return 3;
+      if (/강원|강원특별자치도/.test(text)) return 4;
+      if (/대구|경북|경상북도|전북|전라북도|전북특별자치도/.test(text)) return 5;
+      if (/부산|울산|경남|경상남도|광주|전남|전라남도/.test(text)) return 6;
+      if (/제주/.test(text)) return 7;
+      return 8;
+    }
+    function scheduleOrgSort(a, b) {
+      return seoulProximityRank(a) - seoulProximityRank(b)
+        || (a.name || "").localeCompare(b.name || "", "ko")
+        || (a.region || "").localeCompare(b.region || "", "ko");
+    }
+    function matchingScheduleOrgs(value = "", limit = 20) {
       const keyword = normalizeOrgKeyword(value);
       return state.orgs
         .slice()
-        .sort((a, b) => a.name.localeCompare(b.name, "ko"))
         .filter(org => !keyword || orgSearchText(org).includes(keyword))
+        .sort(scheduleOrgSort)
         .slice(0, limit);
     }
     function refreshScheduleOrgOptions() {
@@ -5042,10 +5064,12 @@
         return;
       }
       const matches = matchingScheduleOrgs(scheduleOrgSearch.value);
+      const total = state.orgs.filter(org => !normalizeOrgKeyword(scheduleOrgSearch.value) || orgSearchText(org).includes(normalizeOrgKeyword(scheduleOrgSearch.value))).length;
+      const more = total > matches.length ? `<div class="empty">가까운 순으로 ${matches.length}개만 먼저 표시합니다.</div>` : "";
       scheduleOrgSuggestions.innerHTML = matches.length ? matches.map(org => `<button type="button" class="org-suggestion" onclick="selectScheduleOrg('${org.id}')">
         <strong>${escapeHTML(org.name)}</strong>
         <span>${escapeHTML(org.region || "지역 미입력")} · ${escapeHTML(org.type || "타입 미입력")}</span>
-      </button>`).join("") : '<div class="empty">검색된 기관이 없습니다.</div>';
+      </button>`).join("") + more : '<div class="empty">검색된 기관이 없습니다.</div>';
       scheduleOrgSuggestions.classList.add("show");
     }
     window.selectScheduleOrg = id => {
