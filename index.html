@@ -4401,9 +4401,31 @@
     function isMultiDaySchedule(schedule) {
       return (schedule.endDate || schedule.date) !== schedule.date;
     }
+    function compactCalendarTitle(title = "") {
+      let text = String(title || "").trim();
+      const prefixes = [
+        /^인천광역시교육청/,
+        /^[가-힣]+특별시교육청/,
+        /^[가-힣]+광역시교육청/,
+        /^[가-힣]+특별자치시교육청/,
+        /^[가-힣]+특별자치도교육청/,
+        /^[가-힣]+도교육청/,
+        /^[가-힣]+시립/,
+        /^[가-힣]+군립/,
+        /^[가-힣]+구립/
+      ];
+      prefixes.forEach(pattern => { text = text.replace(pattern, ""); });
+      text = text.replace(/^(인천광역시|서울특별시|부산광역시|대구광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|충청북도|충청남도|전북특별자치도|전라남도|경상북도|경상남도|제주특별자치도)/, "");
+      text = text.trim() || String(title || "").trim();
+      if (text.length > 9 && /도서관$/.test(text)) {
+        const core = text.replace(/도서관$/, "");
+        text = `${core.slice(-5)}도서관`;
+      }
+      return text;
+    }
     function calendarScheduleLabel(schedule) {
       const time = scheduleHasTime(schedule) ? `${scheduleTimeLabel(schedule)} ` : "";
-      return `${time}${schedule.title}`;
+      return `${time}${compactCalendarTitle(schedule.title)}`;
     }
     function messengerDateLabel(iso) {
       const date = new Date(iso + "T00:00:00");
