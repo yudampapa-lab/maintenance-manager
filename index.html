@@ -3284,11 +3284,14 @@
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
     }
     function scheduleDeleteKeys(schedule = {}) {
-      return [
+      const keys = [
         schedule.id,
         schedule.googleEventId,
         ...(Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds : [])
       ].filter(Boolean);
+      const contentKey = scheduleContentKey(schedule);
+      if (contentKey.replace(/\|/g, "")) keys.push("content:" + contentKey);
+      return keys;
     }
     function rememberDeletedSchedules(schedules = []) {
       const ids = schedules.flatMap(scheduleDeleteKeys);
@@ -6171,9 +6174,12 @@
       if (Array.isArray(data.restoredScheduleIds)) {
         state.settings.restoredScheduleIds = [...new Set([...(state.settings.restoredScheduleIds || []), ...data.restoredScheduleIds])];
       }
+      const restoredScheduleIds = new Set(state.settings.restoredScheduleIds || []);
       if (Array.isArray(data.deletedScheduleIds)) {
-        const restored = new Set(state.settings.restoredScheduleIds || []);
-        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])].filter(id => !restored.has(id));
+        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])].filter(id => !restoredScheduleIds.has(id));
+      }
+      if (state.settings.googleDeletedEventIds?.length) {
+        state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds.filter(id => !restoredScheduleIds.has(id));
       }
       if (Array.isArray(data.deletedOrgKeys)) {
         state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...data.deletedOrgKeys])];
@@ -7367,6 +7373,7 @@
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
         save();
+        if (canUseCloudSync()) await uploadCloudData({ silent: true });
         render();
         const result = { deleted, pulled, pushed, missingRemoved, duplicateDeleted: duplicateCleanup.removed };
         if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed + missingRemoved + duplicateCleanup.removed}건`);
