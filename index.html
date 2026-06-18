@@ -1096,6 +1096,25 @@
       pointer-events: auto;
       touch-action: none;
     }
+    .event-pill-main,
+    .event-pill-sub {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event-pill-main {
+      white-space: nowrap;
+    }
+    .event-pill-sub {
+      margin-top: 1px;
+      font-size: .92em;
+      font-weight: 500;
+      opacity: .78;
+      white-space: nowrap;
+    }
+    .event-pill.calendar-bar .event-pill-sub {
+      display: none;
+    }
     .event-pill.dragging {
       position: relative;
       z-index: 50;
@@ -2195,6 +2214,25 @@
       border-radius: 7px;
       font-weight: 600;
       touch-action: none;
+    }
+    .event-pill-main,
+    .event-pill-sub {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event-pill-main {
+      white-space: nowrap;
+    }
+    .event-pill-sub {
+      margin-top: 1px;
+      font-size: .92em;
+      font-weight: 500;
+      opacity: .78;
+      white-space: nowrap;
+    }
+    .event-pill.calendar-bar .event-pill-sub {
+      display: none;
     }
     .event-pill:active { transform: scale(.98); }
     .event-pill.dragging {
@@ -4629,8 +4667,14 @@
       return text;
     }
     function calendarScheduleLabel(schedule) {
-      const time = scheduleHasTime(schedule) ? `${scheduleTimeLabel(schedule)} ` : "";
-      return `${time}${compactCalendarTitle(schedule.title)}`;
+      return compactCalendarTitle(schedule.title);
+    }
+    function calendarScheduleMarkup(schedule) {
+      const title = escapeHTML(calendarScheduleLabel(schedule));
+      if (!scheduleHasTime(schedule) || isMultiDaySchedule(schedule)) {
+        return `<span class="event-pill-main">${title}</span>`;
+      }
+      return `<span class="event-pill-main">${title}</span><span class="event-pill-sub">${escapeHTML(scheduleTimeLabel(schedule))}</span>`;
     }
     function messengerDateLabel(iso) {
       const date = new Date(iso + "T00:00:00");
@@ -5962,7 +6006,7 @@
             const expired = org && !isContractActive(org) ? "expired" : "";
             const multi = isMultiDaySchedule(schedule) ? "multi-day" : "";
             const span = endIndex - startIndex + 1;
-            return `<span class="event-pill calendar-bar has-color ${expired} ${multi}" style="${scheduleColorStyle(schedule)}grid-column:${startIndex + 1} / span ${span};grid-row:${row + 1};" title="길게 누른 다음 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${escapeHTML(calendarScheduleLabel(schedule))}</span>`;
+            return `<span class="event-pill calendar-bar has-color ${expired} ${multi}" style="${scheduleColorStyle(schedule)}grid-column:${startIndex + 1} / span ${span};grid-row:${row + 1};" title="길게 누른 다음 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${calendarScheduleMarkup(schedule)}</span>`;
           }).join("");
         weeks.push(`<div class="calendar-week" style="--event-rows:${rowCount}">${cells.join("")}<div class="week-events">${bars}</div></div>`);
       }
