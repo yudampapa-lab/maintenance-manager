@@ -867,7 +867,7 @@
       text-align: left;
       box-shadow: none;
       cursor: grab;
-      touch-action: none;
+      touch-action: pan-y;
       user-select: none;
       -webkit-user-select: none;
     }
@@ -898,6 +898,13 @@
       color: var(--muted);
       font-size: 11px;
       font-weight: 800;
+    }
+    .maintenance-group-label small,
+    .tag small {
+      margin-left: 2px;
+      font-size: .76em;
+      font-weight: 750;
+      opacity: .72;
     }
     .calendar-day-names,
     .calendar-week {
@@ -968,7 +975,7 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       cursor: grab;
-      touch-action: none;
+      touch-action: pan-y;
     }
     .event-pill.calendar-bar {
       width: auto;
@@ -2425,7 +2432,7 @@
           <div class="field"><label>유지보수 지역명</label><input id="region" required placeholder="예: 전남 신안군 흑산도"></div>
           <div class="field"><label>계약업체</label><input id="contractor" placeholder="계약업체명"></div>
           <div class="field"><label>유지보수 계약일</label><input id="contractDate" type="date"></div>
-          <div class="field"><label>점검 주기</label><select id="cycle"><option>해당없음</option><option>매월 점검</option><option>분기 점검</option><option>반기 점검</option><option>연간 점검</option></select></div>
+          <div class="field"><label>점검 주기</label><select id="cycle"><option>해당없음</option><option>매월 점검</option><option>분기점검(3,6,9,12)</option><option>분기점검(2,5,8,11)</option><option>반기 점검</option><option>연간 점검</option></select></div>
           <div class="field"><label>점검수단</label><select id="method"><option>해당없음</option><option>직접점검</option><option>원격점검</option><option>방문안함</option><option>협력업체점검</option></select></div>
           <div class="field"><label>유지보수 시작일</label><input id="startDate" type="date"></div>
           <div class="field"><label>유지보수 종료일</label><input id="endDate" type="date"></div>
@@ -2756,7 +2763,7 @@
 
     const seedOrgs = [
       { id: uid(), region: "전남 신안군 흑산도", type: "공공기관", name: "흑산면 행정복지센터", contractor: "섬테크", contractDate: todayISO(-190), cycle: "매월 점검", method: "직접점검", startDate: todayISO(-180), endDate: todayISO(180), nextVisit: todayISO(0), billingDay: 25, solution: "통합유지보수 솔루션 A", address: "전남 신안군 흑산면", note: "선박 시간 확인 후 출발", contacts: [{ name: "김담당", tel: "061-000-1000", mobile: "010-1234-5678", email: "manager@example.com", note: "주 담당" }] },
-      { id: uid(), region: "경남 통영시 욕지도", type: "도서관", name: "욕지도 작은도서관", contractor: "남해정보", contractDate: todayISO(-75), cycle: "분기 점검", method: "협력업체점검", startDate: todayISO(-60), endDate: todayISO(300), nextVisit: todayISO(0), billingDay: 10, solution: "도서관리 시스템 B", address: "경남 통영시 욕지면", note: "", contacts: [{ name: "박사서", tel: "055-000-2000", mobile: "010-2222-3333", email: "library@example.com", note: "" }] },
+      { id: uid(), region: "경남 통영시 욕지도", type: "도서관", name: "욕지도 작은도서관", contractor: "남해정보", contractDate: todayISO(-75), cycle: "분기점검(3,6,9,12)", method: "협력업체점검", startDate: todayISO(-60), endDate: todayISO(300), nextVisit: todayISO(0), billingDay: 10, solution: "도서관리 시스템 B", address: "경남 통영시 욕지면", note: "", contacts: [{ name: "박사서", tel: "055-000-2000", mobile: "010-2222-3333", email: "library@example.com", note: "" }] },
       { id: uid(), region: "인천 옹진군 백령도", type: "고등학교", name: "백령고등학교", contractor: "서해시스템", contractDate: todayISO(-45), cycle: "반기 점검", method: "원격점검", startDate: todayISO(-30), endDate: todayISO(400), nextVisit: todayISO(1), billingDay: 5, solution: "학사 네트워크 장비", address: "인천 옹진군 백령면", note: "원격 우선", contacts: [{ name: "이정보", tel: "032-000-3000", mobile: "010-4444-5555", email: "school@example.com", note: "" }] }
     ];
     const namyangjuPublicLibraries = [
@@ -3127,6 +3134,18 @@
       const match = String(note || "").match(/(?:^|\n)\s*휴관\s*:\s*([^\n]+)/);
       return match ? match[1].trim() : "";
     }
+    function normalizedMaintenanceCycle(cycle = "") {
+      const value = String(cycle || "").trim();
+      if (!value || value === "해당없음") return "해당없음";
+      if (value === "분기 점검") return "분기점검(3,6,9,12)";
+      return value;
+    }
+    function cycleLabelHTML(cycle = "") {
+      const value = normalizedMaintenanceCycle(cycle);
+      const match = value.match(/^(.+?)(\(.+\))$/);
+      if (!match) return escapeHTML(value);
+      return `${escapeHTML(match[1])}<small>${escapeHTML(match[2])}</small>`;
+    }
     function normalizeOrgs() {
       state.orgs.forEach(org => {
         if (!Array.isArray(org.issues)) org.issues = [];
@@ -3137,7 +3156,7 @@
           org.cycle = "해당없음";
           org.method = "해당없음";
         } else {
-          org.cycle = org.cycle || "해당없음";
+          org.cycle = normalizedMaintenanceCycle(org.cycle);
           org.method = org.method || "해당없음";
         }
       });
@@ -3676,27 +3695,27 @@
       const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
       return { start: localDateISO(start), end: localDateISO(end), year: cursor.getFullYear(), month: cursor.getMonth() + 1 };
     }
-    const maintenanceCycleOrder = { "매월 점검": 0, "분기 점검": 1, "반기 점검": 2, "연간 점검": 3 };
+    const maintenanceCycleOrder = {
+      "매월 점검": 0,
+      "분기점검(3,6,9,12)": 1,
+      "분기점검(2,5,8,11)": 2,
+      "반기 점검": 3,
+      "연간 점검": 4
+    };
     function maintenanceCycleRank(cycle = "") {
-      return Object.prototype.hasOwnProperty.call(maintenanceCycleOrder, cycle) ? maintenanceCycleOrder[cycle] : 99;
-    }
-    function monthDiffFromStart(startDate = "", range = monthRangeForCursor()) {
-      if (!startDate) return null;
-      const [startYear, startMonth] = startDate.split("-").map(Number);
-      if (!startYear || !startMonth) return null;
-      return (range.year - startYear) * 12 + (range.month - startMonth);
+      const normalized = normalizedMaintenanceCycle(cycle);
+      return Object.prototype.hasOwnProperty.call(maintenanceCycleOrder, normalized) ? maintenanceCycleOrder[normalized] : 99;
     }
     function isOrgDueForMonth(org = {}, range = monthRangeForCursor()) {
-      const cycle = org.cycle || "해당없음";
+      const cycle = normalizedMaintenanceCycle(org.cycle);
       if (!org.startDate || cycle === "해당없음") return false;
       if (org.endDate && org.endDate < range.start) return false;
       if (org.startDate > range.end) return false;
-      const diff = monthDiffFromStart(org.startDate, range);
-      if (diff === null || diff < 0) return false;
       if (cycle === "매월 점검") return true;
-      if (cycle === "분기 점검") return diff % 3 === 0;
-      if (cycle === "반기 점검") return diff % 6 === 0;
-      if (cycle === "연간 점검") return diff % 12 === 0;
+      if (cycle === "분기점검(3,6,9,12)") return [3, 6, 9, 12].includes(range.month);
+      if (cycle === "분기점검(2,5,8,11)") return [2, 5, 8, 11].includes(range.month);
+      if (cycle === "반기 점검") return [5, 12].includes(range.month);
+      if (cycle === "연간 점검") return range.month === 11;
       return false;
     }
     function scheduleOverlapsMonth(schedule = {}, range = monthRangeForCursor()) {
@@ -4283,7 +4302,7 @@
       return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
-          ${o.cycle && o.cycle !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${escapeHTML(o.cycle)}</span>` : ""}
+          ${o.cycle && normalizedMaintenanceCycle(o.cycle) !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${cycleLabelHTML(o.cycle)}</span>` : ""}
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
@@ -4931,8 +4950,8 @@
       }
       let lastCycle = "";
       list.innerHTML = orgs.map(org => {
-        const label = org.cycle || "해당없음";
-        const group = label !== lastCycle ? `<div class="maintenance-group-label">${escapeHTML(label)}</div>` : "";
+        const label = normalizedMaintenanceCycle(org.cycle);
+        const group = label !== lastCycle ? `<div class="maintenance-group-label">${cycleLabelHTML(label)}</div>` : "";
         lastCycle = label;
         return `${group}<button type="button" class="maintenance-drag-card" data-org-id="${escapeAttr(org.id)}" title="캘린더 날짜로 드래그해서 일정 등록" onpointerdown="maintenanceOrgPointerStart(event, '${escapeAttr(org.id)}')" onpointermove="maintenanceOrgPointerMove(event, '${escapeAttr(org.id)}')" onpointerup="maintenanceOrgPointerEnd(event, '${escapeAttr(org.id)}')" onpointercancel="maintenanceOrgPointerCancel(event, '${escapeAttr(org.id)}')">
           <strong>${escapeHTML(org.name)}</strong>
@@ -4999,7 +5018,7 @@
         actionButton("전화", "phone", `scheduleActionDialog.close(); openCall('${orgId}')`),
         actionButton("Tmap", "map", `scheduleActionDialog.close(); openTmap('${orgId}')`)
       ];
-      showScheduleActionDialog(org.name || "기관", `${org.cycle || ""} · ${org.region || "지역 미입력"}`, buttons);
+      showScheduleActionDialog(org.name || "기관", `${normalizedMaintenanceCycle(org.cycle)} · ${org.region || "지역 미입력"}`, buttons);
     };
     function createInspectionScheduleFromOrg(orgId, date) {
       const org = state.orgs.find(item => item.id === orgId);
@@ -5035,8 +5054,6 @@
       return schedule;
     }
     window.maintenanceOrgPointerStart = (event, orgId) => {
-      event.preventDefault();
-      event.stopPropagation();
       const el = event.currentTarget;
       el.setPointerCapture?.(event.pointerId);
       const drag = { orgId, el, startX: event.clientX, startY: event.clientY, moved: false, armed: false, cancelled: false };
@@ -5062,8 +5079,6 @@
     window.maintenanceOrgPointerMove = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
       if (!drag || drag.orgId !== orgId) return;
-      event.preventDefault();
-      event.stopPropagation();
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
       if (!drag.armed) {
@@ -5074,6 +5089,8 @@
         }
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       if (Math.abs(dx) + Math.abs(dy) > 8) {
         drag.moved = true;
         clearTimeout(drag.contextTimer);
@@ -5099,10 +5116,13 @@
     window.maintenanceOrgPointerEnd = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
       if (!drag || drag.orgId !== orgId) return;
-      event.preventDefault();
-      event.stopPropagation();
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      const shouldHandle = drag.armed || (!drag.cancelled && !drag.moved);
+      if (shouldHandle) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
       resetMaintenanceDragElement(drag.el);
       clearDropTarget();
@@ -5218,8 +5238,6 @@
       }
     }
     window.schedulePointerStart = (event, id) => {
-      event.preventDefault();
-      event.stopPropagation();
       const el = event.currentTarget;
       el.setPointerCapture?.(event.pointerId);
       const drag = { id, el, startX: event.clientX, startY: event.clientY, moved: false, armed: false, cancelled: false };
@@ -5245,8 +5263,6 @@
     window.schedulePointerMove = (event, id) => {
       const drag = state.calendarDrag;
       if (!drag || drag.id !== id) return;
-      event.preventDefault();
-      event.stopPropagation();
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
       if (!drag.armed) {
@@ -5257,6 +5273,8 @@
         }
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       if (Math.abs(dx) + Math.abs(dy) > 8) {
         drag.moved = true;
         clearTimeout(drag.contextTimer);
@@ -5275,10 +5293,13 @@
     window.schedulePointerEnd = (event, id) => {
       const drag = state.calendarDrag;
       if (!drag || drag.id !== id) return;
-      event.preventDefault();
-      event.stopPropagation();
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      const shouldHandle = drag.armed || !drag.cancelled;
+      if (shouldHandle) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
       const targetPanel = drag.moved ? monthlyMaintenancePanelFromPoint(event.clientX, event.clientY, drag.el) : null;
       drag.el.classList.remove("drag-ready");
@@ -5560,7 +5581,7 @@
     }
     function orgStatusTags(org = {}) {
       const tags = [];
-      if (org.cycle && org.cycle !== "해당없음") tags.push(`<span class="tag">${escapeHTML(org.cycle)}</span>`);
+      if (org.cycle && normalizedMaintenanceCycle(org.cycle) !== "해당없음") tags.push(`<span class="tag">${cycleLabelHTML(org.cycle)}</span>`);
       if (org.method && org.method !== "해당없음") tags.push(`<span class="tag gray">${escapeHTML(org.method)}</span>`);
       return tags.length ? `<div>${tags.join(" ")}</div>` : "";
     }
@@ -6539,7 +6560,7 @@
       orgDialogTitle.textContent = "기관 수정";
       orgId.value = o.id; region.value = o.region; orgType.value = o.type; orgName.value = o.name; contractor.value = o.contractor || "";
       contractDate.value = o.contractDate || "";
-      cycle.value = o.cycle; method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate;
+      cycle.value = normalizedMaintenanceCycle(o.cycle); method.value = o.method; startDate.value = o.startDate; endDate.value = o.endDate;
       billingDay.value = o.billingDay || ""; solution.value = o.solution || ""; address.value = o.address || ""; closedDay.value = o.closedDay || extractClosedDayFromNote(o.note) || ""; orgNote.value = o.note || "";
       contactRows.innerHTML = "";
       (o.contacts?.length ? o.contacts : [{}]).forEach(addContactRow);
@@ -6841,7 +6862,7 @@
     function scheduleDetails(schedule) {
       const org = orgForSchedule(schedule);
       if (!org) return "개인 일정";
-      return `${org.name}\n${org.region}\n${org.method} / ${org.cycle}\n솔루션: ${org.solution || ""}`;
+      return `${org.name}\n${org.region}\n${org.method} / ${normalizedMaintenanceCycle(org.cycle)}\n솔루션: ${org.solution || ""}`;
     }
     function scheduleLocation(schedule) {
       const org = orgForSchedule(schedule);
