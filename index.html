@@ -4088,6 +4088,7 @@
       };
       markGoogleDirty(schedule);
       state.schedules.push(schedule);
+      forgetDeletedSchedules([schedule]);
       save();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
@@ -4624,6 +4625,7 @@
         updatedAt: new Date().toISOString()
       };
       state.schedules.push(schedule);
+      forgetDeletedSchedules([schedule]);
       save();
       render();
       scheduleGoogleAutoSync("ai-schedule");
@@ -5163,6 +5165,7 @@
         updatedAt: now
       };
       state.schedules.push(schedule);
+      forgetDeletedSchedules([schedule]);
       save();
       render();
       toast(`${org.name} 방문일정을 ${formatDate(date)}에 등록했습니다.`);
@@ -5871,6 +5874,7 @@
       } else {
         const copies = recurringScheduleCopies(data, data.recurrence);
         state.schedules.push(...copies);
+        forgetDeletedSchedules(copies);
       }
       save();
       if (closeAfter) scheduleDialog.close();
