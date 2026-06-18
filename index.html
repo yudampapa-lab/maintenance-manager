@@ -5040,9 +5040,35 @@
     }
     function resetMaintenanceDragElement(el) {
       if (!el) return;
+      if (el.__maintenanceGhost) {
+        el.__maintenanceGhost.remove();
+        el.__maintenanceGhost = null;
+      }
+      el.style.visibility = "";
       el.classList.remove("drag-ready");
       el.classList.remove("dragging");
       ["position", "width", "height", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
+    }
+    function createMaintenanceDragGhost(drag, event) {
+      const rect = drag.el.getBoundingClientRect();
+      const ghost = drag.el.cloneNode(true);
+      ghost.removeAttribute("id");
+      ghost.classList.remove("drag-ready");
+      ghost.classList.add("dragging");
+      ghost.style.position = "fixed";
+      ghost.style.left = `${event.clientX - drag.grabX}px`;
+      ghost.style.top = `${event.clientY - drag.grabY}px`;
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.margin = "0";
+      ghost.style.zIndex = "9999";
+      ghost.style.pointerEvents = "none";
+      ghost.style.transform = "none";
+      document.body.appendChild(ghost);
+      drag.el.__maintenanceGhost = ghost;
+      drag.el.style.visibility = "hidden";
+      drag.ghost = ghost;
+      return ghost;
     }
     function syncMonthlyMaintenancePanelHeight() {
       const panel = document.getElementById("monthlyMaintenancePanel");
@@ -5178,24 +5204,13 @@
         clearTimeout(drag.contextTimer);
       }
       if (!drag.moved) return;
-      if (!drag.fixed) {
-        const rect = drag.el.getBoundingClientRect();
-        drag.width = rect.width;
-        drag.height = rect.height;
-        drag.fixed = true;
-        drag.el.style.position = "fixed";
-        drag.el.style.width = `${rect.width}px`;
-        drag.el.style.height = `${rect.height}px`;
-        drag.el.style.left = `${event.clientX - drag.grabX}px`;
-        drag.el.style.top = `${event.clientY - drag.grabY}px`;
-      }
+      if (!drag.ghost) createMaintenanceDragGhost(drag, event);
       drag.el.classList.remove("drag-ready");
-      drag.el.classList.add("dragging");
-      drag.el.style.left = `${event.clientX - drag.grabX}px`;
-      drag.el.style.top = `${event.clientY - drag.grabY}px`;
+      drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
+      drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
       clearDropTarget();
       clearMaintenanceDropTarget();
-      dateCellFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
+      dateCellFromPoint(event.clientX, event.clientY, drag.ghost)?.classList.add("drop-target");
     };
     window.maintenanceOrgPointerEnd = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
@@ -5207,7 +5222,7 @@
         event.preventDefault();
         event.stopPropagation();
       }
-      const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.el) : null;
+      const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.ghost || drag.el) : null;
       resetMaintenanceDragElement(drag.el);
       clearDropTarget();
       clearMaintenanceDropTarget();
