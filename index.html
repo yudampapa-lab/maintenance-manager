@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f7">
   <title>ReportMate</title>
-  <link rel="icon" type="image/svg+xml" href="./reportmate-icon.svg">
-  <link rel="apple-touch-icon" href="./reportmate-icon-180.png">
-  <link rel="manifest" href="./site.webmanifest">
+  <link rel="icon" href="./favicon.ico?v=166" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png?v=166">
+  <link rel="icon" type="image/png" sizes="192x192" href="./reportmate-icon-192.png?v=166">
+  <link rel="icon" type="image/svg+xml" href="./reportmate-icon.svg?v=166">
+  <link rel="apple-touch-icon" sizes="180x180" href="./reportmate-icon-180.png?v=166">
+  <link rel="manifest" href="./site.webmanifest?v=166">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -3870,8 +3873,26 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.5";
+    const appVersion = "1.6.7";
     const versionHistory = [
+      {
+        version: "1.6.7",
+        date: "2026-06-18",
+        title: "북마크 아이콘 호환성 보강",
+        changes: [
+          "favicon.ico, 32px, 192px PNG 아이콘 추가",
+          "모바일 브라우저가 북마크 아이콘을 더 잘 인식하도록 manifest와 icon 링크 보강"
+        ]
+      },
+      {
+        version: "1.6.6",
+        date: "2026-06-18",
+        title: "캘린더 드롭 안정화",
+        changes: [
+          "일정 타일 위로 드래그해도 아래 날짜 셀을 찾아 이동되도록 보완",
+          "일정미정에서 캘린더로 옮길 때도 기존 일정 타일에 막히지 않도록 개선"
+        ]
+      },
       {
         version: "1.6.5",
         date: "2026-06-18",
@@ -5897,9 +5918,24 @@
       });
     }
     function dateCellFromPoint(x, y, draggedEl) {
-      if (draggedEl) draggedEl.style.visibility = "hidden";
-      const cell = document.elementFromPoint(x, y)?.closest(".day-cell");
-      if (draggedEl) draggedEl.style.visibility = "";
+      const hidden = [];
+      const hide = el => {
+        if (!el || hidden.includes(el)) return;
+        hidden.push(el);
+        el.style.visibility = "hidden";
+      };
+      hide(draggedEl);
+      let cell = null;
+      for (let i = 0; i < 10; i++) {
+        const el = document.elementFromPoint(x, y);
+        if (!el) break;
+        cell = el.closest(".day-cell");
+        if (cell) break;
+        const blocker = el.closest(".event-pill, .week-events, .maintenance-drag-ghost, .maintenance-drag-card");
+        if (!blocker || hidden.includes(blocker)) break;
+        hide(blocker);
+      }
+      hidden.forEach(el => { el.style.visibility = ""; });
       return cell;
     }
     function isSchedulePillTarget(event) {
