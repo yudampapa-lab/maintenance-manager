@@ -3294,6 +3294,11 @@
       if (!ids.length) return;
       state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...ids])];
     }
+    function forgetDeletedSchedules(schedules = []) {
+      const ids = new Set(schedules.flatMap(scheduleDeleteKeys));
+      if (!ids.size) return;
+      state.settings.deletedScheduleIds = (state.settings.deletedScheduleIds || []).filter(id => !ids.has(id));
+    }
     function isDeletedSchedule(schedule = {}) {
       const deleted = new Set(state.settings.deletedScheduleIds || []);
       return scheduleDeleteKeys(schedule).some(id => deleted.has(id));
@@ -3746,6 +3751,11 @@
       const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
       return { start: localDateISO(start), end: localDateISO(end), year: cursor.getFullYear(), month: cursor.getMonth() + 1 };
+    }
+    function isDateInCurrentCalendarMonth(date = "") {
+      if (!date) return false;
+      const [year, month] = date.split("-").map(Number);
+      return year === state.monthCursor.getFullYear() && month === state.monthCursor.getMonth() + 1;
     }
     const maintenanceCycleOrder = {
       "매월 점검": 0,
@@ -5210,7 +5220,10 @@
       drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
       clearDropTarget();
       clearMaintenanceDropTarget();
-      dateCellFromPoint(event.clientX, event.clientY, drag.ghost)?.classList.add("drop-target");
+      const targetCell = dateCellFromPoint(event.clientX, event.clientY, drag.ghost);
+      if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
+        targetCell.classList.add("drop-target");
+      }
     };
     window.maintenanceOrgPointerEnd = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
@@ -5230,7 +5243,11 @@
       if (!drag.armed || drag.cancelled) return;
       if (drag.armed && !drag.moved) return;
       const targetDate = targetCell?.dataset.date;
-      if (targetDate) createInspectionScheduleFromOrg(orgId, targetDate);
+      if (targetDate && isDateInCurrentCalendarMonth(targetDate)) {
+        createInspectionScheduleFromOrg(orgId, targetDate);
+      } else if (targetDate) {
+        toast("현재 월 날짜로만 등록할 수 있습니다.");
+      }
     };
     window.maintenanceOrgPointerCancel = (event, orgId) => {
       const drag = state.maintenanceOrgDrag;
@@ -7200,6 +7217,7 @@
           return;
         }
         const fromGoogle = scheduleFromGoogleEvent(event);
+        forgetDeletedSchedules([fromGoogle, local].filter(Boolean));
         if (!local) {
           state.schedules.push(fromGoogle);
           imported++;
