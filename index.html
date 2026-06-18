@@ -858,7 +858,8 @@
       display: grid;
       gap: 5px;
       width: 100%;
-      min-height: 0;
+      height: 62px;
+      min-height: 62px;
       padding: 10px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -867,6 +868,8 @@
       text-align: left;
       box-shadow: none;
       cursor: grab;
+      align-content: center;
+      overflow: hidden;
       touch-action: pan-y;
       user-select: none;
       -webkit-user-select: none;
@@ -882,6 +885,9 @@
       color: var(--muted);
       font-size: 11px;
       line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .maintenance-drag-card.dragging {
       position: relative;
@@ -1553,7 +1559,7 @@
       .calendar-layout { grid-template-columns: minmax(0, 1fr) 190px; gap: 8px; }
       .monthly-maintenance-head { padding: 9px; }
       .monthly-maintenance-list { padding: 8px; gap: 6px; }
-      .maintenance-drag-card { padding: 8px; }
+      .maintenance-drag-card { height: 56px; min-height: 56px; padding: 8px; }
       .maintenance-drag-card strong { font-size: 12px; }
       .maintenance-drag-card span { font-size: 10px; }
       .vehicle-grid { grid-template-columns: 1fr; }
@@ -1570,7 +1576,7 @@
       .calendar-layout { grid-template-columns: minmax(0, 1fr) 158px; gap: 6px; }
       .monthly-maintenance-head h3 { font-size: 12px; }
       .monthly-maintenance-head p { font-size: 10px; }
-      .maintenance-drag-card { padding: 7px; }
+      .maintenance-drag-card { height: 52px; min-height: 52px; padding: 7px; }
       .maintenance-drag-card strong { font-size: 11px; }
       .maintenance-drag-card span { font-size: 9px; }
       .calendar-grid { font-size: 12px; }
@@ -2788,7 +2794,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2831,6 +2837,7 @@
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
+    state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
@@ -3160,6 +3167,7 @@
           org.method = org.method || "해당없음";
         }
       });
+      state.orgs = mergeOrgLists(state.orgs, []);
     }
     function isNationalStaticOrg(org = {}) {
       return String(org.sourceId || "").startsWith("data4library-static:")
@@ -3204,6 +3212,18 @@
       if (org.id) return "id:" + org.id;
       return "name-address:" + normalizeOrgKeyword(org.name || "") + ":" + normalizeOrgKeyword(org.address || "");
     }
+    function orgContentKey(org = {}) {
+      const name = normalizeOrgKeyword(org.name || "");
+      const place = normalizeOrgKeyword(org.address || org.region || "");
+      return name && place ? `name-place:${name}:${place}` : "";
+    }
+    function orgMergeKeys(org = {}) {
+      return [
+        org.sourceId ? "source:" + org.sourceId : "",
+        orgContentKey(org),
+        org.id ? "id:" + org.id : ""
+      ].filter(Boolean);
+    }
     function orgRecordTime(org = {}) {
       return Date.parse(org.updatedAt || org.createdAt || "") || 0;
     }
@@ -3224,12 +3244,17 @@
     }
     function mergeOrgLists(localOrgs = [], cloudOrgs = []) {
       const merged = new Map();
-      localOrgs.forEach(org => merged.set(orgMergeKey(org), org));
-      cloudOrgs.forEach(org => {
-        const key = orgMergeKey(org);
-        const local = merged.get(key);
-        merged.set(key, local ? betterOrgRecord(local, org) : org);
-      });
+      const aliases = new Map();
+      const addOrg = org => {
+        const keys = orgMergeKeys(org);
+        const existingKey = keys.find(key => aliases.has(key) || merged.has(key));
+        const primaryKey = existingKey ? (aliases.get(existingKey) || existingKey) : (keys[0] || orgMergeKey(org));
+        const current = merged.get(primaryKey);
+        merged.set(primaryKey, current ? betterOrgRecord(current, org) : org);
+        keys.forEach(key => aliases.set(key, primaryKey));
+      };
+      localOrgs.forEach(addOrg);
+      cloudOrgs.forEach(addOrg);
       return [...merged.values()].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
     }
     function seedSchedulesFromOrgs() {
@@ -3245,6 +3270,22 @@
           createdAt: new Date().toISOString()
         }));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+    }
+    function scheduleDeleteKeys(schedule = {}) {
+      return [
+        schedule.id,
+        schedule.googleEventId,
+        ...(Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds : [])
+      ].filter(Boolean);
+    }
+    function rememberDeletedSchedules(schedules = []) {
+      const ids = schedules.flatMap(scheduleDeleteKeys);
+      if (!ids.length) return;
+      state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...ids])];
+    }
+    function isDeletedSchedule(schedule = {}) {
+      const deleted = new Set(state.settings.deletedScheduleIds || []);
+      return scheduleDeleteKeys(schedule).some(id => deleted.has(id));
     }
     function normalizeSchedules() {
       state.schedules = (state.schedules || []).map(schedule => ({
@@ -3267,7 +3308,7 @@
         googleDirty: Boolean(schedule.googleDirty),
         createdAt: schedule.createdAt || new Date().toISOString(),
         updatedAt: schedule.updatedAt || ""
-      }));
+      })).filter(schedule => !isDeletedSchedule(schedule));
       state.schedules = dedupeSchedules(state.schedules);
     }
     function normalizedScheduleText(value = "") {
@@ -3723,17 +3764,35 @@
       const end = schedule.endDate || schedule.date || "";
       return start <= range.end && end >= range.start;
     }
+    function orgMatchesSchedule(org = {}, schedule = {}) {
+      if (!org || !schedule) return false;
+      if (schedule.orgId && schedule.orgId === org.id) return true;
+      const scheduleOrg = orgForSchedule(schedule);
+      const orgKey = orgContentKey(org);
+      if (scheduleOrg && orgKey && orgContentKey(scheduleOrg) === orgKey) return true;
+      const orgName = normalizeOrgKeyword(org.name || "");
+      const scheduleTitle = normalizeOrgKeyword(schedule.title || "");
+      return Boolean(orgName && scheduleTitle && orgName === scheduleTitle);
+    }
     function hasOrgInspectionScheduleInMonth(orgId, range = monthRangeForCursor()) {
+      const org = state.orgs.find(item => item.id === orgId);
       return state.schedules.some(schedule =>
-        schedule.orgId === orgId
-        && ["visit", "remote", "org"].includes(schedule.type || "")
+        ["visit", "remote", "org"].includes(schedule.type || "")
         && scheduleOverlapsMonth(schedule, range)
+        && orgMatchesSchedule(org, schedule)
       );
     }
     function monthlyMaintenanceOrgs(range = monthRangeForCursor()) {
-      return state.orgs
+      const deduped = new Map();
+      state.orgs
         .filter(org => isOrgDueForMonth(org, range))
         .filter(org => !hasOrgInspectionScheduleInMonth(org.id, range))
+        .forEach(org => {
+          const key = orgContentKey(org) || org.sourceId || org.id;
+          const current = deduped.get(key);
+          deduped.set(key, current ? betterOrgRecord(current, org) : org);
+        });
+      return [...deduped.values()]
         .sort((a, b) => maintenanceCycleRank(a.cycle) - maintenanceCycleRank(b.cycle) || orgSearchSort(a, b));
     }
     function saveGeoCache() {
@@ -4996,6 +5055,7 @@
       if (googleDeleteIds.length) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleDeleteIds])];
       }
+      rememberDeletedSchedules([schedule]);
       state.schedules = state.schedules.filter(item => item.id !== id);
       save();
       render();
@@ -5780,6 +5840,7 @@
       if (googleDeleteIds.length) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleDeleteIds])];
       }
+      rememberDeletedSchedules(deleteTargets);
       state.schedules = state.schedules.filter(item => !deleteIds.has(item.id));
       save();
       if (scheduleDialog.open) scheduleDialog.close();
@@ -5991,7 +6052,7 @@
     }
     function applyCloudValue(key, value) {
       if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
-      if (key === "schedules" && Array.isArray(value)) state.schedules = value;
+      if (key === "schedules" && Array.isArray(value)) state.schedules = [...(state.schedules || []), ...value];
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
       if (key === "vehicle" && value && typeof value === "object") state.vehicle = mergeVehicleData(state.vehicle, value);
@@ -6030,6 +6091,7 @@
         dayNotes: state.dayNotes || {},
         vehicle: state.vehicle || { records: [] },
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
+        deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -6044,6 +6106,9 @@
       });
       if (Array.isArray(data.googleDeletedEventIds)) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...data.googleDeletedEventIds])];
+      }
+      if (Array.isArray(data.deletedScheduleIds)) {
+        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])];
       }
       normalizeOrgs();
       normalizeSchedules();
@@ -7080,6 +7145,7 @@
         const local = findLocalScheduleForGoogleEvent(event);
         if (event.status === "cancelled") {
           if (local) {
+            rememberDeletedSchedules([local]);
             state.schedules = state.schedules.filter(schedule => schedule.id !== local.id);
             removed++;
           }
@@ -7118,13 +7184,16 @@
     function removeLocalSchedulesMissingFromGoogle(events) {
       const activeGoogleIds = new Set(events.filter(event => event.id && event.status !== "cancelled").map(event => event.id));
       let removed = 0;
+      const removedSchedules = [];
       state.schedules = state.schedules.filter(schedule => {
         const ids = [schedule.googleEventId, ...(schedule.googleDuplicateEventIds || [])].filter(Boolean);
         if (!ids.length || !scheduleInGoogleSyncWindow(schedule)) return true;
         if (ids.some(id => activeGoogleIds.has(id))) return true;
+        removedSchedules.push(schedule);
         removed++;
         return false;
       });
+      if (removedSchedules.length) rememberDeletedSchedules(removedSchedules);
       if (removed) state.schedules = dedupeSchedules(state.schedules);
       return removed;
     }
