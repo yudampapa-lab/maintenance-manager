@@ -1556,6 +1556,9 @@
       padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
       gap: 6px;
     }
+    body.calendar-dragging .bottom-nav {
+      pointer-events: none;
+    }
     .nav-btn {
       background: transparent;
       color: var(--muted);
@@ -3873,8 +3876,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.7";
+    const appVersion = "1.6.8";
     const versionHistory = [
+      {
+        version: "1.6.8",
+        date: "2026-06-18",
+        title: "아래 방향 일정 드래그 보완",
+        changes: [
+          "일정을 아래쪽으로 드래그할 때 가까운 날짜 셀을 보정해 찾도록 개선",
+          "드래그 중 하단 메뉴가 드롭 위치를 방해하지 않도록 보완"
+        ]
+      },
       {
         version: "1.6.7",
         date: "2026-06-18",
@@ -5793,6 +5805,7 @@
       }
       if (!drag.moved) return;
       if (!drag.ghost) createMaintenanceDragGhost(drag, event);
+      setCalendarDragging(true);
       drag.el.classList.remove("drag-ready");
       drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
       drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
@@ -5815,6 +5828,7 @@
       }
       const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.ghost || drag.el) : null;
       resetMaintenanceDragElement(drag.el);
+      setCalendarDragging(false);
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.maintenanceOrgDrag = null;
@@ -5833,6 +5847,7 @@
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
       resetMaintenanceDragElement(drag.el);
+      setCalendarDragging(false);
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.maintenanceOrgDrag = null;
@@ -5903,6 +5918,9 @@
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
     }
+    function setCalendarDragging(active) {
+      document.body.classList.toggle("calendar-dragging", Boolean(active));
+    }
     function clearRangeSelection() {
       document.querySelectorAll(".day-cell.range-select").forEach(cell => cell.classList.remove("range-select"));
     }
@@ -5936,6 +5954,18 @@
         hide(blocker);
       }
       hidden.forEach(el => { el.style.visibility = ""; });
+      if (!cell) {
+        const candidates = [...document.querySelectorAll("#mainCalendar .day-cell[data-date]")]
+          .map(el => ({ el, rect: el.getBoundingClientRect() }))
+          .filter(item => x >= item.rect.left && x <= item.rect.right)
+          .map(item => {
+            const verticalDistance = y < item.rect.top ? item.rect.top - y : (y > item.rect.bottom ? y - item.rect.bottom : 0);
+            return { ...item, verticalDistance };
+          })
+          .sort((a, b) => a.verticalDistance - b.verticalDistance);
+        const closest = candidates[0];
+        if (closest && closest.verticalDistance <= 48) cell = closest.el;
+      }
       return cell;
     }
     function isSchedulePillTarget(event) {
@@ -5997,6 +6027,7 @@
       if (!drag.moved) return;
       drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
+      setCalendarDragging(true);
       drag.el.style.transform = `translate(${dx}px, ${dy}px)`;
       clearDropTarget();
       clearMaintenanceDropTarget();
@@ -6019,6 +6050,7 @@
       const targetPanel = drag.moved ? monthlyMaintenancePanelFromPoint(event.clientX, event.clientY, drag.el) : null;
       drag.el.classList.remove("drag-ready");
       drag.el.classList.remove("dragging");
+      setCalendarDragging(false);
       drag.el.style.transform = "";
       clearDropTarget();
       clearMaintenanceDropTarget();
@@ -6050,6 +6082,7 @@
       clearTimeout(drag.contextTimer);
       drag.el.classList.remove("drag-ready");
       drag.el.classList.remove("dragging");
+      setCalendarDragging(false);
       drag.el.style.transform = "";
       clearDropTarget();
       clearMaintenanceDropTarget();
