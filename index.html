@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f7">
   <title>ReportMate</title>
+  <link rel="icon" type="image/svg+xml" href="./reportmate-icon.svg">
+  <link rel="apple-touch-icon" href="./reportmate-icon-180.png">
+  <link rel="manifest" href="./site.webmanifest">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -152,6 +155,8 @@
     svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
     .app-shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+    .app-shell.hide-header { grid-template-rows: 1fr auto; }
+    .app-shell.hide-header header { display: none; }
     header {
       position: sticky;
       top: 0;
@@ -270,6 +275,32 @@
       display: grid;
       gap: 14px;
     }
+    .record-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(232, 238, 243, .72);
+      margin-bottom: 12px;
+    }
+    .record-tab {
+      min-height: 38px;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      box-shadow: none;
+      font-weight: 800;
+    }
+    .record-tab.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 8px 18px rgba(22, 34, 45, .08);
+    }
+    .record-pane[hidden] {
+      display: none;
+    }
     .weekly-work-report {
       margin-top: 14px;
     }
@@ -321,6 +352,18 @@
       gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
+      align-items: center;
+      margin-left: auto;
+    }
+    .weekly-report-actions button.icon {
+      width: 38px;
+      min-height: 38px;
+      border-radius: 13px;
+      box-shadow: 0 8px 18px rgba(22, 34, 45, .08);
+    }
+    .weekly-report-actions button.icon svg {
+      width: 18px;
+      height: 18px;
     }
     .global-result-section {
       display: grid;
@@ -1506,7 +1549,7 @@
       backdrop-filter: blur(18px);
       border-top: 1px solid var(--line);
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
       gap: 6px;
     }
@@ -2427,8 +2470,12 @@
           <div class="panel-head">
             <div><h2 class="panel-title">주간업무기록</h2><p class="panel-sub" id="weeklyReportSub"></p></div>
             <div class="weekly-report-actions">
-              <button type="button" class="secondary" id="fillWeeklyReportBtn">캘린더로 채우기</button>
-              <button type="button" id="saveWeeklyReportBtn">저장</button>
+              <button type="button" class="icon secondary" id="fillWeeklyReportBtn" title="캘린더로 채우기" aria-label="캘린더로 채우기">
+                <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 10h18"/><path d="M8 15h4"/><path d="m15 16 2 2 4-5"/></svg>
+              </button>
+              <button type="button" class="icon" id="saveWeeklyReportBtn" title="저장" aria-label="저장">
+                <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+              </button>
             </div>
           </div>
           <div class="panel-body">
@@ -2486,31 +2533,28 @@
         </section>
       </section>
 
-      <section class="view" id="view-memo" aria-label="기술 메모">
+      <section class="view" id="view-memo" aria-label="기록">
         <section class="panel">
-          <div class="panel-head">
-            <div><h2 class="panel-title">기술정보 메모</h2><p class="panel-sub">장비, 솔루션, 장애처리 이력 검색</p></div>
-            <button id="addMemoBtn">메모 추가</button>
-          </div>
           <div class="panel-body">
-            <div class="toolbar">
-              <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="memoSearch" placeholder="키워드, 기관명, 제품명으로 검색"></div>
+            <div class="record-tabs" role="tablist" aria-label="기록 종류">
+              <button type="button" class="record-tab active" id="recordMemoTab" data-record-tab="memo">기술정보 메모</button>
+              <button type="button" class="record-tab" id="recordVehicleTab" data-record-tab="vehicle">차량관리</button>
             </div>
-            <div class="memo-list" id="memoList"></div>
+            <div class="record-pane" id="recordMemoPane">
+              <div class="toolbar">
+                <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="memoSearch" placeholder="키워드, 기관명, 제품명으로 검색"></div>
+                <button id="addMemoBtn">메모 추가</button>
+              </div>
+              <div class="memo-list" id="memoList"></div>
+            </div>
+            <div class="record-pane" id="recordVehiclePane" hidden>
+              <div class="toolbar">
+                <button class="secondary" id="addVehicleRecordBtn">점검/수리 추가</button>
+              </div>
+              <div class="memo-list" id="vehicleRecordList"></div>
+            </div>
           </div>
         </section>
-      </section>
-
-      <section class="view" id="view-vehicle" aria-label="차량관리">
-        <div class="vehicle-grid">
-          <section class="panel">
-            <div class="panel-head">
-              <div><h2 class="panel-title">차량관리</h2><p class="panel-sub">점검·수리 내역과 수리내역서 사진 관리</p></div>
-              <button class="secondary" id="addVehicleRecordBtn">점검/수리 추가</button>
-            </div>
-            <div class="panel-body"><div class="memo-list" id="vehicleRecordList"></div></div>
-          </section>
-        </div>
       </section>
 
       <section class="view" id="view-settings" aria-label="연동 설정">
@@ -2545,8 +2589,7 @@
       <button class="nav-btn active" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg><span>대시보드</span></button>
       <button class="nav-btn" data-view="orgs"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16"/><path d="M9 21v-6h4v6"/><path d="M8 7h1"/><path d="M12 7h1"/><path d="M8 11h1"/><path d="M12 11h1"/><path d="M19 21v-8h-2"/></svg><span>기관</span></button>
       <button class="nav-btn" data-view="calendar"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg><span>캘린더</span></button>
-      <button class="nav-btn" data-view="vehicle"><svg viewBox="0 0 24 24"><path d="M5 17h14"/><path d="M6 17v2"/><path d="M18 17v2"/><path d="M4 13l2-6h12l2 6"/><path d="M5 13h14v4H5z"/><path d="M7 15h1"/><path d="M16 15h1"/></svg><span>차량</span></button>
-      <button class="nav-btn" data-view="memo"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg><span>메모</span></button>
+      <button class="nav-btn" data-view="memo"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg><span>기록</span></button>
     </nav>
   </div>
 
@@ -2948,6 +2991,7 @@
       draggedOrgId: null,
       todayCopySelections: {},
       scheduleClipboard: null,
+      recordTab: localStorage.getItem("maint_record_tab") || "memo",
       scheduleContextTimer: null,
       maintenanceOrgDrag: null,
       dayContextTimer: null,
@@ -3826,8 +3870,37 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.2";
+    const appVersion = "1.6.5";
     const versionHistory = [
+      {
+        version: "1.6.5",
+        date: "2026-06-18",
+        title: "기록 탭 마감 정리",
+        changes: [
+          "하단 메뉴를 4칸 기준으로 정렬해 빈 공간 제거",
+          "기록 화면 내부 헤더 제거"
+        ]
+      },
+      {
+        version: "1.6.4",
+        date: "2026-06-18",
+        title: "기록 탭 구조 정리",
+        changes: [
+          "차량관리 화면을 기록 탭 안으로 이동",
+          "기록 탭 상단에 기술정보 메모와 차량관리 전환 버튼 추가",
+          "하단 메모 탭 이름을 기록으로 변경하고 차량 탭 제거"
+        ]
+      },
+      {
+        version: "1.6.3",
+        date: "2026-06-18",
+        title: "대시보드 UI와 북마크 아이콘 정리",
+        changes: [
+          "주간업무기록 버튼을 아이콘 버튼으로 변경",
+          "ReportMate 북마크 아이콘과 웹 앱 매니페스트 추가",
+          "대시보드를 제외한 탭에서는 상단 ReportMate 헤더를 숨김"
+        ]
+      },
       {
         version: "1.6.2",
         date: "2026-06-18",
@@ -4018,13 +4091,31 @@
       setTimeout(() => renderScheduleOrgSuggestions(false), 160);
     });
     installLongPressCopy(document.getElementById("todayTaskTitle"));
+    function switchRecordTab(tab = "memo") {
+      const normalized = tab === "vehicle" ? "vehicle" : "memo";
+      state.recordTab = normalized;
+      localStorage.setItem("maint_record_tab", normalized);
+      document.querySelectorAll(".record-tab").forEach(button => {
+        button.classList.toggle("active", button.dataset.recordTab === normalized);
+      });
+      recordMemoPane.hidden = normalized !== "memo";
+      recordVehiclePane.hidden = normalized !== "vehicle";
+      if (normalized === "memo") renderMemos();
+      else renderVehicle();
+    }
     function switchView(view) {
+      if (view === "vehicle") {
+        state.recordTab = "vehicle";
+        view = "memo";
+      }
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
       dashboardSettingsBtn.style.display = view === "dashboard" ? "inline-grid" : "none";
+      document.querySelector(".app-shell")?.classList.toggle("hide-header", view !== "dashboard");
       localStorage.setItem("maint_active_view", view);
       render();
+      if (view === "memo") switchRecordTab(state.recordTab);
       if (view === "dashboard") autoRequestTodayMapLocation();
     }
 
@@ -8165,6 +8256,9 @@
       renderOrgs();
     };
     memoSearch.oninput = renderMemos;
+    document.querySelectorAll("[data-record-tab]").forEach(button => {
+      button.onclick = () => switchRecordTab(button.dataset.recordTab);
+    });
     dashboardSearch.oninput = renderDashboardSearch;
     clearDashboardSearchBtn.onclick = () => {
       dashboardSearch.value = "";
@@ -8185,8 +8279,10 @@
     function escapeAttr(str = "") { return escapeHTML(str); }
     function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
     const savedView = localStorage.getItem("maint_active_view");
-    if (savedView && document.getElementById("view-" + savedView)) {
-      switchView(savedView);
+    const initialView = savedView === "vehicle" ? "memo" : savedView;
+    if (savedView === "vehicle") state.recordTab = "vehicle";
+    if (initialView && document.getElementById("view-" + initialView)) {
+      switchView(initialView);
     } else {
       render();
     }
