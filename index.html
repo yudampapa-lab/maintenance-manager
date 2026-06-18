@@ -3815,6 +3815,37 @@
       const end = schedule.endDate || schedule.date;
       return end === schedule.date ? schedule.date : `${schedule.date} ~ ${end}`;
     }
+    function googleSyncItemLabel(schedule = {}) {
+      const title = schedule.title || "(제목 없음)";
+      const date = schedule.date ? scheduleDateLabel(schedule) : "날짜 없음";
+      const time = scheduleTimeLabel(schedule);
+      const type = scheduleTypeLabel(schedule);
+      return `${title} · ${date} · ${time} · ${type}`;
+    }
+    function googleSyncEventLabel(event = {}) {
+      try {
+        return googleSyncItemLabel(scheduleFromGoogleEvent(event));
+      } catch {
+        return `${event.summary || "(제목 없음)"} · Google ID ${event.id || "없음"}`;
+      }
+    }
+    function googleSyncLogSection(title, items = []) {
+      const list = [...new Set(items.filter(Boolean))];
+      if (!list.length) return "";
+      return `【${title}】\n${list.map(item => `- ${item}`).join("\n")}`;
+    }
+    function googleSyncLogDetail({ pulled, pushed, deleted, missingRemoved, duplicateCleanup }) {
+      const sections = [
+        googleSyncLogSection("Google에서 가져옴", pulled.importedItems),
+        googleSyncLogSection("Google 변경사항 반영", pulled.updatedItems),
+        googleSyncLogSection("앱 일정 삭제", [...(pulled.removedItems || []), ...(missingRemoved.items || [])]),
+        googleSyncLogSection("Google에 새로 올림", pushed.insertedItems),
+        googleSyncLogSection("Google에 수정 반영", pushed.updatedItems),
+        googleSyncLogSection("Google 일정 삭제", [...(deleted.items || []), ...(duplicateCleanup.items || [])])
+      ].filter(Boolean);
+      const summary = `가져옴 ${(pulled.imported || 0) + (pulled.updated || 0)}건, 올림 ${(pushed.inserted || 0) + (pushed.updated || 0)}건, 삭제 ${(deleted.deleted || 0) + (pulled.removed || 0) + (missingRemoved.removed || 0) + (duplicateCleanup.removed || 0)}건`;
+      return sections.length ? `${summary}\n\n${sections.join("\n\n")}` : `${summary}\n\n변경된 일정 내역은 없습니다.`;
+    }
     function nextRepeatDate(iso, repeat) {
       if (repeat === "daily") return addDaysISO(iso, 1);
       if (repeat === "weekly") return addDaysISO(iso, 7);
@@ -3932,8 +3963,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.12";
+    const appVersion = "1.6.13";
     const versionHistory = [
+      {
+        version: "1.6.13",
+        date: "2026-06-18",
+        title: "Google 동기화 관리 로그 상세화",
+        changes: [
+          "Google 캘린더 동기화 시 가져온 일정, 올린 일정, 삭제한 일정을 관리 로그에 상세 기록",
+          "삭제 예약된 Google 일정도 가능한 경우 제목과 날짜가 남도록 보강"
+        ]
+      },
       {
         version: "1.6.12",
         date: "2026-06-18",
@@ -6697,6 +6737,14 @@
       const googleDeleteIds = deleteTargets.flatMap(item => [item.googleEventId, ...(item.googleDuplicateEventIds || [])]).filter(Boolean);
       if (googleDeleteIds.length) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleDeleteIds])];
+        const existingDetails = Array.isArray(state.settings.googleDeletedEventDetails) ? state.settings.googleDeletedEventDetails : [];
+        const detailMap = new Map(existingDetails.map(item => [item.id, item]));
+        deleteTargets.forEach(item => {
+          [item.googleEventId, ...(item.googleDuplicateEventIds || [])].filter(Boolean).forEach(id => {
+            detailMap.set(id, { id, label: googleSyncItemLabel(item) });
+          });
+        });
+        state.settings.googleDeletedEventDetails = [...detailMap.values()];
       }
       rememberDeletedSchedules(deleteTargets);
       state.schedules = state.schedules.filter(item => !deleteIds.has(item.id));
@@ -8061,10 +8109,14 @@
       let imported = 0;
       let updated = 0;
       let removed = 0;
+      const importedItems = [];
+      const updatedItems = [];
+      const removedItems = [];
       events.forEach(event => {
         const local = findLocalScheduleForGoogleEvent(event);
         if (event.status === "cancelled") {
           if (local) {
+            removedItems.push(googleSyncItemLabel(local));
             rememberDeletedSchedules([local]);
             state.schedules = state.schedules.filter(schedule => schedule.id !== local.id);
             removed++;
@@ -8075,6 +8127,7 @@
         forgetDeletedSchedules([fromGoogle, local].filter(Boolean));
         if (!local) {
           state.schedules.push(fromGoogle);
+          importedItems.push(googleSyncItemLabel(fromGoogle));
           imported++;
           return;
         }
@@ -8085,6 +8138,7 @@
         const googleChangedAfterLastSync = googleChangedAt > lastGoogleSeenAt;
         if (googleChangedAfterLastSync && (!localChangedAfterLastSync || googleChangedAt >= localChangedAt)) {
           Object.assign(local, fromGoogle, { id: local.id, createdAt: local.createdAt || fromGoogle.createdAt });
+          updatedItems.push(googleSyncItemLabel(local));
           updated++;
         } else {
           local.googleEventId = event.id;
@@ -8093,7 +8147,7 @@
         }
       });
       state.schedules = dedupeSchedules(state.schedules);
-      return { imported, updated, removed };
+      return { imported, updated, removed, importedItems, updatedItems, removedItems };
     }
     function scheduleInGoogleSyncWindow(schedule) {
       const windowRange = googleSyncWindow();
@@ -8116,7 +8170,7 @@
       });
       if (removedSchedules.length) rememberDeletedSchedules(removedSchedules);
       if (removed) state.schedules = dedupeSchedules(state.schedules);
-      return removed;
+      return { removed, items: removedSchedules.map(googleSyncItemLabel) };
     }
     async function deleteDuplicateGoogleEvents(events) {
       const groups = new Map();
@@ -8128,10 +8182,12 @@
         groups.get(appId).push(event);
       });
       let removed = 0;
+      const items = [];
       for (const group of groups.values()) {
         if (group.length < 2) continue;
         group.sort((a, b) => Date.parse(b.updated || b.created || 0) - Date.parse(a.updated || a.created || 0));
         for (const duplicate of group.slice(1)) {
+          items.push(googleSyncEventLabel(duplicate));
           await deleteGoogleCalendarEvent(duplicate.id);
           deletedIds.add(duplicate.id);
           removed++;
@@ -8141,6 +8197,7 @@
         const ids = [...new Set(schedule.googleDuplicateEventIds || [])];
         for (const id of ids) {
           if (id && id !== schedule.googleEventId) {
+            items.push(googleSyncItemLabel(schedule));
             await deleteGoogleCalendarEvent(id);
             deletedIds.add(id);
             removed++;
@@ -8148,34 +8205,42 @@
         }
         schedule.googleDuplicateEventIds = [];
       }
-      return { removed, deletedIds };
+      return { removed, deletedIds, items };
     }
     async function pushLocalSchedulesToGoogle() {
       let inserted = 0;
       let updated = 0;
+      const insertedItems = [];
+      const updatedItems = [];
       for (const schedule of state.schedules) {
         const localChangedAt = new Date(schedule.updatedAt || schedule.createdAt || 0).getTime();
         const googleSeenAt = new Date(schedule.googleUpdated || 0).getTime();
         if (!schedule.googleEventId) {
           await insertGoogleCalendarEvent(schedule);
+          insertedItems.push(googleSyncItemLabel(schedule));
           inserted++;
         } else if (schedule.googleDirty || !schedule.googleUpdated || localChangedAt > googleSeenAt) {
           await patchGoogleCalendarEvent(schedule);
+          updatedItems.push(googleSyncItemLabel(schedule));
           updated++;
         }
       }
-      return { inserted, updated };
+      return { inserted, updated, insertedItems, updatedItems };
     }
     async function pushDeletedSchedulesToGoogle() {
       const ids = [...new Set(state.settings.googleDeletedEventIds || [])];
+      const detailMap = new Map((Array.isArray(state.settings.googleDeletedEventDetails) ? state.settings.googleDeletedEventDetails : []).map(item => [item.id, item.label || item.id]));
       let deleted = 0;
+      const items = [];
       for (const id of ids) {
         await deleteGoogleCalendarEvent(id);
+        items.push(detailMap.get(id) || `Google ID ${id}`);
         deleted++;
       }
       state.settings.googleDeletedEventIds = [];
+      state.settings.googleDeletedEventDetails = [];
       state.schedules = dedupeSchedules(state.schedules);
-      return deleted;
+      return { deleted, items };
     }
     function canAutoSyncGoogle() {
       return false;
@@ -8204,18 +8269,18 @@
         if (!silent) toast("구글캘린더와 동기화 중입니다.");
         const deleted = await pushDeletedSchedulesToGoogle();
         const googleEvents = await listGoogleCalendarEvents({ incremental: !full && silent && Boolean(state.settings.googleLastSync) });
-        const duplicateCleanup = full ? await deleteDuplicateGoogleEvents(googleEvents) : { removed: 0, deletedIds: new Set() };
+        const duplicateCleanup = full ? await deleteDuplicateGoogleEvents(googleEvents) : { removed: 0, deletedIds: new Set(), items: [] };
         const activeGoogleEvents = googleEvents.filter(event => !duplicateCleanup.deletedIds.has(event.id));
         const pulled = mergeGoogleEventsIntoLocal(activeGoogleEvents);
-        const missingRemoved = full ? removeLocalSchedulesMissingFromGoogle(activeGoogleEvents) : 0;
+        const missingRemoved = full ? removeLocalSchedulesMissingFromGoogle(activeGoogleEvents) : { removed: 0, items: [] };
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
-        logAdminAction("Google", "구글캘린더 동기화", `가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed + missingRemoved + duplicateCleanup.removed}건`);
+        logAdminAction("Google", "구글캘린더 동기화", googleSyncLogDetail({ pulled, pushed, deleted, missingRemoved, duplicateCleanup }));
         save();
         if (canUseCloudSync()) await uploadCloudData({ silent: true });
         render();
-        const result = { deleted, pulled, pushed, missingRemoved, duplicateDeleted: duplicateCleanup.removed };
-        if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed + missingRemoved + duplicateCleanup.removed}건`);
+        const result = { deleted: deleted.deleted, pulled, pushed, missingRemoved: missingRemoved.removed, duplicateDeleted: duplicateCleanup.removed };
+        if (!silent) toast(`동기화 완료: 가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted.deleted + pulled.removed + missingRemoved.removed + duplicateCleanup.removed}건`);
         return result;
       } finally {
         state.googleSyncInProgress = false;
