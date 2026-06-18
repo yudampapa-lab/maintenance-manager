@@ -2681,7 +2681,7 @@
         <div class="form-grid" style="margin-top:14px">
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
-          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="personal">개인일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
+          <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="personal">개인일정</option><option value="daily">일상일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
           <div class="field org-autocomplete">
             <label>기관명</label>
             <input type="hidden" id="scheduleOrgId">
@@ -2700,6 +2700,7 @@
               <button type="button" class="color-swatch" data-schedule-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑" onclick="window.selectScheduleColor('blue')"></button>
               <button type="button" class="color-swatch" data-schedule-color="green" style="--swatch:#00a889" title="초록" aria-label="초록" onclick="window.selectScheduleColor('green')"></button>
               <button type="button" class="color-swatch" data-schedule-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라" onclick="window.selectScheduleColor('purple')"></button>
+              <button type="button" class="color-swatch" data-schedule-color="pink" style="--swatch:#ff5ea8" title="분홍" aria-label="분홍" onclick="window.selectScheduleColor('pink')"></button>
               <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황" onclick="window.selectScheduleColor('orange')"></button>
               <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강" onclick="window.selectScheduleColor('red')"></button>
               <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색" onclick="window.selectScheduleColor('gray')"></button>
@@ -3464,14 +3465,14 @@
     function normalizeSchedules() {
       state.schedules = (state.schedules || []).map(schedule => ({
         id: schedule.id || uid(),
-        type: schedule.type === "org" ? "visit" : (schedule.type || (schedule.orgId ? "visit" : "personal")),
+        type: schedule.type === "org" ? "visit" : (["personal", "daily", "visit", "remote", "team"].includes(schedule.type) ? schedule.type : (schedule.orgId ? "visit" : "personal")),
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         date: schedule.date || todayISO(),
         endDate: schedule.endDate || schedule.date || todayISO(),
         startTime: schedule.startTime || schedule.time || "",
         endTime: schedule.endTime || "",
-        color: ["blue", "green", "purple", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
+        color: ["blue", "green", "purple", "pink", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
         recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
         recurrenceRootId: schedule.recurrenceRootId || "",
         googleEventId: schedule.googleEventId || "",
@@ -3820,12 +3821,32 @@
       blue: { bg: "rgba(0, 122, 255, .14)", fg: "#0057b8", border: "rgba(0, 122, 255, .16)" },
       green: { bg: "rgba(0, 168, 137, .15)", fg: "#006f5c", border: "rgba(0, 168, 137, .18)" },
       purple: { bg: "rgba(175, 82, 222, .14)", fg: "#8e24aa", border: "rgba(175, 82, 222, .18)" },
+      pink: { bg: "rgba(255, 94, 168, .16)", fg: "#c2185b", border: "rgba(255, 94, 168, .22)" },
       orange: { bg: "rgba(255, 159, 10, .16)", fg: "#9a5a00", border: "rgba(255, 159, 10, .2)" },
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.0";
+    const appVersion = "1.6.2";
     const versionHistory = [
+      {
+        version: "1.6.2",
+        date: "2026-06-18",
+        title: "일상일정과 분홍색 추가",
+        changes: [
+          "일정 종류에 일상일정 추가",
+          "일상일정 기본 색상을 분홍색으로 지정",
+          "일상일정은 주간업무기록 자동 생성에서 제외"
+        ]
+      },
+      {
+        version: "1.6.1",
+        date: "2026-06-18",
+        title: "주간업무기록 특이사항 반영",
+        changes: [
+          "캘린더 날짜별 특이사항을 주간업무기록 자동 생성 내용에 포함",
+          "주간업무기록 본문을 날짜별 일정과 특이사항 중심으로 정리"
+        ]
+      },
       {
         version: "1.6.0",
         date: "2026-06-18",
@@ -3905,6 +3926,7 @@
       if (schedule.type === "visit" || schedule.type === "org") return "blue";
       if (schedule.type === "remote") return "green";
       if (schedule.type === "team") return "gray";
+      if (schedule.type === "daily") return "pink";
       if (schedule.type === "personal") return "purple";
       return "purple";
     }
@@ -4015,6 +4037,7 @@
     function scheduleTypeLabel(schedule = {}) {
       if (schedule.type === "remote") return "원격일정";
       if (schedule.type === "team") return "팀 일정";
+      if (schedule.type === "daily") return "일상일정";
       if (schedule.type === "personal") return "개인일정";
       return "방문일정";
     }
@@ -4621,11 +4644,35 @@
       if (orgName && schedule.title && normalizedScheduleText(schedule.title) !== normalizedScheduleText(orgName)) return `${orgName} - ${schedule.title}`;
       return orgName || schedule.title || "일정";
     }
+    function datesInRange(startISO, endISO) {
+      const dates = [];
+      for (let date = startISO; date <= endISO; date = addDaysISO(date, 1)) dates.push(date);
+      return dates;
+    }
+    function weeklyLineDateLabel(iso) {
+      const date = new Date(iso + "T00:00:00");
+      return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(date);
+    }
     function weeklyGeneratedReport(startISO, endISO, fallbackTitle) {
-      const schedules = schedulesInRange(startISO, endISO);
+      const schedules = schedulesInRange(startISO, endISO).filter(schedule => schedule.type !== "daily");
       const names = [...new Set(schedules.map(weeklyScheduleName).filter(Boolean))];
       const title = names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` 외 ${names.length - 2}건` : "") : fallbackTitle;
-      const body = names.length ? names.map(name => `• ${name}`).join("\n") : "• 등록된 일정 없음";
+      const sections = datesInRange(startISO, endISO).map(date => {
+        const daySchedules = schedules.filter(schedule => scheduleIncludesDate(schedule, date));
+        const note = (state.dayNotes?.[date] || "").trim();
+        if (!daySchedules.length && !note) return "";
+        const lines = [];
+        if (daySchedules.length) {
+          [...new Set(daySchedules.map(weeklyScheduleName).filter(Boolean))]
+            .forEach(name => lines.push(`  - ${name}`));
+        }
+        if (note) {
+          note.split(/\n+/).map(line => line.trim()).filter(Boolean)
+            .forEach(line => lines.push(`  - 특이사항: ${line}`));
+        }
+        return `• ${weeklyLineDateLabel(date)}\n${lines.join("\n")}`;
+      }).filter(Boolean);
+      const body = sections.length ? sections.join("\n") : "• 등록된 일정 및 특이사항 없음";
       return { title, body };
     }
     function currentWeeklyReportDraft() {
@@ -7475,7 +7522,7 @@
       return org ? (org.address || org.region) : "";
     }
     function googleColorId(schedule) {
-      return ({ blue: "9", green: "10", purple: "3", orange: "6", red: "11", gray: "8" })[defaultScheduleColor(schedule)] || "9";
+      return ({ blue: "9", green: "10", purple: "3", pink: "4", orange: "6", red: "11", gray: "8" })[defaultScheduleColor(schedule)] || "9";
     }
     function scheduleGoogleBody(schedule) {
       const bodyStart = scheduleHasTime(schedule) ? { dateTime: `${schedule.date}T${schedule.startTime}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
@@ -7604,7 +7651,7 @@
     function scheduleFromGoogleEvent(event) {
       const privateProps = event.extendedProperties?.private || {};
       const org = privateProps.maintenanceManagerOrgId ? state.orgs.find(item => item.id === privateProps.maintenanceManagerOrgId) : inferOrgFromGoogleEvent(event);
-      const privateType = ["visit", "remote", "team", "personal"].includes(privateProps.maintenanceManagerType) ? privateProps.maintenanceManagerType : "";
+      const privateType = ["visit", "remote", "team", "personal", "daily"].includes(privateProps.maintenanceManagerType) ? privateProps.maintenanceManagerType : "";
       const startRaw = event.start?.dateTime || event.start?.date;
       const endRaw = event.end?.dateTime || event.end?.date || startRaw;
       const isAllDay = Boolean(event.start?.date);
@@ -7632,7 +7679,7 @@
       };
     }
     function googleEventColorToScheduleColor(colorId) {
-      return ({ "9": "blue", "10": "green", "3": "purple", "6": "orange", "11": "red", "8": "gray" })[colorId] || "blue";
+      return ({ "9": "blue", "10": "green", "3": "purple", "4": "pink", "6": "orange", "11": "red", "8": "gray" })[colorId] || "blue";
     }
     function googleSyncWindow() {
       const now = new Date();
