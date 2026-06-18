@@ -5042,7 +5042,7 @@
       if (!el) return;
       el.classList.remove("drag-ready");
       el.classList.remove("dragging");
-      ["position", "width", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
+      ["position", "width", "height", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
     }
     function syncMonthlyMaintenancePanelHeight() {
       const panel = document.getElementById("monthlyMaintenancePanel");
@@ -5127,7 +5127,18 @@
     window.maintenanceOrgPointerStart = (event, orgId) => {
       const el = event.currentTarget;
       el.setPointerCapture?.(event.pointerId);
-      const drag = { orgId, el, startX: event.clientX, startY: event.clientY, moved: false, armed: false, cancelled: false };
+      const rect = el.getBoundingClientRect();
+      const drag = {
+        orgId,
+        el,
+        startX: event.clientX,
+        startY: event.clientY,
+        grabX: event.clientX - rect.left,
+        grabY: event.clientY - rect.top,
+        moved: false,
+        armed: false,
+        cancelled: false
+      };
       drag.longPressTimer = setTimeout(() => {
         if (state.maintenanceOrgDrag !== drag || drag.cancelled) return;
         drag.armed = true;
@@ -5170,16 +5181,18 @@
       if (!drag.fixed) {
         const rect = drag.el.getBoundingClientRect();
         drag.width = rect.width;
+        drag.height = rect.height;
         drag.fixed = true;
         drag.el.style.position = "fixed";
         drag.el.style.width = `${rect.width}px`;
-        drag.el.style.left = `${rect.left}px`;
-        drag.el.style.top = `${rect.top}px`;
+        drag.el.style.height = `${rect.height}px`;
+        drag.el.style.left = `${event.clientX - drag.grabX}px`;
+        drag.el.style.top = `${event.clientY - drag.grabY}px`;
       }
       drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
-      drag.el.style.left = `${event.clientX - (drag.width || drag.el.offsetWidth) / 2}px`;
-      drag.el.style.top = `${event.clientY - 24}px`;
+      drag.el.style.left = `${event.clientX - drag.grabX}px`;
+      drag.el.style.top = `${event.clientY - drag.grabY}px`;
       clearDropTarget();
       clearMaintenanceDropTarget();
       dateCellFromPoint(event.clientX, event.clientY, drag.el)?.classList.add("drop-target");
@@ -6651,7 +6664,10 @@
       const org = state.orgs.find(o => o.id === id);
       if (org) rememberDeletedOrgs([org]);
       state.orgs = state.orgs.filter(o => o.id !== id);
-      save(); render(); toast("삭제되었습니다.");
+      save();
+      if (canUseCloudSync()) uploadCloudData({ silent: true });
+      render();
+      toast("삭제되었습니다.");
     };
     function firstPhoneNumber(raw = "") {
       const text = String(raw || "").trim();
