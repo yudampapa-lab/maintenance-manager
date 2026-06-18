@@ -2794,7 +2794,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2838,6 +2838,7 @@
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
+    state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
     state.settings.deletedOrgKeys = state.settings.deletedOrgKeys || [];
     restoreGoogleAccessToken();
     normalizeOrgs();
@@ -3293,15 +3294,20 @@
       const ids = schedules.flatMap(scheduleDeleteKeys);
       if (!ids.length) return;
       state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...ids])];
+      const deleted = new Set(ids);
+      state.settings.restoredScheduleIds = (state.settings.restoredScheduleIds || []).filter(id => !deleted.has(id));
     }
     function forgetDeletedSchedules(schedules = []) {
       const ids = new Set(schedules.flatMap(scheduleDeleteKeys));
       if (!ids.size) return;
       state.settings.deletedScheduleIds = (state.settings.deletedScheduleIds || []).filter(id => !ids.has(id));
+      state.settings.googleDeletedEventIds = (state.settings.googleDeletedEventIds || []).filter(id => !ids.has(id));
+      state.settings.restoredScheduleIds = [...new Set([...(state.settings.restoredScheduleIds || []), ...ids])];
     }
     function isDeletedSchedule(schedule = {}) {
       const deleted = new Set(state.settings.deletedScheduleIds || []);
-      return scheduleDeleteKeys(schedule).some(id => deleted.has(id));
+      const restored = new Set(state.settings.restoredScheduleIds || []);
+      return scheduleDeleteKeys(schedule).some(id => deleted.has(id) && !restored.has(id));
     }
     function normalizeSchedules() {
       state.schedules = (state.schedules || []).map(schedule => ({
@@ -6148,6 +6154,7 @@
         vehicle: state.vehicle || { records: [] },
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
         deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
+        restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
         deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
@@ -6161,8 +6168,12 @@
       if (Array.isArray(data.googleDeletedEventIds)) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...data.googleDeletedEventIds])];
       }
+      if (Array.isArray(data.restoredScheduleIds)) {
+        state.settings.restoredScheduleIds = [...new Set([...(state.settings.restoredScheduleIds || []), ...data.restoredScheduleIds])];
+      }
       if (Array.isArray(data.deletedScheduleIds)) {
-        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])];
+        const restored = new Set(state.settings.restoredScheduleIds || []);
+        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])].filter(id => !restored.has(id));
       }
       if (Array.isArray(data.deletedOrgKeys)) {
         state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...data.deletedOrgKeys])];
