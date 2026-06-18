@@ -2794,7 +2794,7 @@
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       vehicle: load("maint_vehicle", { records: [] }),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -2838,6 +2838,7 @@
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
+    state.settings.deletedOrgKeys = state.settings.deletedOrgKeys || [];
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
@@ -3224,6 +3225,15 @@
         org.id ? "id:" + org.id : ""
       ].filter(Boolean);
     }
+    function rememberDeletedOrgs(orgs = []) {
+      const keys = orgs.flatMap(orgMergeKeys);
+      if (!keys.length) return;
+      state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...keys])];
+    }
+    function isDeletedOrg(org = {}) {
+      const deleted = new Set(state.settings.deletedOrgKeys || []);
+      return orgMergeKeys(org).some(key => deleted.has(key));
+    }
     function orgRecordTime(org = {}) {
       return Date.parse(org.updatedAt || org.createdAt || "") || 0;
     }
@@ -3246,6 +3256,7 @@
       const merged = new Map();
       const aliases = new Map();
       const addOrg = org => {
+        if (isDeletedOrg(org)) return;
         const keys = orgMergeKeys(org);
         const existingKey = keys.find(key => aliases.has(key) || merged.has(key));
         const primaryKey = existingKey ? (aliases.get(existingKey) || existingKey) : (keys[0] || orgMergeKey(org));
@@ -6092,6 +6103,7 @@
         vehicle: state.vehicle || { records: [] },
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
         deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
+        deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -6101,15 +6113,18 @@
       if (!data) return;
       const incomingScheduleCount = Array.isArray(data.schedules) ? data.schedules.length : 0;
       state.cloudApplying = true;
-      cloudDataKeys.forEach(key => {
-        if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
-      });
       if (Array.isArray(data.googleDeletedEventIds)) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...data.googleDeletedEventIds])];
       }
       if (Array.isArray(data.deletedScheduleIds)) {
         state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])];
       }
+      if (Array.isArray(data.deletedOrgKeys)) {
+        state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...data.deletedOrgKeys])];
+      }
+      cloudDataKeys.forEach(key => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
+      });
       normalizeOrgs();
       normalizeSchedules();
       normalizeVehicle();
@@ -6633,6 +6648,8 @@
     };
     window.deleteOrg = id => {
       if (!confirm("이 기관을 삭제할까요?")) return;
+      const org = state.orgs.find(o => o.id === id);
+      if (org) rememberDeletedOrgs([org]);
       state.orgs = state.orgs.filter(o => o.id !== id);
       save(); render(); toast("삭제되었습니다.");
     };
