@@ -270,6 +270,58 @@
       display: grid;
       gap: 14px;
     }
+    .weekly-work-report {
+      margin-top: 14px;
+    }
+    .weekly-report-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .weekly-report-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(247,250,252,.92));
+      overflow: hidden;
+    }
+    .weekly-report-card header {
+      position: static;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.76);
+      backdrop-filter: none;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .weekly-report-card h3 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+    .weekly-report-card .range {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .weekly-report-fields {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .weekly-report-fields textarea {
+      min-height: 180px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+    .weekly-report-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
     .global-result-section {
       display: grid;
       gap: 8px;
@@ -1408,6 +1460,41 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
+    .audit-list {
+      display: grid;
+      gap: 10px;
+      max-height: min(62dvh, 640px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .audit-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.9);
+      padding: 12px;
+    }
+    .audit-card h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .audit-card p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .audit-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
 
     .bottom-nav {
       position: fixed;
@@ -1556,6 +1643,7 @@
 
     @media (max-width: 920px) {
       .dashboard-grid, .cards, .settings-grid { grid-template-columns: 1fr; }
+      .weekly-report-grid { grid-template-columns: 1fr; }
       .calendar-layout { grid-template-columns: minmax(0, 1fr) 190px; gap: 8px; }
       .monthly-maintenance-head { padding: 9px; }
       .monthly-maintenance-list { padding: 8px; gap: 6px; }
@@ -2335,6 +2423,39 @@
             </section>
           </div>
         </div>
+        <section class="panel weekly-work-report">
+          <div class="panel-head">
+            <div><h2 class="panel-title">주간업무기록</h2><p class="panel-sub" id="weeklyReportSub"></p></div>
+            <div class="weekly-report-actions">
+              <button type="button" class="secondary" id="fillWeeklyReportBtn">캘린더로 채우기</button>
+              <button type="button" id="saveWeeklyReportBtn">저장</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="weekly-report-grid">
+              <article class="weekly-report-card">
+                <header>
+                  <h3>금주 주요내용</h3>
+                  <span class="range" id="thisWeekRange"></span>
+                </header>
+                <div class="weekly-report-fields">
+                  <div class="field"><label>제목</label><input id="thisWeekTitle"></div>
+                  <div class="field"><label>금주실적</label><textarea id="thisWeekBody"></textarea></div>
+                </div>
+              </article>
+              <article class="weekly-report-card">
+                <header>
+                  <h3>차주 계획내용</h3>
+                  <span class="range" id="nextWeekRange"></span>
+                </header>
+                <div class="weekly-report-fields">
+                  <div class="field"><label>제목</label><input id="nextWeekTitle"></div>
+                  <div class="field"><label>차주계획</label><textarea id="nextWeekBody"></textarea></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
@@ -2410,6 +2531,8 @@
               <button id="saveSettingsBtn">설정 저장</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
               <button class="secondary" id="exportIcsBtn" type="button">캘린더 파일 내보내기</button>
+              <button class="secondary" id="openAdminLogBtn" type="button">로그 확인</button>
+              <button class="secondary" id="openVersionHistoryBtn" type="button">버전 확인</button>
               <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
             <p class="panel-sub" id="cloudSyncStatus" style="margin-top:10px">Firebase 설정이 연결되면 모바일과 PC 데이터가 자동으로 동기화됩니다.</p>
@@ -2426,6 +2549,29 @@
       <button class="nav-btn" data-view="memo"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg><span>메모</span></button>
     </nav>
   </div>
+
+  <dialog id="adminLogDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">관리 로그</h2>
+      <p class="panel-sub" id="adminLogSub">관리자가 실행한 주요 작업 기록입니다.</p>
+      <div class="audit-list" id="adminLogList" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="danger" id="clearAdminLogBtn">로그 비우기</button>
+      <button type="button" class="secondary" id="closeAdminLogDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="versionHistoryDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">버전 기록</h2>
+      <p class="panel-sub" id="versionHistorySub"></p>
+      <div class="audit-list" id="versionHistoryList" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeVersionHistoryDialogBtn">닫기</button>
+    </div>
+  </dialog>
 
   <dialog id="orgDialog">
     <form id="orgForm" method="dialog">
@@ -2793,7 +2939,9 @@
       schedules: load("maint_schedules", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
+      weeklyReports: load("maint_weekly_reports", {}),
       vehicle: load("maint_vehicle", { records: [] }),
+      adminLogs: load("maint_admin_logs", []),
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
@@ -2844,6 +2992,7 @@
     normalizeOrgs();
     normalizeSchedules();
     normalizeVehicle();
+    normalizeAdminLogs();
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
     ensureNationalLibraryBase();
 
@@ -3429,15 +3578,68 @@
         records: [...byId.values()].sort((a, b) => `${b.date || ""} ${b.createdAt || ""}`.localeCompare(`${a.date || ""} ${a.createdAt || ""}`))
       };
     }
+    function normalizeAdminLogs() {
+      state.adminLogs = (Array.isArray(state.adminLogs) ? state.adminLogs : [])
+        .filter(log => log && typeof log === "object")
+        .map(log => ({
+          id: log.id || uid(),
+          at: log.at || new Date().toISOString(),
+          category: log.category || "기록",
+          action: log.action || "작업",
+          detail: log.detail || "",
+          actor: log.actor || allowedLoginEmail,
+          device: log.device || ""
+        }))
+        .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+        .slice(0, 600);
+    }
+    function mergeAdminLogs(localLogs = [], cloudLogs = []) {
+      const byId = new Map();
+      [...(Array.isArray(localLogs) ? localLogs : []), ...(Array.isArray(cloudLogs) ? cloudLogs : [])].forEach(log => {
+        if (!log || typeof log !== "object") return;
+        const id = log.id || uid();
+        byId.set(id, { ...log, id });
+      });
+      return [...byId.values()]
+        .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")))
+        .slice(0, 600);
+    }
+    function mergeWeeklyReports(localReports = {}, cloudReports = {}) {
+      const merged = { ...(localReports && typeof localReports === "object" && !Array.isArray(localReports) ? localReports : {}) };
+      Object.entries(cloudReports && typeof cloudReports === "object" && !Array.isArray(cloudReports) ? cloudReports : {}).forEach(([key, report]) => {
+        if (!report || typeof report !== "object") return;
+        const current = merged[key];
+        const currentTime = Date.parse(current?.updatedAt || "") || 0;
+        const incomingTime = Date.parse(report.updatedAt || "") || 0;
+        if (!current || incomingTime >= currentTime) merged[key] = report;
+      });
+      return merged;
+    }
+    function logAdminAction(category, action, detail = "") {
+      if (!state.adminLogs) state.adminLogs = [];
+      state.adminLogs.unshift({
+        id: uid(),
+        at: new Date().toISOString(),
+        category,
+        action,
+        detail,
+        actor: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
+        device: navigator.userAgentData?.platform || navigator.platform || ""
+      });
+      normalizeAdminLogs();
+    }
     function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
       normalizeVehicle();
+      normalizeAdminLogs();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
       localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
+      localStorage.setItem("maint_weekly_reports", JSON.stringify(state.weeklyReports || {}));
       localStorage.setItem("maint_vehicle", JSON.stringify(state.vehicle));
+      localStorage.setItem("maint_admin_logs", JSON.stringify(state.adminLogs));
       localStorage.setItem("maint_settings", JSON.stringify(state.settings));
       if (!options.skipCloud && !state.cloudApplying) scheduleCloudSave("local-save");
     }
@@ -3622,6 +3824,79 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
+    const appVersion = "1.6.0";
+    const versionHistory = [
+      {
+        version: "1.6.0",
+        date: "2026-06-18",
+        title: "주간업무기록 추가",
+        changes: [
+          "대시보드 하단에 주간업무기록 영역 추가",
+          "캘린더 일정으로 금주 주요내용과 차주 계획내용 초안 생성",
+          "주간업무기록을 저장하고 클라우드 동기화하도록 보강"
+        ]
+      },
+      {
+        version: "1.5.0",
+        date: "2026-06-18",
+        title: "관리 로그와 버전 기록 추가",
+        changes: [
+          "설정 안에 관리 로그 확인 페이지를 추가",
+          "설정 안에 버전 기록 확인 페이지를 추가",
+          "주요 등록, 수정, 삭제, 동기화 작업을 로그로 남기도록 보강"
+        ]
+      },
+      {
+        version: "1.4.0",
+        date: "2026-06-18",
+        title: "일정미정과 동기화 안정화",
+        changes: [
+          "일정미정 드래그 복제 타일 잔상 제거",
+          "일정 삭제/복구 이력 충돌 보정",
+          "기관/일정 삭제 후 PC와 모바일에서 다시 살아나는 문제 보강"
+        ]
+      },
+      {
+        version: "1.3.0",
+        date: "2026-06-18",
+        title: "일정미정 패널 개선",
+        changes: [
+          "캘린더 우측 일정미정 패널 추가",
+          "점검 주기별 월별 대상 기관 자동 산출",
+          "일정미정 기관을 캘린더 날짜로 드래그해 일정 등록"
+        ]
+      },
+      {
+        version: "1.2.0",
+        date: "2026-06-17",
+        title: "전국 도서관과 Firebase 동기화",
+        changes: [
+          "전국 도서관 정적 목록 등록 기능 추가",
+          "기관, 일정, 메모, 차량 데이터를 Firebase로 동기화",
+          "구글 로그인 기반 접근 제한 추가"
+        ]
+      },
+      {
+        version: "1.1.0",
+        date: "2026-06-16",
+        title: "Google Calendar와 사진 관리",
+        changes: [
+          "구글캘린더 수동 동기화 기능 추가",
+          "레포트 사진, 메모 사진, 차량 사진 저장 기능 추가",
+          "오늘 할 일 클립보드 복사 기능 추가"
+        ]
+      },
+      {
+        version: "1.0.0",
+        date: "2026-06-14",
+        title: "ReportMate 시작",
+        changes: [
+          "대시보드, 기관, 캘린더, 메모 기본 기능 구성",
+          "모바일 우선 반응형 화면 구성",
+          "기관 담당자, Tmap, 일정 등록 기능 추가"
+        ]
+      }
+    ];
     function safeScheduleColor(color) {
       return scheduleColors[color] ? color : "blue";
     }
@@ -4089,6 +4364,7 @@
       markGoogleDirty(schedule);
       state.schedules.push(schedule);
       forgetDeletedSchedules([schedule]);
+      logAdminAction("일정", "일정 붙여넣기", `${schedule.title} · ${formatDateWithYear(schedule.date)}`);
       save();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
@@ -4284,6 +4560,105 @@
         const d = new Date(y, m, Number(o.billingDay));
         return d.getMonth() === m;
       });
+    }
+    function weekStartISO(baseISO = todayISO(), offsetWeeks = 0) {
+      const date = new Date(baseISO + "T00:00:00");
+      const day = date.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      date.setDate(date.getDate() + mondayOffset + offsetWeeks * 7);
+      return localDateISO(date);
+    }
+    function shortDotDate(iso) {
+      const date = new Date(iso + "T00:00:00");
+      return `${String(date.getFullYear()).slice(2)}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+    }
+    function weeklyRangeLabel(startISO, endISO) {
+      return `${shortDotDate(startISO)} ~ ${shortDotDate(endISO)}`;
+    }
+    function weeklyReportMeta() {
+      const thisStart = weekStartISO(todayISO(), 0);
+      const nextStart = weekStartISO(todayISO(), 1);
+      return {
+        key: thisStart,
+        thisStart,
+        thisBusinessEnd: addDaysISO(thisStart, 4),
+        thisEnd: addDaysISO(thisStart, 6),
+        nextStart,
+        nextBusinessEnd: addDaysISO(nextStart, 4),
+        nextEnd: addDaysISO(nextStart, 6)
+      };
+    }
+    function schedulesInRange(startISO, endISO) {
+      return (state.schedules || [])
+        .filter(schedule => (schedule.date || "") <= endISO && (schedule.endDate || schedule.date || "") >= startISO)
+        .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "99:99").localeCompare(b.startTime || "99:99") || (a.title || "").localeCompare(b.title || "", "ko"));
+    }
+    function weeklyScheduleName(schedule = {}) {
+      const org = orgForSchedule(schedule);
+      const orgName = org?.name || "";
+      if (orgName && schedule.title && normalizedScheduleText(schedule.title) !== normalizedScheduleText(orgName)) return `${orgName} - ${schedule.title}`;
+      return orgName || schedule.title || "일정";
+    }
+    function weeklyGeneratedReport(startISO, endISO, fallbackTitle) {
+      const schedules = schedulesInRange(startISO, endISO);
+      const names = [...new Set(schedules.map(weeklyScheduleName).filter(Boolean))];
+      const title = names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` 외 ${names.length - 2}건` : "") : fallbackTitle;
+      const body = names.length ? names.map(name => `• ${name}`).join("\n") : "• 등록된 일정 없음";
+      return { title, body };
+    }
+    function currentWeeklyReportDraft() {
+      const meta = weeklyReportMeta();
+      const saved = state.weeklyReports?.[meta.key] || {};
+      const thisAuto = weeklyGeneratedReport(meta.thisStart, meta.thisEnd, "금주 유지보수 업무");
+      const nextAuto = weeklyGeneratedReport(meta.nextStart, meta.nextEnd, "차주 유지보수 계획");
+      return {
+        meta,
+        thisTitle: saved.thisTitle || thisAuto.title,
+        thisBody: saved.thisBody || thisAuto.body,
+        nextTitle: saved.nextTitle || nextAuto.title,
+        nextBody: saved.nextBody || nextAuto.body,
+        updatedAt: saved.updatedAt || ""
+      };
+    }
+    function renderWeeklyReport() {
+      if (!window.weeklyReportSub) return;
+      const draft = currentWeeklyReportDraft();
+      const { meta } = draft;
+      weeklyReportSub.textContent = draft.updatedAt ? `마지막 저장 ${new Date(draft.updatedAt).toLocaleString("ko-KR")}` : "캘린더 일정으로 업무보고 초안을 만듭니다.";
+      thisWeekRange.textContent = weeklyRangeLabel(meta.thisStart, meta.thisBusinessEnd);
+      nextWeekRange.textContent = weeklyRangeLabel(meta.nextStart, meta.nextBusinessEnd);
+      thisWeekTitle.value = draft.thisTitle;
+      thisWeekBody.value = draft.thisBody;
+      nextWeekTitle.value = draft.nextTitle;
+      nextWeekBody.value = draft.nextBody;
+    }
+    function fillWeeklyReportFromCalendar() {
+      const meta = weeklyReportMeta();
+      const thisAuto = weeklyGeneratedReport(meta.thisStart, meta.thisEnd, "금주 유지보수 업무");
+      const nextAuto = weeklyGeneratedReport(meta.nextStart, meta.nextEnd, "차주 유지보수 계획");
+      thisWeekTitle.value = thisAuto.title;
+      thisWeekBody.value = thisAuto.body;
+      nextWeekTitle.value = nextAuto.title;
+      nextWeekBody.value = nextAuto.body;
+      toast("캘린더 일정으로 채웠습니다.");
+    }
+    function saveWeeklyReport() {
+      const meta = weeklyReportMeta();
+      state.weeklyReports = state.weeklyReports || {};
+      state.weeklyReports[meta.key] = {
+        key: meta.key,
+        thisRange: weeklyRangeLabel(meta.thisStart, meta.thisBusinessEnd),
+        nextRange: weeklyRangeLabel(meta.nextStart, meta.nextBusinessEnd),
+        thisTitle: thisWeekTitle.value.trim(),
+        thisBody: thisWeekBody.value.trim(),
+        nextTitle: nextWeekTitle.value.trim(),
+        nextBody: nextWeekBody.value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      logAdminAction("대시보드", "주간업무기록 저장", `${state.weeklyReports[meta.key].thisRange} / ${state.weeklyReports[meta.key].nextRange}`);
+      save();
+      renderWeeklyReport();
+      toast("주간업무기록을 저장했습니다.");
     }
     window.toggleTodayCopySchedule = (id, checked) => {
       state.todayCopySelections[id] = checked;
@@ -4626,6 +5001,7 @@
       };
       state.schedules.push(schedule);
       forgetDeletedSchedules([schedule]);
+      logAdminAction("AI", "AI 일정 등록", `${schedule.title} · ${formatDateWithYear(schedule.date)}`);
       save();
       render();
       scheduleGoogleAutoSync("ai-schedule");
@@ -5059,6 +5435,13 @@
     function clearMaintenanceDropTarget() {
       document.getElementById("monthlyMaintenancePanel")?.classList.remove("drop-target");
     }
+    function cleanupMaintenanceDragGhosts() {
+      document.querySelectorAll(".maintenance-drag-ghost").forEach(ghost => ghost.remove());
+      document.querySelectorAll(".maintenance-drag-card").forEach(card => {
+        card.style.visibility = "";
+        card.__maintenanceGhost = null;
+      });
+    }
     function resetMaintenanceDragElement(el) {
       if (!el) return;
       if (el.__maintenanceGhost) {
@@ -5075,7 +5458,7 @@
       const ghost = drag.el.cloneNode(true);
       ghost.removeAttribute("id");
       ghost.classList.remove("drag-ready");
-      ghost.classList.add("dragging");
+      ghost.classList.add("dragging", "maintenance-drag-ghost");
       ghost.style.position = "fixed";
       ghost.style.left = `${event.clientX - drag.grabX}px`;
       ghost.style.top = `${event.clientY - drag.grabY}px`;
@@ -5166,6 +5549,7 @@
       };
       state.schedules.push(schedule);
       forgetDeletedSchedules([schedule]);
+      logAdminAction("일정미정", "일정 등록", `${org.name} · ${formatDateWithYear(date)}`);
       save();
       render();
       toast(`${org.name} 방문일정을 ${formatDate(date)}에 등록했습니다.`);
@@ -5173,6 +5557,7 @@
       return schedule;
     }
     window.maintenanceOrgPointerStart = (event, orgId) => {
+      cleanupMaintenanceDragGhosts();
       const el = event.currentTarget;
       el.setPointerCapture?.(event.pointerId);
       const rect = el.getBoundingClientRect();
@@ -5271,6 +5656,12 @@
       clearMaintenanceDropTarget();
       state.maintenanceOrgDrag = null;
     };
+    document.addEventListener("pointerup", () => {
+      if (!state.maintenanceOrgDrag) cleanupMaintenanceDragGhosts();
+    }, { passive: true });
+    document.addEventListener("pointercancel", () => {
+      if (!state.maintenanceOrgDrag) cleanupMaintenanceDragGhosts();
+    }, { passive: true });
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -5871,10 +6262,12 @@
       if (existing) {
         Object.assign(existing, data);
         markGoogleDirty(existing);
+        logAdminAction("일정", "일정 수정", `${data.title} · ${formatDateWithYear(data.date)}`);
       } else {
         const copies = recurringScheduleCopies(data, data.recurrence);
         state.schedules.push(...copies);
         forgetDeletedSchedules(copies);
+        logAdminAction("일정", copies.length > 1 ? "반복 일정 등록" : "일정 등록", `${data.title} · ${formatDateWithYear(data.date)}${copies.length > 1 ? ` 외 ${copies.length - 1}건` : ""}`);
       }
       save();
       if (closeAfter) scheduleDialog.close();
@@ -5911,6 +6304,7 @@
       }
       rememberDeletedSchedules(deleteTargets);
       state.schedules = state.schedules.filter(item => !deleteIds.has(item.id));
+      logAdminAction("일정", deleteTargets.length > 1 ? "반복 일정 삭제" : "일정 삭제", deleteTargets.map(item => `${item.title} · ${formatDateWithYear(item.date)}`).join("\n"));
       save();
       if (scheduleDialog.open) scheduleDialog.close();
       render();
@@ -6051,7 +6445,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -6104,7 +6498,9 @@
     };
     window.deleteVehicleRecord = id => {
       if (!confirm("이 차량 내역을 삭제할까요?")) return;
+      const record = state.vehicle.records.find(item => item.id === id);
       state.vehicle.records = state.vehicle.records.filter(item => item.id !== id);
+      logAdminAction("차량", "차량 내역 삭제", record ? `${record.type} · ${record.date}` : id);
       save();
       renderVehicle();
       toast("차량 내역을 삭제했습니다.");
@@ -6115,7 +6511,26 @@
       tmapKey.value = state.settings.tmapKey || "";
       updateCloudStatus();
     }
-    const cloudDataKeys = ["orgs", "schedules", "memos", "dayNotes", "vehicle"];
+    function renderAdminLogs() {
+      normalizeAdminLogs();
+      const logs = state.adminLogs || [];
+      adminLogSub.textContent = logs.length ? `${logs.length}건 저장됨 · 최근 기록이 위에 표시됩니다.` : "아직 저장된 관리 로그가 없습니다.";
+      adminLogList.innerHTML = logs.length ? logs.map(log => `<article class="audit-card">
+        <div class="audit-meta"><span>${escapeHTML(log.category)}</span><span>${formatDateTimeWithYear(log.at)}</span></div>
+        <h3>${escapeHTML(log.action)}</h3>
+        ${log.detail ? `<p>${escapeHTML(log.detail)}</p>` : ""}
+        <p>${escapeHTML(log.actor || "")}${log.device ? " · " + escapeHTML(log.device) : ""}</p>
+      </article>`).join("") : '<div class="empty">아직 관리 로그가 없습니다.</div>';
+    }
+    function renderVersionHistory() {
+      versionHistorySub.textContent = `현재 버전 ${appVersion} · 업데이트 내역`;
+      versionHistoryList.innerHTML = versionHistory.map(item => `<article class="audit-card">
+        <div class="audit-meta"><span>v${escapeHTML(item.version)}</span><span>${escapeHTML(item.date)}</span></div>
+        <h3>${escapeHTML(item.title)}</h3>
+        <p>${item.changes.map(change => "- " + escapeHTML(change)).join("\n")}</p>
+      </article>`).join("");
+    }
+    const cloudDataKeys = ["orgs", "schedules", "memos", "dayNotes", "weeklyReports", "vehicle", "adminLogs"];
     function canUseCloudSync() {
       return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
@@ -6124,7 +6539,9 @@
       if (key === "schedules" && Array.isArray(value)) state.schedules = [...(state.schedules || []), ...value];
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
+      if (key === "weeklyReports" && value && typeof value === "object" && !Array.isArray(value)) state.weeklyReports = mergeWeeklyReports(state.weeklyReports || {}, value);
       if (key === "vehicle" && value && typeof value === "object") state.vehicle = mergeVehicleData(state.vehicle, value);
+      if (key === "adminLogs" && Array.isArray(value)) state.adminLogs = mergeAdminLogs(state.adminLogs || [], value);
     }
     function cloudErrorMessage(error) {
       const message = String(error?.message || error || "");
@@ -6158,7 +6575,9 @@
         schedules: state.schedules,
         memos: state.memos,
         dayNotes: state.dayNotes || {},
+        weeklyReports: state.weeklyReports || {},
         vehicle: state.vehicle || { records: [] },
+        adminLogs: state.adminLogs || [],
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
         deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
         restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
@@ -6194,6 +6613,7 @@
       normalizeOrgs();
       normalizeSchedules();
       normalizeVehicle();
+      normalizeAdminLogs();
       state.settings.cloudLastSync = new Date().toISOString();
       save({ skipCloud: true });
       state.cloudApplying = false;
@@ -6282,11 +6702,13 @@
       updateCloudStatus();
     }
     function render() {
+      cleanupMaintenanceDragGhosts();
       todayDateTag.textContent = formatDate(todayISO());
       tomorrowDateTag.textContent = formatDate(todayISO(1));
       renderVisits("todayVisits", todayISO());
       renderVisits("tomorrowVisits", todayISO(1));
       renderDashboardSearch();
+      renderWeeklyReport();
       scheduleTodayDestinationMapRender();
       renderCalendar("mainCalendar", false);
       renderOrgs();
@@ -6565,7 +6987,10 @@
     };
     window.deleteReport = async (id, orgId) => {
       if (!confirm("이 레포트 사진을 삭제할까요?")) return;
+      const org = state.orgs.find(o => o.id === orgId);
       await removeReport(id);
+      logAdminAction("레포트", "레포트 사진 삭제", org?.name || "");
+      save();
       await renderReportList(orgId);
       toast("레포트 사진을 삭제했습니다.");
     };
@@ -6578,6 +7003,8 @@
       const org = state.orgs.find(o => o.id === state.currentReportOrgId);
       if (!file || !org) return;
       const capturedAt = new Date().toISOString();
+      logAdminAction("레포트", "레포트 사진 추가", org.name);
+      save();
       enqueueImageTask({
         kind: "report",
         file,
@@ -6627,6 +7054,7 @@
       if (!org) return;
       org.issues = (org.issues || []).filter(item => item.id !== issueId);
       org.updatedAt = new Date().toISOString();
+      logAdminAction("특이사항", "특이사항 삭제", `${org.name} · ${issueId}`);
       save();
       renderIssueList(orgId);
       render();
@@ -6657,6 +7085,7 @@
         org.issues.unshift({ id: uid(), date: issueDate.value, text: issueText.value.trim(), createdAt: new Date().toISOString() });
       }
       org.updatedAt = new Date().toISOString();
+      logAdminAction("특이사항", existing ? "특이사항 수정" : "특이사항 등록", `${org.name} · ${formatDateWithYear(issueDate.value)}`);
       save();
       renderIssueList(org.id);
       render();
@@ -6693,6 +7122,7 @@
       state.schedules.forEach(schedule => {
         if (schedule.orgId === data.id) schedule.updatedAt = now;
       });
+      logAdminAction("기관", existing ? "기관 수정" : "기관 등록", `${data.name} · ${data.region || "지역 미입력"}`);
       save();
       orgDialog.close();
       render();
@@ -6717,6 +7147,7 @@
       const org = state.orgs.find(o => o.id === id);
       if (org) rememberDeletedOrgs([org]);
       state.orgs = state.orgs.filter(o => o.id !== id);
+      logAdminAction("기관", "기관 삭제", org ? `${org.name} · ${org.region || ""}` : id);
       save();
       if (canUseCloudSync()) uploadCloudData({ silent: true });
       render();
@@ -6803,6 +7234,7 @@
         added.push(org.name);
       });
       if (added.length) {
+        logAdminAction("기관", "남양주시립 도서관 등록", `신규 추가 ${added.length}개 · 중복 제외 ${skipped.length}개`);
         save();
         orgSearch.value = "남양주시";
         state.orgPage = 1;
@@ -6882,6 +7314,7 @@
       try {
         toast("내장 도서관 목록을 등록하는 중입니다.");
         const { added, skipped } = mergeLibrariesIntoOrgs(libraries);
+        logAdminAction("기관", "전국 도서관 등록", `신규 추가 ${added.length}개 · 중복 제외 ${skipped.length}개`);
         save({ skipCloud: true });
         orgSearch.value = "";
         state.orgPage = 1;
@@ -7376,6 +7809,7 @@
         const missingRemoved = full ? removeLocalSchedulesMissingFromGoogle(activeGoogleEvents) : 0;
         const pushed = await pushLocalSchedulesToGoogle();
         state.settings.googleLastSync = new Date().toISOString();
+        logAdminAction("Google", "구글캘린더 동기화", `가져옴 ${pulled.imported + pulled.updated}건, 올림 ${pushed.inserted + pushed.updated}건, 삭제 ${deleted + pulled.removed + missingRemoved + duplicateCleanup.removed}건`);
         save();
         if (canUseCloudSync()) await uploadCloudData({ silent: true });
         render();
@@ -7436,6 +7870,7 @@
       const index = state.memos.findIndex(x => x.id === m.id);
       if (index >= 0) state.memos[index] = m; else state.memos.unshift(m);
       const files = [...state.pendingMemoFiles];
+      logAdminAction("메모", index >= 0 ? "메모 수정" : "메모 등록", m.title);
       save(); memoDialog.close(); render(); toast("메모가 저장되었습니다.");
       files.forEach(file => enqueueImageTask({ file, ownerType: "memo", ownerId: m.id, onDone: renderMemos }));
       state.pendingMemoFiles = [];
@@ -7450,7 +7885,9 @@
     };
     window.deleteMemo = id => {
       if (!confirm("이 메모를 삭제할까요?")) return;
+      const memo = state.memos.find(m => m.id === id);
       state.memos = state.memos.filter(m => m.id !== id);
+      logAdminAction("메모", "메모 삭제", memo?.title || id);
       save(); render(); toast("삭제되었습니다.");
     };
     addVehicleRecordBtn.onclick = () => openVehicleRecordDialog();
@@ -7475,6 +7912,7 @@
       };
       if (existing) Object.assign(existing, record); else state.vehicle.records.unshift(record);
       const files = [...state.pendingVehicleFiles];
+      logAdminAction("차량", existing ? "차량 내역 수정" : "차량 내역 등록", `${record.type} · ${record.date}${record.mileage ? ` · ${Number(record.mileage).toLocaleString()}km` : ""}`);
       save();
       vehicleRecordDialog.close();
       renderVehicle();
@@ -7523,10 +7961,29 @@
         billingNotice: billingNotice.value,
         tmapKey: tmapKey.value.trim()
       };
+      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap 설정을 저장했습니다.");
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
     };
+    openAdminLogBtn.onclick = () => {
+      renderAdminLogs();
+      adminLogDialog.showModal();
+    };
+    closeAdminLogDialogBtn.onclick = () => adminLogDialog.close();
+    clearAdminLogBtn.onclick = () => {
+      if (!confirm("관리 로그를 모두 비울까요?")) return;
+      state.adminLogs = [];
+      logAdminAction("로그", "관리 로그 초기화", "관리 로그를 비웠습니다.");
+      save();
+      renderAdminLogs();
+      toast("관리 로그를 비웠습니다.");
+    };
+    openVersionHistoryBtn.onclick = () => {
+      renderVersionHistory();
+      versionHistoryDialog.showModal();
+    };
+    closeVersionHistoryDialogBtn.onclick = () => versionHistoryDialog.close();
     function prepareGoogleSettings() {
       state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
       state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -7645,6 +8102,8 @@
       renderDashboardSearch();
       dashboardSearch.focus();
     };
+    fillWeeklyReportBtn.onclick = fillWeeklyReportFromCalendar;
+    saveWeeklyReportBtn.onclick = saveWeeklyReport;
     locateTodayMapBtn.onclick = () => requestTodayMapLocation();
     function showInfo(title, body) {
       infoTitle.textContent = title;
