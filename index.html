@@ -1068,9 +1068,10 @@
       width: 100%;
       border-radius: 6px;
       background: #e9f2ff;
-      color: #164995;
+      color: #1c1c1e;
       padding: 5px 6px;
       font-size: 11px;
+      font-weight: 600;
       line-height: 1.28;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1091,6 +1092,7 @@
       white-space: nowrap;
       text-align: left;
       -webkit-line-clamp: 1;
+      font-weight: 600;
       pointer-events: auto;
       touch-action: none;
     }
@@ -1113,12 +1115,12 @@
     .event-pill.drag-ready {
       box-shadow: 0 0 0 2px rgba(0, 122, 255, .28), inset 0 0 0 1px var(--event-border);
     }
-    .event-pill.visit { background: #e8f7f2; color: #0e6655; }
-    .event-pill.remote { background: #f3eefc; color: #6d28d9; }
-    .event-pill.expired { background: #fff1f2; color: #be123c; }
+    .event-pill.visit { background: #e8f7f2; color: #1c1c1e; }
+    .event-pill.remote { background: #f3eefc; color: #1c1c1e; }
+    .event-pill.expired { background: #fff1f2; color: #1c1c1e; }
     .event-pill.has-color {
       background: var(--event-bg);
-      color: var(--event-fg);
+      color: #1c1c1e;
       box-shadow: inset 0 0 0 1px var(--event-border);
     }
     #scheduleDialog.time-input-guard input[type="time"] {
@@ -2180,9 +2182,10 @@
     .event-pill {
       border-radius: 7px;
       background: rgba(0, 122, 255, .13);
-      color: #0057b8;
+      color: #1c1c1e;
       padding: 4px 6px;
       font-size: 10.5px;
+      font-weight: 600;
       line-height: 1.18;
       -webkit-line-clamp: 2;
       box-shadow: inset 0 0 0 1px rgba(0, 122, 255, .08);
@@ -2190,7 +2193,7 @@
     }
     .event-pill.calendar-bar {
       border-radius: 7px;
-      font-weight: 750;
+      font-weight: 600;
       touch-action: none;
     }
     .event-pill:active { transform: scale(.98); }
@@ -2198,12 +2201,12 @@
       transform: scale(1.03) rotate(-.6deg);
       box-shadow: 0 18px 38px rgba(22, 28, 38, .22);
     }
-    .event-pill.visit { background: rgba(0, 168, 137, .13); color: #006f5c; }
-    .event-pill.remote { background: rgba(175, 82, 222, .13); color: #8e24aa; }
-    .event-pill.expired { background: rgba(255, 59, 48, .12); color: #d70015; }
+    .event-pill.visit { background: rgba(0, 168, 137, .13); color: #1c1c1e; }
+    .event-pill.remote { background: rgba(175, 82, 222, .13); color: #1c1c1e; }
+    .event-pill.expired { background: rgba(255, 59, 48, .12); color: #1c1c1e; }
     .event-pill.has-color {
       background: var(--event-bg);
-      color: var(--event-fg);
+      color: #1c1c1e;
       box-shadow: inset 0 0 0 1px var(--event-border);
     }
 
@@ -3891,8 +3894,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.11";
+    const appVersion = "1.6.12";
     const versionHistory = [
+      {
+        version: "1.6.12",
+        date: "2026-06-18",
+        title: "캘린더 일정 글자 가독성 조정",
+        changes: [
+          "캘린더 일정 타일 글자색을 검정 계열로 통일",
+          "일정 타일 글자 두께를 한 단계 낮춰 더 차분하게 정리"
+        ]
+      },
       {
         version: "1.6.11",
         date: "2026-06-18",
