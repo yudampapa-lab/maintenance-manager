@@ -3288,7 +3288,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3335,6 +3335,7 @@
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
     state.settings.deletedOrgKeys = state.settings.deletedOrgKeys || [];
+    state.settings.deletedTodoMemoIds = state.settings.deletedTodoMemoIds || [];
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
@@ -4043,6 +4044,34 @@
           updatedAt: item.updatedAt || ""
         }))
         .filter(item => item.body);
+      const deleted = new Set(state.settings.deletedTodoMemoIds || []);
+      if (deleted.size) {
+        state.todoMemos = state.todoMemos.filter(item => !deleted.has(item.id));
+      }
+    }
+    function mergeTodoMemos(localItems = [], cloudItems = []) {
+      const byId = new Map();
+      [...(Array.isArray(localItems) ? localItems : []), ...(Array.isArray(cloudItems) ? cloudItems : [])].forEach(item => {
+        if (!item || typeof item !== "object") return;
+        const id = item.id || uid();
+        const current = byId.get(id);
+        const currentTime = Date.parse(current?.updatedAt || current?.createdAt || "") || 0;
+        const incomingTime = Date.parse(item.updatedAt || item.createdAt || "") || 0;
+        if (!current || incomingTime >= currentTime) {
+          byId.set(id, { ...item, id });
+        }
+      });
+      return [...byId.values()];
+    }
+    function rememberDeletedTodoMemos(todos = []) {
+      const ids = todos.map(item => item?.id).filter(Boolean);
+      if (!ids.length) return;
+      state.settings.deletedTodoMemoIds = [...new Set([...(state.settings.deletedTodoMemoIds || []), ...ids])];
+    }
+    function forgetDeletedTodoMemos(todos = []) {
+      const ids = new Set(todos.map(item => item?.id).filter(Boolean));
+      if (!ids.size) return;
+      state.settings.deletedTodoMemoIds = (state.settings.deletedTodoMemoIds || []).filter(id => !ids.has(id));
     }
     function logAdminAction(category, action, detail = "") {
       if (!state.adminLogs) state.adminLogs = [];
@@ -4289,8 +4318,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.22";
+    const appVersion = "1.6.23";
     const versionHistory = [
+      {
+        version: "1.6.23",
+        date: "2026-06-19",
+        title: "할일메모 삭제 동기화 안정화",
+        changes: [
+          "삭제한 할일메모가 클라우드 동기화로 다시 살아나는 문제 수정",
+          "할일메모 삭제 ID를 따로 기록해 실시간 병합 시 복구되지 않도록 보완"
+        ]
+      },
       {
         version: "1.6.22",
         date: "2026-06-19",
@@ -7724,7 +7762,7 @@
     function applyCloudValue(key, value) {
       if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
       if (key === "schedules" && Array.isArray(value)) state.schedules = [...(state.schedules || []), ...value];
-      if (key === "todoMemos" && Array.isArray(value)) state.todoMemos = value;
+      if (key === "todoMemos" && Array.isArray(value)) state.todoMemos = mergeTodoMemos(state.todoMemos || [], value);
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
       if (key === "weeklyReports" && value && typeof value === "object" && !Array.isArray(value)) state.weeklyReports = mergeWeeklyReports(state.weeklyReports || {}, value);
@@ -7773,6 +7811,7 @@
         deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
         restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
         deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
+        deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -7797,6 +7836,9 @@
       }
       if (Array.isArray(data.deletedOrgKeys)) {
         state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...data.deletedOrgKeys])];
+      }
+      if (Array.isArray(data.deletedTodoMemoIds)) {
+        state.settings.deletedTodoMemoIds = [...new Set([...(state.settings.deletedTodoMemoIds || []), ...data.deletedTodoMemoIds])];
       }
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
@@ -9131,6 +9173,7 @@
       const existing = state.todoMemos.find(item => item.id === todoMemoId.value);
       const todo = todoMemoFromForm(existing);
       if (!todo) return;
+      forgetDeletedTodoMemos([todo]);
       if (existing) removeTodoLinkedSchedules(existing);
       const schedules = createSchedulesFromTodo(todo);
       todo.scheduleIds = schedules.map(schedule => schedule.id);
@@ -9172,9 +9215,11 @@
       if (!todo) return;
       if (!confirm("이 할일메모를 삭제할까요? 연결된 캘린더 일정도 함께 삭제됩니다.")) return;
       removeTodoLinkedSchedules(todo);
+      rememberDeletedTodoMemos([todo]);
       state.todoMemos = state.todoMemos.filter(item => item.id !== id);
       logAdminAction("할일메모", "할일메모 삭제", `${todo.title} · ${todo.date ? scheduleDateLabel(todo) : "일정미정"}`);
       save();
+      if (canUseCloudSync()) uploadCloudData({ silent: true });
       render();
       toast("할일메모를 삭제했습니다.");
     };
