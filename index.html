@@ -1554,7 +1554,7 @@
     }
     .record-entry-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+      grid-template-columns: minmax(0, 1fr) minmax(132px, 176px);
       gap: 14px;
       align-items: start;
     }
@@ -1566,15 +1566,19 @@
     .record-entry-side {
       min-width: 0;
       justify-self: end;
-      width: min(240px, 100%);
+      width: min(176px, 100%);
+    }
+    .record-entry-side .attachment-grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
     }
     .record-pane .visit-actions button,
     .record-pane .toolbar button.secondary:not(.record-add-btn),
     .record-pane .toolbar button.danger:not(.record-add-btn) {
-      min-height: 30px;
-      padding: 0 10px;
+      min-height: 34px;
+      padding: 0 11px;
       border-radius: 8px;
-      font-size: 11px;
+      font-size: 12px;
       box-shadow: none;
     }
     .attachment-card {
@@ -1603,22 +1607,6 @@
       height: 100%;
       object-fit: cover;
       display: block;
-    }
-    .attachment-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      padding: 8px;
-      margin-top: auto;
-      border-top: 1px solid rgba(15, 23, 42, .06);
-      background: rgba(255,255,255,.88);
-    }
-    .attachment-actions button {
-      min-height: 30px;
-      padding: 4px 8px;
-      border-radius: 7px;
-      font-size: 11px;
-      box-shadow: none;
     }
     .file-hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .settings-grid {
@@ -2566,10 +2554,6 @@
         justify-self: stretch;
         width: 100%;
       }
-      .attachment-actions {
-        padding: 7px;
-        gap: 5px;
-      }
       .record-tabs {
         gap: 4px;
         padding: 3px;
@@ -2786,6 +2770,7 @@
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vehicleSearch" placeholder="내용, 유형, 키로수 검색"></div>
                 <input id="vehicleStartDateSearch" class="toolbar-date" type="date" aria-label="차량 시작일 조회">
                 <input id="vehicleEndDateSearch" class="toolbar-date" type="date" aria-label="차량 종료일 조회">
+                <button type="button" class="secondary" id="vehicleApplySearchBtn">검색</button>
                 <button class="secondary icon record-add-btn" id="addVehicleRecordBtn" type="button" title="점검/수리 추가" aria-label="점검/수리 추가">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                 </button>
@@ -3000,6 +2985,7 @@
       <div class="photo-preview-frame"><img id="photoPreviewImage" alt="레포트 사진 미리보기"></div>
     </div>
     <div class="modal-actions">
+      <button type="button" class="secondary" id="sharePhotoPreviewBtn">공유</button>
       <button type="button" class="secondary" id="closePhotoPreviewDialogBtn">닫기</button>
     </div>
   </dialog>
@@ -4300,8 +4286,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.21";
+    const appVersion = "1.6.22";
     const versionHistory = [
+      {
+        version: "1.6.22",
+        date: "2026-06-19",
+        title: "차량 검색과 사진 미리보기 정리",
+        changes: [
+          "차량관리 기간 검색을 수리일자 기준으로 정리하고 검색 버튼 방식 추가",
+          "기록탭 이미지 크기를 줄이고 사진 미리보기에서 공유 버튼으로 전송 가능하게 개선"
+        ]
+      },
       {
         version: "1.6.21",
         date: "2026-06-19",
@@ -7417,10 +7412,9 @@
       }
       const records = [...(state.vehicle.records || [])]
         .filter(record => {
-          const createdDate = String(record.createdAt || "").slice(0, 10);
-          const inRecordDateRange = (!startDateFilter || record.date >= startDateFilter) && (!endDateFilter || record.date <= endDateFilter);
-          const inCreatedDateRange = createdDate && (!startDateFilter || createdDate >= startDateFilter) && (!endDateFilter || createdDate <= endDateFilter);
-          if (startDateFilter || endDateFilter) return inRecordDateRange || inCreatedDateRange;
+          if ((startDateFilter || endDateFilter) && !record.date) return false;
+          if (startDateFilter && record.date < startDateFilter) return false;
+          if (endDateFilter && record.date > endDateFilter) return false;
           return true;
         })
         .filter(record => {
@@ -8102,10 +8096,6 @@
       if (!items.length) return "";
       return `<div class="attachment-grid">${items.map(item => `<div class="attachment-card">
         <button type="button" class="attachment-thumb" title="사진 미리보기" onclick="previewAttachment('${item.id}')"><img src="${item.dataUrl}" alt="${escapeAttr(item.name || "첨부 사진")}"></button>
-        <div class="attachment-actions">
-          <button type="button" class="secondary" onclick="previewAttachment('${item.id}')">보기</button>
-          <button type="button" class="secondary" onclick="downloadAttachment('${item.id}')">저장</button>
-        </div>
       </div>`).join("")}</div>`;
     }
     async function renderReportList(orgId) {
@@ -8156,6 +8146,12 @@
       photoPreviewTitle.textContent = report.orgName ? `${report.orgName} 레포트` : "레포트 사진";
       photoPreviewSub.textContent = reportDateLabel(report);
       photoPreviewImage.src = report.dataUrl;
+      state.currentPhotoPreviewAsset = {
+        name: `${report.orgName || "report"}-${(report.createdAt || todayISO()).slice(0, 10)}.jpg`,
+        dataUrl: report.dataUrl,
+        title: photoPreviewTitle.textContent,
+        text: photoPreviewSub.textContent
+      };
       photoPreviewDialog.showModal();
     };
     window.previewAttachment = async id => {
@@ -8167,8 +8163,43 @@
       photoPreviewTitle.textContent = item.name || (item.ownerType === "vehicle" ? "수리내역서 사진" : "첨부 사진");
       photoPreviewSub.textContent = item.createdAt ? formatDateTimeWithYear(item.createdAt) : "";
       photoPreviewImage.src = item.dataUrl;
+      state.currentPhotoPreviewAsset = {
+        name: item.name || `${item.ownerType || "attachment"}-${(item.createdAt || todayISO()).slice(0, 10)}.jpg`,
+        dataUrl: item.dataUrl,
+        title: photoPreviewTitle.textContent,
+        text: photoPreviewSub.textContent
+      };
       photoPreviewDialog.showModal();
     };
+    async function dataUrlToFile(dataUrl, fileName = "photo.jpg") {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+    }
+    async function shareCurrentPhotoPreview() {
+      const asset = state.currentPhotoPreviewAsset;
+      if (!asset?.dataUrl) {
+        toast("공유할 사진이 없습니다.");
+        return;
+      }
+      if (!navigator.share) {
+        toast("이 브라우저에서는 공유 기능을 지원하지 않습니다.");
+        return;
+      }
+      try {
+        const file = await dataUrlToFile(asset.dataUrl, asset.name || "photo.jpg");
+        const shareData = { title: asset.title || "사진 공유", text: asset.text || "", files: [file] };
+        if (navigator.canShare && !navigator.canShare(shareData)) {
+          await navigator.share({ title: asset.title || "사진 공유", text: asset.text || "" });
+        } else {
+          await navigator.share(shareData);
+        }
+      } catch (error) {
+        if (String(error?.name || "") === "AbortError") return;
+        console.warn(error);
+        toast("사진 공유를 열지 못했습니다.");
+      }
+    }
     window.downloadAttachment = async id => {
       const item = await getAttachment(id);
       if (!item) {
@@ -8218,6 +8249,7 @@
     closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
     closeReportDialogBtn.onclick = () => reportDialog.close();
     closePhotoPreviewDialogBtn.onclick = () => photoPreviewDialog.close();
+    sharePhotoPreviewBtn.onclick = () => shareCurrentPhotoPreview();
     addReportFromDialogBtn.onclick = () => {
       if (state.currentReportOrgId) captureReport(state.currentReportOrgId);
     };
@@ -9180,6 +9212,7 @@
       state.pendingVehicleFiles = [...(vehiclePhotoInput.files || [])];
       updateVehiclePhotoHint();
     };
+    vehicleApplySearchBtn.onclick = () => renderVehicle();
     closeVehicleRecordDialogBtn.onclick = () => vehicleRecordDialog.close();
     vehicleRecordForm.onsubmit = e => {
       e.preventDefault();
@@ -9430,9 +9463,14 @@
     };
     todoMemoSearch.oninput = renderTodoMemos;
     memoSearch.oninput = renderMemos;
-    vehicleSearch.oninput = renderVehicle;
-    vehicleStartDateSearch.oninput = renderVehicle;
-    vehicleEndDateSearch.oninput = renderVehicle;
+    [vehicleSearch, vehicleStartDateSearch, vehicleEndDateSearch].forEach(input => {
+      input?.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          renderVehicle();
+        }
+      });
+    });
     document.querySelectorAll("[data-record-tab]").forEach(button => {
       button.onclick = () => switchRecordTab(button.dataset.recordTab);
     });
