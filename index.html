@@ -280,7 +280,7 @@
     }
     .record-tabs {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 6px;
       padding: 4px;
       border: 1px solid var(--line);
@@ -290,11 +290,13 @@
     }
     .record-tab {
       min-height: 38px;
+      padding: 0 8px;
       border-radius: 10px;
       background: transparent;
       color: var(--muted);
       box-shadow: none;
       font-weight: 800;
+      white-space: nowrap;
     }
     .record-tab.active {
       background: #fff;
@@ -303,6 +305,25 @@
     }
     .record-pane[hidden] {
       display: none;
+    }
+    .record-action-row {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 8px;
+    }
+    .record-toolbar {
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .record-add-btn {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .08);
+      white-space: nowrap;
+      flex: 0 0 auto;
     }
     .weekly-work-report {
       margin-top: 14px;
@@ -1358,6 +1379,31 @@
     }
     .memo-card h3 { margin: 0 0 6px; font-size: 15px; }
     .memo-card p { margin: 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; line-height: 1.5; }
+    .todo-memo-form {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
+    }
+    .todo-card {
+      border-left: 4px solid var(--blue);
+    }
+    .todo-card.unscheduled {
+      border-left-color: var(--amber);
+    }
+    .todo-card .todo-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 0 0 8px;
+    }
+    .todo-card .todo-body {
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
     .issue-list {
       display: grid;
       gap: 10px;
@@ -1489,15 +1535,19 @@
     .vehicle-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
     .attachment-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-      gap: 8px;
-      margin-top: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+      align-items: stretch;
     }
     .attachment-card {
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: var(--soft);
+      background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(246,249,252,.96));
+      box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
     }
     .attachment-thumb {
       width: 100%;
@@ -1507,7 +1557,7 @@
       border-radius: 0;
       box-shadow: none;
       background: transparent;
-      aspect-ratio: 1;
+      aspect-ratio: 4 / 3;
       display: block;
       overflow: hidden;
     }
@@ -1520,13 +1570,15 @@
     .attachment-actions {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 4px;
-      padding: 5px;
-      background: rgba(255,255,255,.76);
+      gap: 6px;
+      padding: 8px;
+      margin-top: auto;
+      border-top: 1px solid rgba(15, 23, 42, .06);
+      background: rgba(255,255,255,.88);
     }
     .attachment-actions button {
-      min-height: 28px;
-      padding: 4px 6px;
+      min-height: 30px;
+      padding: 4px 8px;
       border-radius: 7px;
       font-size: 11px;
       box-shadow: none;
@@ -2433,6 +2485,32 @@
         min-height: 17px;
         margin: 0 1px;
       }
+      .attachment-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .attachment-actions {
+        padding: 7px;
+        gap: 5px;
+      }
+      .record-tabs {
+        gap: 4px;
+        padding: 3px;
+      }
+      .record-tab {
+        min-height: 34px;
+        padding: 0 4px;
+        font-size: 12px;
+        border-radius: 8px;
+      }
+      .record-toolbar {
+        gap: 7px;
+      }
+      .record-add-btn {
+        min-height: 32px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -2595,19 +2673,31 @@
         <section class="panel">
           <div class="panel-body">
             <div class="record-tabs" role="tablist" aria-label="기록 종류">
-              <button type="button" class="record-tab active" id="recordMemoTab" data-record-tab="memo">기술정보 메모</button>
+              <button type="button" class="record-tab active" id="recordTodoTab" data-record-tab="todo">할일메모</button>
+              <button type="button" class="record-tab" id="recordMemoTab" data-record-tab="memo">기술정보 메모</button>
               <button type="button" class="record-tab" id="recordVehicleTab" data-record-tab="vehicle">차량관리</button>
             </div>
-            <div class="record-pane" id="recordMemoPane">
-              <div class="toolbar">
+            <div class="record-pane" id="recordTodoPane">
+              <div class="record-action-row">
+                <button id="addTodoMemoBtn" class="record-add-btn">할일등록</button>
+              </div>
+              <div class="toolbar record-toolbar">
+                <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="todoMemoSearch" placeholder="제목, 내용, 기관명으로 검색"></div>
+              </div>
+              <div class="memo-list" id="todoMemoList"></div>
+            </div>
+            <div class="record-pane" id="recordMemoPane" hidden>
+              <div class="record-action-row">
+                <button id="addMemoBtn" class="record-add-btn">메모 추가</button>
+              </div>
+              <div class="toolbar record-toolbar">
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="memoSearch" placeholder="키워드, 기관명, 제품명으로 검색"></div>
-                <button id="addMemoBtn">메모 추가</button>
               </div>
               <div class="memo-list" id="memoList"></div>
             </div>
             <div class="record-pane" id="recordVehiclePane" hidden>
-              <div class="toolbar">
-                <button class="secondary" id="addVehicleRecordBtn">점검/수리 추가</button>
+              <div class="record-action-row">
+                <button class="secondary record-add-btn" id="addVehicleRecordBtn">점검/수리 추가</button>
               </div>
               <div class="memo-list" id="vehicleRecordList"></div>
             </div>
@@ -2629,6 +2719,23 @@
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
             </div>
+            <section class="panel" style="margin-top:14px">
+              <div class="panel-head">
+                <div><h3 class="panel-title">팀원 관리</h3><p class="panel-sub">팀 일정에 자주 쓰는 팀원을 이름과 직급으로 저장합니다.</p></div>
+              </div>
+              <div class="panel-body">
+                <div class="settings-grid">
+                  <input type="hidden" id="teamDirectoryMemberId">
+                  <div class="field"><label>성함</label><input id="teamDirectoryMemberName" list="teamMemberNameOptions" placeholder="예: 홍길동"></div>
+                  <div class="field"><label>직급</label><input id="teamDirectoryMemberRole" placeholder="예: 과장"></div>
+                </div>
+                <div class="toolbar" style="margin-top:12px">
+                  <button type="button" id="saveTeamDirectoryMemberBtn">팀원 저장</button>
+                  <button type="button" class="secondary" id="resetTeamDirectoryMemberBtn">입력 초기화</button>
+                </div>
+                <div class="audit-list" id="teamDirectoryList" style="margin-top:12px"></div>
+              </div>
+            </section>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
               <button class="secondary" id="testKakaoBtn">알림 테스트</button>
@@ -2642,6 +2749,8 @@
         </section>
       </section>
     </main>
+
+    <datalist id="teamMemberNameOptions"></datalist>
 
     <nav class="bottom-nav" aria-label="주 메뉴">
       <button class="nav-btn active" data-view="dashboard"><svg viewBox="0 0 24 24"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg><span>대시보드</span></button>
@@ -2733,6 +2842,46 @@
     </form>
   </dialog>
 
+  <dialog id="todoMemoDialog">
+    <form id="todoMemoForm" method="dialog">
+      <div class="modal-body">
+        <h2 class="panel-title" id="todoMemoDialogTitle">할일등록</h2>
+        <div class="todo-memo-form" style="margin-top:14px">
+          <input type="hidden" id="todoMemoId">
+          <div class="form-grid">
+            <div class="field full"><label>제목</label><input id="todoMemoTitle" placeholder="미입력 시 제목없음"></div>
+            <div class="field"><label>일정 종류</label><select id="todoMemoType"><option value="personal">개인일정</option><option value="daily">일상일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
+            <div class="field hidden" id="todoMemoTeamMembersWrap"><label>팀원</label><input id="todoMemoTeamMembers" list="teamMemberNameOptions" placeholder="예: 홍길동, 김담당"></div>
+            <div class="field"><label>기관명</label><input id="todoMemoOrgSearch" list="todoMemoOrgOptions" placeholder="기관명 일부 입력"></div>
+            <datalist id="todoMemoOrgOptions"></datalist>
+            <div class="field"><label>시작일</label><input id="todoMemoDate" type="date"></div>
+            <div class="field"><label>종료일</label><input id="todoMemoEndDate" type="date"></div>
+            <div class="field"><label>작업 시작시간</label><input id="todoMemoStartTime" type="time"></div>
+            <div class="field"><label>작업 종료시간</label><input id="todoMemoEndTime" type="time"></div>
+            <div class="field"><label>반복</label><select id="todoMemoRepeat"><option value="none">반복 안함</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option><option value="yearly">매년</option></select></div>
+            <div class="field full">
+              <label>일정 색상</label>
+              <div class="color-picker" id="todoMemoColorPicker" aria-label="할일메모 일정 색상 선택">
+                <button type="button" class="color-swatch" data-todo-color="blue" style="--swatch:#007aff" title="파랑" aria-label="파랑"></button>
+                <button type="button" class="color-swatch" data-todo-color="green" style="--swatch:#00a889" title="초록" aria-label="초록"></button>
+                <button type="button" class="color-swatch" data-todo-color="purple" style="--swatch:#af52de" title="보라" aria-label="보라"></button>
+                <button type="button" class="color-swatch" data-todo-color="pink" style="--swatch:#ff5ea8" title="분홍" aria-label="분홍"></button>
+                <button type="button" class="color-swatch" data-todo-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황"></button>
+                <button type="button" class="color-swatch" data-todo-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강"></button>
+                <button type="button" class="color-swatch" data-todo-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색"></button>
+              </div>
+            </div>
+            <div class="field full"><label>내용</label><textarea id="todoMemoBody" required placeholder="할일 내용을 입력해주세요."></textarea></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="closeTodoMemoDialogBtn">닫기</button>
+        <button type="submit" id="saveTodoMemoBtn">저장</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="reportDialog">
     <div class="modal-body">
       <h2 class="panel-title" id="reportTitle">레포트 내역</h2>
@@ -2783,7 +2932,11 @@
           <input type="hidden" id="scheduleId">
           <div class="field full"><label>제목</label><input id="scheduleName" placeholder="캘린더에 표시할 제목"></div>
           <div class="field"><label>일정 종류</label><select id="scheduleType"><option value="personal">개인일정</option><option value="daily">일상일정</option><option value="visit">방문일정</option><option value="remote">원격일정</option><option value="team">팀 일정</option></select></div>
-          <div class="field hidden" id="scheduleTeamMembersWrap"><label>팀원</label><input id="scheduleTeamMembers" placeholder="예: 홍길동, 김담당"></div>
+          <div class="field hidden" id="scheduleTeamMembersWrap"><label>팀원</label><input id="scheduleTeamMembers" list="teamMemberNameOptions" placeholder="예: 홍길동, 김담당"></div>
+          <div class="field full hidden" id="scheduleTeamMemberChipsWrap">
+            <label>저장된 팀원</label>
+            <div class="visit-actions" id="scheduleTeamMemberChips"></div>
+          </div>
           <div class="field org-autocomplete">
             <label>기관명</label>
             <input type="hidden" id="scheduleOrgId">
@@ -3040,9 +3193,11 @@
     const state = {
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
+      todoMemos: load("maint_todo_memos", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
       weeklyReports: load("maint_weekly_reports", {}),
+      teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
       settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], tmapKey: "", cloudLastSync: "", libraryAuthKey: "" }),
@@ -3050,7 +3205,7 @@
       draggedOrgId: null,
       todayCopySelections: {},
       scheduleClipboard: null,
-      recordTab: localStorage.getItem("maint_record_tab") || "memo",
+      recordTab: localStorage.getItem("maint_record_tab") || "todo",
       scheduleContextTimer: null,
       maintenanceOrgDrag: null,
       dayContextTimer: null,
@@ -3095,6 +3250,8 @@
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
+    normalizeTodoMemos();
+    normalizeTeamDirectory();
     normalizeVehicle();
     normalizeAdminLogs();
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
@@ -3572,6 +3729,8 @@
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         teamMembers: schedule.teamMembers || "",
+        body: schedule.body || "",
+        todoMemoId: schedule.todoMemoId || "",
         date: schedule.date || todayISO(),
         endDate: schedule.endDate || schedule.date || todayISO(),
         startTime: schedule.startTime || schedule.time || "",
@@ -3722,6 +3881,70 @@
       });
       return merged;
     }
+    function normalizeTeamDirectory() {
+      state.teamDirectory = (Array.isArray(state.teamDirectory) ? state.teamDirectory : [])
+        .filter(member => member && typeof member === "object")
+        .map(member => ({
+          id: member.id || uid(),
+          name: String(member.name || "").trim(),
+          role: String(member.role || "").trim(),
+          updatedAt: member.updatedAt || member.createdAt || new Date().toISOString(),
+          createdAt: member.createdAt || member.updatedAt || new Date().toISOString()
+        }))
+        .filter(member => member.name)
+        .sort((a, b) => a.name.localeCompare(b.name, "ko") || a.role.localeCompare(b.role, "ko"));
+    }
+    function mergeTeamDirectory(localMembers = [], cloudMembers = []) {
+      const byKey = new Map();
+      [...(Array.isArray(localMembers) ? localMembers : []), ...(Array.isArray(cloudMembers) ? cloudMembers : [])].forEach(member => {
+        if (!member || typeof member !== "object") return;
+        const name = String(member.name || "").trim();
+        if (!name) return;
+        const role = String(member.role || "").trim();
+        const key = `${name.toLowerCase()}|${role.toLowerCase()}`;
+        const current = byKey.get(key);
+        const currentTime = Date.parse(current?.updatedAt || current?.createdAt || "") || 0;
+        const incomingTime = Date.parse(member.updatedAt || member.createdAt || "") || 0;
+        if (!current || incomingTime >= currentTime) {
+          byKey.set(key, {
+            id: member.id || current?.id || uid(),
+            name,
+            role,
+            updatedAt: member.updatedAt || new Date().toISOString(),
+            createdAt: member.createdAt || current?.createdAt || member.updatedAt || new Date().toISOString()
+          });
+        }
+      });
+      return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "ko") || a.role.localeCompare(b.role, "ko"));
+    }
+    function teamMemberLabel(member = {}) {
+      return member.role ? `${member.name} · ${member.role}` : member.name || "";
+    }
+    function normalizeTodoMemos() {
+      state.todoMemos = (Array.isArray(state.todoMemos) ? state.todoMemos : [])
+        .filter(item => item && typeof item === "object")
+        .map(item => ({
+          id: item.id || uid(),
+          title: String(item.title || "제목없음").trim() || "제목없음",
+          body: String(item.body || "").trim(),
+          type: ["personal", "daily", "visit", "remote", "team"].includes(item.type) ? item.type : "personal",
+          orgId: item.orgId || "",
+          orgName: item.orgName || "",
+          teamMembers: item.teamMembers || "",
+          date: item.date || "",
+          endDate: item.endDate || item.date || "",
+          startTime: item.startTime || "",
+          endTime: item.endTime || "",
+          color: ["blue", "green", "purple", "pink", "orange", "red", "gray"].includes(item.color)
+            ? item.color
+            : ({ personal: "purple", daily: "pink", visit: "blue", remote: "green", team: "gray" })[item.type || "personal"] || "purple",
+          recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(item.recurrence) ? item.recurrence : "none",
+          scheduleIds: Array.isArray(item.scheduleIds) ? item.scheduleIds.filter(Boolean) : [],
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || ""
+        }))
+        .filter(item => item.body);
+    }
     function logAdminAction(category, action, detail = "") {
       if (!state.adminLogs) state.adminLogs = [];
       state.adminLogs.unshift({
@@ -3738,13 +3961,17 @@
     function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
+      normalizeTodoMemos();
+      normalizeTeamDirectory();
       normalizeVehicle();
       normalizeAdminLogs();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+      localStorage.setItem("maint_todo_memos", JSON.stringify(state.todoMemos));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
       localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
       localStorage.setItem("maint_weekly_reports", JSON.stringify(state.weeklyReports || {}));
+      localStorage.setItem("maint_team_directory", JSON.stringify(state.teamDirectory || []));
       localStorage.setItem("maint_vehicle", JSON.stringify(state.vehicle));
       localStorage.setItem("maint_admin_logs", JSON.stringify(state.adminLogs));
       localStorage.setItem("maint_settings", JSON.stringify(state.settings));
@@ -3963,8 +4190,55 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.13";
+    const appVersion = "1.6.18";
     const versionHistory = [
+      {
+        version: "1.6.18",
+        date: "2026-06-19",
+        title: "기록탭 등록 버튼 위치 조정",
+        changes: [
+          "등록 버튼을 검색줄에서 분리해 각 기록 화면 우측 액션 위치로 이동",
+          "검색창은 검색 전용 영역으로 보이도록 정리"
+        ]
+      },
+      {
+        version: "1.6.17",
+        date: "2026-06-19",
+        title: "기록탭 검색과 등록 버튼 정리",
+        changes: [
+          "할일메모에 검색 기능 추가",
+          "할일메모, 기술정보 메모, 차량관리 등록 버튼 크기와 스타일 정리"
+        ]
+      },
+      {
+        version: "1.6.16",
+        date: "2026-06-19",
+        title: "할일메모 등록 화면 정리",
+        changes: [
+          "할일메모를 목록 중심 페이지로 정리하고 할일등록 버튼으로 입력 팝업을 열도록 변경",
+          "기록탭 상단 메뉴가 모바일에서도 한 줄로 보이도록 조정"
+        ]
+      },
+      {
+        version: "1.6.15",
+        date: "2026-06-19",
+        title: "기록탭 할일메모 추가",
+        changes: [
+          "기록탭 첫 메뉴로 할일메모 신설",
+          "할일메모에 일정 등록 항목과 내용 입력 추가",
+          "날짜가 있는 할일메모는 캘린더 일정으로 자동 등록하고 날짜가 없으면 일정미정으로 보관"
+        ]
+      },
+      {
+        version: "1.6.14",
+        date: "2026-06-19",
+        title: "설정에 팀원 관리 추가",
+        changes: [
+          "설정 화면에서 팀원을 성함과 직급으로 저장, 수정, 삭제 가능",
+          "저장된 팀원을 팀 일정 입력칸에서 빠르게 불러올 수 있게 연결",
+          "팀원 목록을 기기 간 동기화 대상에 포함"
+        ]
+      },
       {
         version: "1.6.13",
         date: "2026-06-18",
@@ -4257,16 +4531,18 @@
       setTimeout(() => renderScheduleOrgSuggestions(false), 160);
     });
     installLongPressCopy(document.getElementById("todayTaskTitle"));
-    function switchRecordTab(tab = "memo") {
-      const normalized = tab === "vehicle" ? "vehicle" : "memo";
+    function switchRecordTab(tab = "todo") {
+      const normalized = ["todo", "memo", "vehicle"].includes(tab) ? tab : "todo";
       state.recordTab = normalized;
       localStorage.setItem("maint_record_tab", normalized);
       document.querySelectorAll(".record-tab").forEach(button => {
         button.classList.toggle("active", button.dataset.recordTab === normalized);
       });
+      recordTodoPane.hidden = normalized !== "todo";
       recordMemoPane.hidden = normalized !== "memo";
       recordVehiclePane.hidden = normalized !== "vehicle";
-      if (normalized === "memo") renderMemos();
+      if (normalized === "todo") renderTodoMemos();
+      else if (normalized === "memo") renderMemos();
       else renderVehicle();
     }
     function switchView(view) {
@@ -4941,9 +5217,9 @@
           note.split(/\n+/).map(line => line.trim()).filter(Boolean)
             .forEach(line => lines.push(`  - 특이사항: ${line}`));
         }
-        return `• ${weeklyLineDateLabel(date)}\n${lines.join("\n")}`;
+        return `? ${weeklyLineDateLabel(date)}\n${lines.join("\n")}`;
       }).filter(Boolean);
-      const body = sections.length ? sections.join("\n") : "• 등록된 일정 및 특이사항 없음";
+      const body = sections.length ? sections.join("\n") : "? 등록된 일정 및 특이사항 없음";
       return { title, body };
     }
     function currentWeeklyReportDraft() {
@@ -5567,9 +5843,9 @@
       const start = startIndex + 1;
       const end = startIndex + visibleCount;
       el.innerHTML = `
-        <button type="button" class="icon tiny secondary" title="이전 페이지" ${state.orgPage <= 1 ? "disabled" : ""} onclick="setOrgPage(${state.orgPage - 1})">‹</button>
+        <button type="button" class="icon tiny secondary" title="이전 페이지" ${state.orgPage <= 1 ? "disabled" : ""} onclick="setOrgPage(${state.orgPage - 1})">?</button>
         <span class="pagination-info">${start}-${end} / ${total} · ${state.orgPage}/${pageCount}</span>
-        <button type="button" class="icon tiny secondary" title="다음 페이지" ${state.orgPage >= pageCount ? "disabled" : ""} onclick="setOrgPage(${state.orgPage + 1})">›</button>
+        <button type="button" class="icon tiny secondary" title="다음 페이지" ${state.orgPage >= pageCount ? "disabled" : ""} onclick="setOrgPage(${state.orgPage + 1})">?</button>
       `;
     }
     window.setOrgPage = page => {
@@ -6608,6 +6884,7 @@
       scheduleOrgSearch.disabled = false;
       scheduleOrgSearch.required = false;
       scheduleTeamMembersWrap.classList.toggle("hidden", scheduleType.value !== "team");
+      renderScheduleTeamMemberHelpers();
       if (!state.scheduleColorTouched) {
         selectScheduleColor(defaultScheduleColor({ type: scheduleType.value }), { persist: false });
       }
@@ -6889,7 +7166,7 @@
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
     closeOnOutsideClick(aiCommandDialog, stopAiListening);
-    [orgDialog, callDialog, memoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -6949,11 +7226,200 @@
       renderVehicle();
       toast("차량 내역을 삭제했습니다.");
     };
+    function resetTeamDirectoryForm() {
+      teamDirectoryMemberId.value = "";
+      teamDirectoryMemberName.value = "";
+      teamDirectoryMemberRole.value = "";
+    }
+    function appendTeamMemberToSchedule(memberName) {
+      const current = scheduleTeamMembers.value.split(",").map(item => item.trim()).filter(Boolean);
+      if (!memberName || current.includes(memberName)) return;
+      current.push(memberName);
+      scheduleTeamMembers.value = current.join(", ");
+      scheduleTeamMembers.focus();
+    }
+    window.appendSavedTeamMember = encodedName => appendTeamMemberToSchedule(decodeURIComponent(encodedName || ""));
+    function renderScheduleTeamMemberHelpers() {
+      const visible = scheduleType.value === "team";
+      scheduleTeamMemberChipsWrap.classList.toggle("hidden", !visible);
+      const members = state.teamDirectory || [];
+      teamMemberNameOptions.innerHTML = members.map(member => `<option value="${escapeHTML(member.name)}" label="${escapeHTML(member.role || "")}"></option>`).join("");
+      if (!visible) return;
+      scheduleTeamMemberChips.innerHTML = members.length
+        ? members.map(member => `<button type="button" class="secondary" title="${escapeHTML(teamMemberLabel(member))}" onclick="appendSavedTeamMember('${encodeURIComponent(member.name)}')">${escapeHTML(member.name)}${member.role ? ` · ${escapeHTML(member.role)}` : ""}</button>`).join("")
+        : '<div class="empty">설정에서 저장한 팀원이 아직 없습니다.</div>';
+    }
+    function renderTeamDirectory() {
+      normalizeTeamDirectory();
+      teamMemberNameOptions.innerHTML = (state.teamDirectory || []).map(member => `<option value="${escapeHTML(member.name)}" label="${escapeHTML(member.role || "")}"></option>`).join("");
+      teamDirectoryList.innerHTML = state.teamDirectory.length
+        ? state.teamDirectory.map(member => `<article class="audit-card">
+            <div class="audit-meta"><span>${escapeHTML(member.name)}</span><span>${escapeHTML(member.role || "직급 미입력")}</span></div>
+            <div class="visit-actions" style="margin-top:10px">
+              <button type="button" class="secondary" onclick="editTeamDirectoryMember('${member.id}')">수정</button>
+              <button type="button" class="danger" onclick="deleteTeamDirectoryMember('${member.id}')">삭제</button>
+            </div>
+          </article>`).join("")
+        : '<div class="empty">저장된 팀원이 없습니다.</div>';
+      renderScheduleTeamMemberHelpers();
+    }
     function renderSettings() {
       kakaoWebhook.value = state.settings.kakaoWebhook || "";
       billingNotice.value = state.settings.billingNotice || "3";
       tmapKey.value = state.settings.tmapKey || "";
+      resetTeamDirectoryForm();
+      renderTeamDirectory();
       updateCloudStatus();
+    }
+    function renderTodoMemoOrgOptions() {
+      todoMemoOrgOptions.innerHTML = (state.orgs || [])
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"))
+        .slice(0, 400)
+        .map(org => `<option value="${escapeAttr(org.name)}" label="${escapeAttr(org.region || org.type || "")}"></option>`)
+        .join("");
+    }
+    function todoMemoOrgIdFromInput() {
+      const value = todoMemoOrgSearch.value.trim();
+      if (!value) return "";
+      const exact = state.orgs.find(org => org.name === value);
+      if (exact) return exact.id;
+      const matches = matchingScheduleOrgs(value, state.orgs.length);
+      return matches.length === 1 ? matches[0].id : "";
+    }
+    function selectTodoMemoColor(color) {
+      const selected = safeScheduleColor(color);
+      state.editingTodoMemoColor = selected;
+      document.querySelectorAll("[data-todo-color]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.todoColor === selected);
+        btn.setAttribute("aria-pressed", btn.dataset.todoColor === selected ? "true" : "false");
+      });
+      return selected;
+    }
+    function resetTodoMemoForm() {
+      todoMemoForm.reset();
+      todoMemoId.value = "";
+      todoMemoDialogTitle.textContent = "할일등록";
+      todoMemoType.value = "personal";
+      todoMemoRepeat.value = "none";
+      todoMemoTeamMembersWrap.classList.add("hidden");
+      selectTodoMemoColor(defaultScheduleColor({ type: "personal" }));
+      renderTodoMemoOrgOptions();
+    }
+    function removeTodoLinkedSchedules(todo = {}) {
+      const ids = new Set(todo.scheduleIds || []);
+      if (!ids.size) return;
+      const targets = state.schedules.filter(schedule => ids.has(schedule.id) || schedule.todoMemoId === todo.id);
+      const googleDeleteIds = targets.flatMap(item => [item.googleEventId, ...(item.googleDuplicateEventIds || [])]).filter(Boolean);
+      if (googleDeleteIds.length) {
+        state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleDeleteIds])];
+      }
+      rememberDeletedSchedules(targets);
+      state.schedules = state.schedules.filter(schedule => !ids.has(schedule.id) && schedule.todoMemoId !== todo.id);
+    }
+    function createSchedulesFromTodo(todo) {
+      if (!todo.date) return [];
+      const base = {
+        id: uid(),
+        type: todo.type,
+        orgId: todo.orgId,
+        title: todo.title || "제목없음",
+        teamMembers: todo.type === "team" ? todo.teamMembers : "",
+        body: todo.body,
+        todoMemoId: todo.id,
+        date: todo.date,
+        endDate: todo.endDate || todo.date,
+        startTime: todo.startTime || "",
+        endTime: todo.endTime || "",
+        color: todo.color || defaultScheduleColor({ type: todo.type }),
+        recurrence: todo.recurrence || "none",
+        recurrenceRootId: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const schedules = recurringScheduleCopies(base, base.recurrence);
+      schedules.forEach(schedule => {
+        schedule.todoMemoId = todo.id;
+        schedule.body = todo.body;
+      });
+      state.schedules.push(...schedules);
+      return schedules;
+    }
+    function todoMemoFromForm(existing = null) {
+      const title = todoMemoTitle.value.trim() || "제목없음";
+      const body = todoMemoBody.value.trim();
+      if (!body) {
+        toast("내용을 입력해주세요.");
+        todoMemoBody.focus();
+        return null;
+      }
+      const date = todoMemoDate.value || "";
+      const endDate = date ? (todoMemoEndDate.value || date) : "";
+      const ordered = date && endDate ? orderedDates(date, endDate) : ["", ""];
+      const orgId = todoMemoOrgIdFromInput();
+      return {
+        id: existing?.id || uid(),
+        title,
+        body,
+        type: todoMemoType.value || "personal",
+        orgId,
+        orgName: todoMemoOrgSearch.value.trim(),
+        teamMembers: todoMemoType.value === "team" ? todoMemoTeamMembers.value.trim() : "",
+        date: ordered[0],
+        endDate: ordered[1],
+        startTime: todoMemoStartTime.value,
+        endTime: todoMemoEndTime.value,
+        color: state.editingTodoMemoColor || defaultScheduleColor({ type: todoMemoType.value }),
+        recurrence: todoMemoRepeat.value || "none",
+        scheduleIds: [],
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
+    function renderTodoMemos() {
+      normalizeTodoMemos();
+      renderTodoMemoOrgOptions();
+      if (!state.editingTodoMemoColor) selectTodoMemoColor(defaultScheduleColor({ type: document.getElementById("todoMemoType")?.value || "personal" }));
+      const keyword = (document.getElementById("todoMemoSearch")?.value || "").trim().toLowerCase();
+      const items = [...state.todoMemos].filter(item => {
+        if (!keyword) return true;
+        const org = item.orgId ? state.orgs.find(orgItem => orgItem.id === item.orgId) : null;
+        return [
+          item.title,
+          item.body,
+          item.orgName,
+          org?.name,
+          org?.region,
+          scheduleTypeLabel(item),
+          item.teamMembers,
+          item.date,
+          item.endDate
+        ].filter(Boolean).join(" ").toLowerCase().includes(keyword);
+      }).sort((a, b) => {
+        const aDate = a.date || "9999-12-31";
+        const bDate = b.date || "9999-12-31";
+        return aDate.localeCompare(bDate) || String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || ""));
+      });
+      todoMemoList.innerHTML = items.length ? items.map(item => {
+        const org = item.orgId ? state.orgs.find(orgItem => orgItem.id === item.orgId) : null;
+        const isScheduled = Boolean(item.date);
+        const dateText = isScheduled ? `${scheduleDateLabel(item)} · ${scheduleTimeLabel(item)}` : "일정미정";
+        const team = item.type === "team" && item.teamMembers ? ` · 팀원: ${item.teamMembers}` : "";
+        const orgText = org ? org.name : item.orgName;
+        return `<article class="memo-card todo-card ${isScheduled ? "" : "unscheduled"}">
+          <div class="todo-meta">
+            <span class="tag ${isScheduled ? "blue" : "amber"}">${escapeHTML(dateText)}</span>
+            <span class="tag">${escapeHTML(scheduleTypeLabel(item))}</span>
+          </div>
+          <h3>${escapeHTML(item.title)}</h3>
+          <p>${escapeHTML([orgText, team.replace(/^ · /, "")].filter(Boolean).join(" · "))}</p>
+          <div class="todo-body">${escapeHTML(item.body)}</div>
+          <div class="visit-actions" style="margin-top:10px">
+            <button type="button" class="secondary" onclick="editTodoMemo('${item.id}')">수정</button>
+            <button type="button" class="danger" onclick="deleteTodoMemo('${item.id}')">삭제</button>
+          </div>
+        </article>`;
+      }).join("") : '<div class="empty">저장된 할일메모가 없습니다.</div>';
     }
     function renderAdminLogs() {
       normalizeAdminLogs();
@@ -6974,16 +7440,18 @@
         <p>${item.changes.map(change => "- " + escapeHTML(change)).join("\n")}</p>
       </article>`).join("");
     }
-    const cloudDataKeys = ["orgs", "schedules", "memos", "dayNotes", "weeklyReports", "vehicle", "adminLogs"];
+    const cloudDataKeys = ["orgs", "schedules", "todoMemos", "memos", "dayNotes", "weeklyReports", "teamDirectory", "vehicle", "adminLogs"];
     function canUseCloudSync() {
       return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
     function applyCloudValue(key, value) {
       if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
       if (key === "schedules" && Array.isArray(value)) state.schedules = [...(state.schedules || []), ...value];
+      if (key === "todoMemos" && Array.isArray(value)) state.todoMemos = value;
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
       if (key === "weeklyReports" && value && typeof value === "object" && !Array.isArray(value)) state.weeklyReports = mergeWeeklyReports(state.weeklyReports || {}, value);
+      if (key === "teamDirectory" && Array.isArray(value)) state.teamDirectory = mergeTeamDirectory(state.teamDirectory || [], value);
       if (key === "vehicle" && value && typeof value === "object") state.vehicle = mergeVehicleData(state.vehicle, value);
       if (key === "adminLogs" && Array.isArray(value)) state.adminLogs = mergeAdminLogs(state.adminLogs || [], value);
     }
@@ -7017,9 +7485,11 @@
       return {
         orgs: uploadableOrgs,
         schedules: state.schedules,
+        todoMemos: state.todoMemos || [],
         memos: state.memos,
         dayNotes: state.dayNotes || {},
         weeklyReports: state.weeklyReports || {},
+        teamDirectory: state.teamDirectory || [],
         vehicle: state.vehicle || { records: [] },
         adminLogs: state.adminLogs || [],
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
@@ -7056,6 +7526,8 @@
       });
       normalizeOrgs();
       normalizeSchedules();
+      normalizeTodoMemos();
+      normalizeTeamDirectory();
       normalizeVehicle();
       normalizeAdminLogs();
       state.settings.cloudLastSync = new Date().toISOString();
@@ -7156,6 +7628,7 @@
       scheduleTodayDestinationMapRender();
       renderCalendar("mainCalendar", false);
       renderOrgs();
+      renderTodoMemos();
       renderMemos();
       renderVehicle();
       renderSettings();
@@ -7893,6 +8366,7 @@
         ? [org.name, org.region, `${org.method} / ${normalizedMaintenanceCycle(org.cycle)}`, `솔루션: ${org.solution || ""}`]
         : [scheduleTypeLabel(schedule)];
       if (schedule.type === "team" && schedule.teamMembers) lines.push(`팀원: ${schedule.teamMembers}`);
+      if (schedule.body) lines.push(`내용: ${schedule.body}`);
       return lines.filter(Boolean).join("\n");
     }
     function scheduleLocation(schedule) {
@@ -8324,6 +8798,68 @@
       a.click();
       URL.revokeObjectURL(a.href);
     };
+    todoMemoType.onchange = () => {
+      todoMemoTeamMembersWrap.classList.toggle("hidden", todoMemoType.value !== "team");
+      selectTodoMemoColor(defaultScheduleColor({ type: todoMemoType.value }));
+    };
+    todoMemoColorPicker.querySelectorAll("[data-todo-color]").forEach(button => {
+      button.onclick = () => selectTodoMemoColor(button.dataset.todoColor);
+    });
+    addTodoMemoBtn.onclick = () => {
+      resetTodoMemoForm();
+      todoMemoDialog.showModal();
+      setTimeout(() => todoMemoBody.focus(), 0);
+    };
+    closeTodoMemoDialogBtn.onclick = () => todoMemoDialog.close();
+    todoMemoForm.onsubmit = event => {
+      event.preventDefault();
+      const existing = state.todoMemos.find(item => item.id === todoMemoId.value);
+      const todo = todoMemoFromForm(existing);
+      if (!todo) return;
+      if (existing) removeTodoLinkedSchedules(existing);
+      const schedules = createSchedulesFromTodo(todo);
+      todo.scheduleIds = schedules.map(schedule => schedule.id);
+      if (existing) Object.assign(existing, todo);
+      else state.todoMemos.unshift(todo);
+      logAdminAction("할일메모", existing ? "할일메모 수정" : "할일메모 등록", `${todo.title} · ${todo.date ? scheduleDateLabel(todo) : "일정미정"}`);
+      save();
+      resetTodoMemoForm();
+      todoMemoDialog.close();
+      render();
+      toast(todo.date ? "할일메모와 캘린더 일정을 저장했습니다." : "할일메모를 일정미정으로 저장했습니다.");
+    };
+    window.editTodoMemo = id => {
+      const todo = state.todoMemos.find(item => item.id === id);
+      if (!todo) return;
+      todoMemoDialogTitle.textContent = "할일수정";
+      todoMemoId.value = todo.id;
+      todoMemoTitle.value = todo.title === "제목없음" ? "" : todo.title;
+      todoMemoType.value = todo.type || "personal";
+      todoMemoTeamMembers.value = todo.teamMembers || "";
+      todoMemoTeamMembersWrap.classList.toggle("hidden", todoMemoType.value !== "team");
+      const org = todo.orgId ? state.orgs.find(item => item.id === todo.orgId) : null;
+      todoMemoOrgSearch.value = org?.name || todo.orgName || "";
+      todoMemoDate.value = todo.date || "";
+      todoMemoEndDate.value = todo.endDate || "";
+      todoMemoStartTime.value = todo.startTime || "";
+      todoMemoEndTime.value = todo.endTime || "";
+      todoMemoRepeat.value = todo.recurrence || "none";
+      todoMemoBody.value = todo.body || "";
+      selectTodoMemoColor(todo.color || defaultScheduleColor(todo));
+      todoMemoDialog.showModal();
+      todoMemoBody.focus();
+    };
+    window.deleteTodoMemo = id => {
+      const todo = state.todoMemos.find(item => item.id === id);
+      if (!todo) return;
+      if (!confirm("이 할일메모를 삭제할까요? 연결된 캘린더 일정도 함께 삭제됩니다.")) return;
+      removeTodoLinkedSchedules(todo);
+      state.todoMemos = state.todoMemos.filter(item => item.id !== id);
+      logAdminAction("할일메모", "할일메모 삭제", `${todo.title} · ${todo.date ? scheduleDateLabel(todo) : "일정미정"}`);
+      save();
+      render();
+      toast("할일메모를 삭제했습니다.");
+    };
     addMemoBtn.onclick = () => { memoForm.reset(); memoId.value = ""; state.pendingMemoFiles = []; updateMemoPhotoHint(); memoDialog.showModal(); };
     memoPhotoInput.onchange = () => {
       state.pendingMemoFiles = [...(memoPhotoInput.files || [])];
@@ -8420,6 +8956,54 @@
         return false;
       }
     }
+    window.editTeamDirectoryMember = id => {
+      const member = (state.teamDirectory || []).find(item => item.id === id);
+      if (!member) return;
+      teamDirectoryMemberId.value = member.id;
+      teamDirectoryMemberName.value = member.name || "";
+      teamDirectoryMemberRole.value = member.role || "";
+    };
+    window.deleteTeamDirectoryMember = id => {
+      const member = (state.teamDirectory || []).find(item => item.id === id);
+      if (!member) return;
+      if (!confirm(`${member.name}${member.role ? " " + member.role : ""} 팀원을 삭제할까요?`)) return;
+      state.teamDirectory = (state.teamDirectory || []).filter(item => item.id !== id);
+      logAdminAction("팀원", "팀원 삭제", teamMemberLabel(member));
+      save();
+      renderTeamDirectory();
+      toast("팀원을 삭제했습니다.");
+    };
+    saveTeamDirectoryMemberBtn.onclick = () => {
+      const name = teamDirectoryMemberName.value.trim();
+      const role = teamDirectoryMemberRole.value.trim();
+      if (!name) {
+        toast("성함을 입력해주세요.");
+        teamDirectoryMemberName.focus();
+        return;
+      }
+      const existing = (state.teamDirectory || []).find(item => item.id === teamDirectoryMemberId.value);
+      const duplicate = (state.teamDirectory || []).find(item => item.id !== existing?.id && item.name === name && item.role === role);
+      if (duplicate) {
+        toast("같은 이름과 직급의 팀원이 이미 있습니다.");
+        return;
+      }
+      const member = {
+        id: existing?.id || uid(),
+        name,
+        role,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      if (existing) Object.assign(existing, member);
+      else state.teamDirectory.push(member);
+      normalizeTeamDirectory();
+      logAdminAction("팀원", existing ? "팀원 수정" : "팀원 등록", teamMemberLabel(member));
+      save();
+      resetTeamDirectoryForm();
+      renderTeamDirectory();
+      toast(existing ? "팀원 정보를 수정했습니다." : "팀원을 저장했습니다.");
+    };
+    resetTeamDirectoryMemberBtn.onclick = () => resetTeamDirectoryForm();
     saveSettingsBtn.onclick = async () => {
       state.settings = {
         ...state.settings,
@@ -8561,6 +9145,7 @@
       state.orgPage = 1;
       renderOrgs();
     };
+    todoMemoSearch.oninput = renderTodoMemos;
     memoSearch.oninput = renderMemos;
     document.querySelectorAll("[data-record-tab]").forEach(button => {
       button.onclick = () => switchRecordTab(button.dataset.recordTab);
@@ -8596,6 +9181,7 @@
   </script>
 </body>
 </html>
+
 
 
 
