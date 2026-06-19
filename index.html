@@ -1558,6 +1558,9 @@
       gap: 14px;
       align-items: start;
     }
+    .record-entry-layout.full {
+      grid-template-columns: minmax(0, 1fr);
+    }
     .record-entry-main {
       min-width: 0;
       display: grid;
@@ -7392,7 +7395,7 @@
       const cards = await Promise.all(list.map(async m => {
         const attachments = await attachmentGrid("memo", m.id);
         return `<article class="memo-card">
-          <div class="record-entry-layout">
+          <div class="record-entry-layout ${attachments ? "" : "full"}">
             <div class="record-entry-main">
               <h3>${escapeHTML(m.title)}</h3><p><b>${escapeHTML(m.tags || "")}</b></p><p>${escapeHTML(m.body)}</p>
               <div class="toolbar" style="margin:10px 0 0"><button class="secondary" onclick="editMemo('${m.id}')">수정</button><button class="danger" onclick="deleteMemo('${m.id}')">삭제</button></div>
@@ -7431,7 +7434,7 @@
       const cards = await Promise.all(records.map(async record => {
         const attachments = await attachmentGrid("vehicle", record.id);
         return `<article class="vehicle-card">
-          <div class="record-entry-layout">
+          <div class="record-entry-layout ${attachments ? "" : "full"}">
             <div class="record-entry-main">
               <h3>${escapeHTML(record.type)} · ${escapeHTML(record.date)}</h3>
               <p>${record.mileage ? Number(record.mileage).toLocaleString() + "km" : "키로수 미입력"} · ${record.cost ? Number(record.cost).toLocaleString() + "원" : "비용 미입력"}</p>
