@@ -2799,6 +2799,7 @@
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
               <div class="field"><label>Gemini API 키</label><input id="geminiApiKey" type="password" autocomplete="off" placeholder="Google AI Studio API 키"></div>
               <div class="field"><label>Gemini 모델</label><input id="geminiModel" autocomplete="off" placeholder="gemini-3.5-flash"></div>
+              <div class="field"><label>AI 답변 음성 재생</label><select id="aiVoiceEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
             </div>
             <section class="panel" style="margin-top:14px">
               <details class="settings-accordion" id="teamDirectorySection">
@@ -3190,6 +3191,7 @@
         <form class="ai-command-input" id="aiCommandForm">
           <input id="aiCommandInput" autocomplete="off" placeholder="말하거나 입력하세요">
           <button type="button" class="icon secondary" id="aiListenBtn" title="말하기" aria-label="말하기" autofocus><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
+          <button type="button" class="icon secondary" id="aiSpeakBtn" title="답변 듣기" aria-label="답변 듣기"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
           <button type="submit">실행</button>
         </form>
         <div class="ai-result" id="aiCommandResult">AI 버튼을 누르면 음성 명령을 들을 준비를 합니다.</div>
@@ -3290,7 +3292,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3335,6 +3337,7 @@
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.geminiApiKey = state.settings.geminiApiKey || "";
     if (!state.settings.geminiModel || state.settings.geminiModel === "gemini-1.5-flash") state.settings.geminiModel = "gemini-3.5-flash";
+    state.settings.aiVoiceEnabled = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -4322,8 +4325,28 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.25";
+    const appVersion = "1.6.27";
     const versionHistory = [
+      {
+        version: "1.6.27",
+        date: "2026-06-20",
+        title: "AI 위치 기반 날씨 조회",
+        changes: [
+          "AI 날씨 질문 시 현재 위치 기반 날씨와 풍속을 조회하도록 추가",
+          "Open-Meteo 대기질 정보로 미세먼지 수치를 함께 안내",
+          "대시보드 지도에서 확인한 현재 위치를 날씨 조회에도 재사용"
+        ]
+      },
+      {
+        version: "1.6.26",
+        date: "2026-06-20",
+        title: "AI 답변 음성 재생 추가",
+        changes: [
+          "AI 답변을 브라우저 한국어 음성으로 바로 읽어주는 기능 추가",
+          "AI 팝업에 답변 다시 듣기 버튼 추가",
+          "설정에서 AI 답변 음성 재생 사용 여부를 선택 가능하게 추가"
+        ]
+      },
       {
         version: "1.6.25",
         date: "2026-06-20",
@@ -5726,6 +5749,48 @@
     function setAiResult(text) {
       aiCommandResult.textContent = text;
     }
+    function aiVoiceAvailable() {
+      return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    }
+    function stopAiSpeech() {
+      try { window.speechSynthesis?.cancel(); } catch {}
+    }
+    function aiSpeechText(text = "") {
+      return String(text || "")
+        .replace(/https?:\/\/\S+/g, "링크")
+        .replace(/[·•]/g, ", ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+    function preferredKoreanVoice() {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      return voices.find(voice => /^ko/i.test(voice.lang) && /female|sora|yuna|google|samsung/i.test(voice.name))
+        || voices.find(voice => /^ko/i.test(voice.lang))
+        || null;
+    }
+    function speakAiResult({ force = false } = {}) {
+      if (!force && state.settings.aiVoiceEnabled === "0") return;
+      if (!aiVoiceAvailable()) {
+        if (force) toast("이 브라우저에서는 음성 재생을 지원하지 않습니다.");
+        return;
+      }
+      const text = aiSpeechText(aiCommandResult.textContent);
+      if (!text) return;
+      stopAiSpeech();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "ko-KR";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      const voice = preferredKoreanVoice();
+      if (voice) utterance.voice = voice;
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.warn(error);
+        if (force) toast("음성 재생을 시작하지 못했습니다.");
+      }
+    }
     function cleanAiTarget(command) {
       return String(command || "")
         .replace(/(\d{4}년\s*)?\d{1,2}월\s*\d{1,2}일/g, " ")
@@ -5917,11 +5982,102 @@
       setAiResult(`메모를 등록했습니다.\n${payload.body}`);
       toast("메모를 등록했습니다.");
     }
-    function handleAiWeather() {
-      const weather = document.getElementById("weatherText")?.textContent || "날씨 정보 없음";
-      const dust = document.getElementById("dustText")?.textContent || "미세먼지 정보 없음";
-      const wind = document.querySelector(".environment-chip[title='풍량'] strong")?.textContent || "풍량 정보 없음";
-      setAiResult(`현장 환경\n날씨: ${weather}\n미세먼지: ${dust}\n풍량: ${wind}`);
+    function weatherCodeLabel(code) {
+      const map = {
+        0: "맑음",
+        1: "대체로 맑음",
+        2: "부분적으로 흐림",
+        3: "흐림",
+        45: "안개",
+        48: "서리 안개",
+        51: "약한 이슬비",
+        53: "이슬비",
+        55: "강한 이슬비",
+        61: "약한 비",
+        63: "비",
+        65: "강한 비",
+        71: "약한 눈",
+        73: "눈",
+        75: "강한 눈",
+        80: "약한 소나기",
+        81: "소나기",
+        82: "강한 소나기",
+        95: "뇌우",
+        96: "우박 동반 뇌우",
+        99: "강한 우박 동반 뇌우"
+      };
+      return map[Number(code)] || "날씨 정보";
+    }
+    function airQualityLabel(pm25) {
+      const value = Number(pm25);
+      if (!Number.isFinite(value)) return "정보 없음";
+      if (value <= 15) return `좋음 (${value.toFixed(0)}㎍/㎥)`;
+      if (value <= 35) return `보통 (${value.toFixed(0)}㎍/㎥)`;
+      if (value <= 75) return `나쁨 (${value.toFixed(0)}㎍/㎥)`;
+      return `매우 나쁨 (${value.toFixed(0)}㎍/㎥)`;
+    }
+    function getCurrentPositionForWeather() {
+      if (state.currentPosition?.lat && state.currentPosition?.lng) return Promise.resolve(state.currentPosition);
+      if (!navigator.geolocation) return Promise.reject(new Error("geolocation unavailable"));
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(position => {
+          state.currentPosition = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          updateCurrentLocationMarker();
+          resolve(state.currentPosition);
+        }, reject, {
+          enableHighAccuracy: true,
+          timeout: 9000,
+          maximumAge: 120000
+        });
+      });
+    }
+    async function fetchCurrentWeather(position) {
+      const latitude = Number(position.lat).toFixed(5);
+      const longitude = Number(position.lng).toFixed(5);
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m&timezone=Asia%2FSeoul`;
+      const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=pm10,pm2_5,us_aqi&timezone=Asia%2FSeoul`;
+      const [weatherResponse, airResponse] = await Promise.all([
+        fetch(weatherUrl, { headers: { Accept: "application/json" } }),
+        fetch(airUrl, { headers: { Accept: "application/json" } }).catch(() => null)
+      ]);
+      if (!weatherResponse.ok) throw new Error("weather fetch failed");
+      const weather = await weatherResponse.json();
+      const air = airResponse?.ok ? await airResponse.json() : {};
+      return { weather: weather.current || {}, air: air.current || {} };
+    }
+    async function handleAiWeather() {
+      setAiStatus("날씨 조회 중");
+      setAiResult("현재 위치 기준 날씨를 확인하는 중입니다.");
+      try {
+        const position = await getCurrentPositionForWeather();
+        const { weather, air } = await fetchCurrentWeather(position);
+        const temperature = Number(weather.temperature_2m);
+        const apparent = Number(weather.apparent_temperature);
+        const humidity = Number(weather.relative_humidity_2m);
+        const wind = Number(weather.wind_speed_10m);
+        const gust = Number(weather.wind_gusts_10m);
+        const precipitation = Number(weather.precipitation);
+        const lines = [
+          "현재 위치 기준 현장 환경",
+          `날씨: ${weatherCodeLabel(weather.weather_code)}${Number.isFinite(temperature) ? `, ${temperature.toFixed(1)}도` : ""}${Number.isFinite(apparent) ? `, 체감 ${apparent.toFixed(1)}도` : ""}`,
+          `풍량: ${Number.isFinite(wind) ? `${wind.toFixed(1)}km/h` : "정보 없음"}${Number.isFinite(gust) ? `, 순간풍속 ${gust.toFixed(1)}km/h` : ""}`,
+          `습도: ${Number.isFinite(humidity) ? `${humidity.toFixed(0)}%` : "정보 없음"}`,
+          `강수량: ${Number.isFinite(precipitation) ? `${precipitation.toFixed(1)}mm` : "정보 없음"}`,
+          `미세먼지: ${airQualityLabel(air.pm2_5)}${Number.isFinite(Number(air.pm10)) ? `, PM10 ${Number(air.pm10).toFixed(0)}㎍/㎥` : ""}`
+        ];
+        setAiResult(lines.join("\n"));
+      } catch (error) {
+        console.warn(error);
+        const weather = document.getElementById("weatherText")?.textContent || "날씨 정보 없음";
+        const dust = document.getElementById("dustText")?.textContent || "미세먼지 정보 없음";
+        const wind = document.querySelector(".environment-chip[title='풍량'] strong")?.textContent || "풍량 정보 없음";
+        setAiResult(`현재 위치 날씨를 불러오지 못했습니다. 위치 권한 또는 네트워크를 확인해주세요.\n\n기존 표시 정보\n날씨: ${weather}\n미세먼지: ${dust}\n풍량: ${wind}`);
+      } finally {
+        setAiStatus("대기 중");
+      }
     }
     function handleAiCall(command) {
       const org = findOrgForAi(command);
@@ -6055,10 +6211,11 @@
       aiCommandInput.value = text;
       if (!text) {
         setAiResult("명령을 듣지 못했습니다.");
+        speakAiResult();
         return;
       }
       if (/날씨|미세먼지|풍량|현장환경|현장 환경/.test(text)) {
-        handleAiWeather();
+        await handleAiWeather();
       } else if (/(전화.*(걸|해|연결)|연락.*(해|연결)|전화좀|전화 좀)/.test(text)) {
         handleAiCall(text);
       } else if (/길찾기|네비|내비|티맵|tmap|Tmap|가는길/.test(text)) {
@@ -6078,6 +6235,7 @@
       } else {
         await askGemini(text);
       }
+      speakAiResult();
     }
     function speechRecognitionClass() {
       return window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -7535,8 +7693,10 @@
       startAiListening();
     };
     aiListenBtn.onclick = startAiListening;
+    aiSpeakBtn.onclick = () => speakAiResult({ force: true });
     closeAiCommandDialogBtn.onclick = () => {
       stopAiListening();
+      stopAiSpeech();
       aiCommandDialog.close();
     };
     aiCommandForm.onsubmit = event => {
@@ -7557,7 +7717,10 @@
       });
     }
     closeOnOutsideClick(scheduleDialog, () => saveScheduleFromForm({ closeAfter: false }));
-    closeOnOutsideClick(aiCommandDialog, stopAiListening);
+    closeOnOutsideClick(aiCommandDialog, () => {
+      stopAiListening();
+      stopAiSpeech();
+    });
     [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
@@ -7698,6 +7861,7 @@
       tmapKey.value = state.settings.tmapKey || "";
       geminiApiKey.value = state.settings.geminiApiKey || "";
       geminiModel.value = state.settings.geminiModel || "gemini-3.5-flash";
+      aiVoiceEnabled.value = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
       resetTeamDirectoryForm();
       renderTeamDirectory();
       updateCloudStatus();
@@ -9513,9 +9677,10 @@
         billingNotice: billingNotice.value,
         tmapKey: tmapKey.value.trim(),
         geminiApiKey: geminiApiKey.value.trim(),
-        geminiModel: geminiModel.value.trim() || "gemini-3.5-flash"
+        geminiModel: geminiModel.value.trim() || "gemini-3.5-flash",
+        aiVoiceEnabled: aiVoiceEnabled.value === "0" ? "0" : "1"
       };
-      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap, Gemini 설정을 저장했습니다.");
+      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap, Gemini, AI 음성 설정을 저장했습니다.");
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
