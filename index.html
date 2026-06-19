@@ -306,23 +306,35 @@
     .record-pane[hidden] {
       display: none;
     }
-    .record-action-row {
-      display: flex;
-      justify-content: flex-end;
-      margin: 0 0 8px;
-    }
     .record-toolbar {
+      display: flex;
+      flex-wrap: wrap;
       align-items: center;
       margin-bottom: 12px;
     }
     .record-add-btn {
-      min-height: 34px;
-      padding: 0 12px;
+      width: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      padding: 0;
       border-radius: 999px;
-      font-size: 12px;
-      font-weight: 800;
       box-shadow: 0 8px 18px rgba(15, 23, 42, .08);
-      white-space: nowrap;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+    .record-add-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    .toolbar-date {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      color: var(--ink);
+      font: inherit;
       flex: 0 0 auto;
     }
     .weekly-work-report {
@@ -2507,6 +2519,15 @@
         gap: 7px;
       }
       .record-add-btn {
+        width: 32px;
+        min-width: 32px;
+        min-height: 32px;
+      }
+      .record-add-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+      .toolbar-date {
         min-height: 32px;
         padding: 0 10px;
         font-size: 11px;
@@ -2678,26 +2699,31 @@
               <button type="button" class="record-tab" id="recordVehicleTab" data-record-tab="vehicle">차량관리</button>
             </div>
             <div class="record-pane" id="recordTodoPane">
-              <div class="record-action-row">
-                <button id="addTodoMemoBtn" class="record-add-btn">할일등록</button>
-              </div>
               <div class="toolbar record-toolbar">
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="todoMemoSearch" placeholder="제목, 내용, 기관명으로 검색"></div>
+                <button id="addTodoMemoBtn" class="secondary icon record-add-btn" type="button" title="할일등록" aria-label="할일등록">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </button>
               </div>
               <div class="memo-list" id="todoMemoList"></div>
             </div>
             <div class="record-pane" id="recordMemoPane" hidden>
-              <div class="record-action-row">
-                <button id="addMemoBtn" class="record-add-btn">메모 추가</button>
-              </div>
               <div class="toolbar record-toolbar">
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="memoSearch" placeholder="키워드, 기관명, 제품명으로 검색"></div>
+                <button id="addMemoBtn" class="secondary icon record-add-btn" type="button" title="메모 추가" aria-label="메모 추가">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </button>
               </div>
               <div class="memo-list" id="memoList"></div>
             </div>
             <div class="record-pane" id="recordVehiclePane" hidden>
-              <div class="record-action-row">
-                <button class="secondary record-add-btn" id="addVehicleRecordBtn">점검/수리 추가</button>
+              <div class="toolbar record-toolbar">
+                <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vehicleSearch" placeholder="내용, 유형, 키로수 검색"></div>
+                <input id="vehicleStartDateSearch" class="toolbar-date" type="date" aria-label="차량 시작일 조회">
+                <input id="vehicleEndDateSearch" class="toolbar-date" type="date" aria-label="차량 종료일 조회">
+                <button class="secondary icon record-add-btn" id="addVehicleRecordBtn" type="button" title="점검/수리 추가" aria-label="점검/수리 추가">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                </button>
               </div>
               <div class="memo-list" id="vehicleRecordList"></div>
             </div>
@@ -4190,8 +4216,26 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.18";
+    const appVersion = "1.6.20";
     const versionHistory = [
+      {
+        version: "1.6.20",
+        date: "2026-06-19",
+        title: "차량관리 기간 검색 추가",
+        changes: [
+          "차량관리 날짜 검색을 단일 날짜에서 시작일과 종료일 기반 기간 검색으로 변경",
+          "차량 점검과 수리 내역을 기간별로 더 쉽게 조회할 수 있도록 정리"
+        ]
+      },
+      {
+        version: "1.6.19",
+        date: "2026-06-19",
+        title: "기록탭 버튼과 차량 검색 개선",
+        changes: [
+          "할일메모, 기술정보 메모, 차량관리의 등록 버튼을 검색창 우측 원형 + 아이콘으로 통일",
+          "차량관리 탭에 키워드 검색과 날짜 조회를 추가"
+        ]
+      },
       {
         version: "1.6.18",
         date: "2026-06-19",
@@ -7182,7 +7226,26 @@
       document.getElementById("memoList").innerHTML = cards.length ? cards.join("") : '<div class="empty">저장된 기술 메모가 없습니다.</div>';
     }
     async function renderVehicle() {
-      const records = [...(state.vehicle.records || [])].sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
+      const keyword = (document.getElementById("vehicleSearch")?.value || "").trim().toLowerCase();
+      const startDateFilter = document.getElementById("vehicleStartDateSearch")?.value || "";
+      const endDateFilter = document.getElementById("vehicleEndDateSearch")?.value || "";
+      const records = [...(state.vehicle.records || [])]
+        .filter(record => {
+          if (startDateFilter && record.date < startDateFilter) return false;
+          if (endDateFilter && record.date > endDateFilter) return false;
+          return true;
+        })
+        .filter(record => {
+          if (!keyword) return true;
+          return [
+            record.type,
+            record.body,
+            record.date,
+            record.mileage ? `${record.mileage}` : "",
+            record.cost ? `${record.cost}` : ""
+          ].join(" ").toLowerCase().includes(keyword);
+        })
+        .sort((a, b) => `${b.date} ${b.createdAt}`.localeCompare(`${a.date} ${a.createdAt}`));
       const cards = await Promise.all(records.map(async record => `<article class="vehicle-card">
         <h3>${escapeHTML(record.type)} · ${escapeHTML(record.date)}</h3>
         <p>${record.mileage ? Number(record.mileage).toLocaleString() + "km" : "키로수 미입력"} · ${record.cost ? Number(record.cost).toLocaleString() + "원" : "비용 미입력"}</p>
@@ -7193,7 +7256,7 @@
           <button class="danger" onclick="deleteVehicleRecord('${record.id}')">삭제</button>
         </div>
       </article>`));
-      vehicleRecordList.innerHTML = cards.length ? cards.join("") : '<div class="empty">저장된 차량 점검/수리 내역이 없습니다.</div>';
+      vehicleRecordList.innerHTML = cards.length ? cards.join("") : '<div class="empty">조건에 맞는 차량 점검/수리 내역이 없습니다.</div>';
     }
     function clearVehicleRecordForm() {
       vehicleRecordForm.reset();
@@ -9147,6 +9210,9 @@
     };
     todoMemoSearch.oninput = renderTodoMemos;
     memoSearch.oninput = renderMemos;
+    vehicleSearch.oninput = renderVehicle;
+    vehicleStartDateSearch.oninput = renderVehicle;
+    vehicleEndDateSearch.oninput = renderVehicle;
     document.querySelectorAll("[data-record-tab]").forEach(button => {
       button.onclick = () => switchRecordTab(button.dataset.recordTab);
     });
