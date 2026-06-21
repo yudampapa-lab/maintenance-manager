@@ -2668,7 +2668,7 @@
             </section>
             <section class="panel">
               <div class="panel-head">
-                <div><h2 class="panel-title">내일 할일</h2><p class="panel-sub">다음 방문 준비 목록</p></div>
+                <div><h2 class="panel-title" id="tomorrowTaskTitle">내일 할일</h2><p class="panel-sub">다음 방문 준비 목록</p></div>
                 <span class="tag blue" id="tomorrowDateTag"></span>
               </div>
               <div class="panel-body"><div class="visit-list" id="tomorrowVisits"></div></div>
@@ -3149,7 +3149,7 @@
 
   <dialog id="todayCopyDialog">
     <div class="modal-body">
-      <h2 class="panel-title">오늘 할일 복사</h2>
+      <h2 class="panel-title" id="todayCopyTitle">오늘 할일 복사</h2>
       <p class="panel-sub" id="todayCopySub"></p>
       <div class="copy-schedule-list" id="todayCopyList"></div>
     </div>
@@ -3296,6 +3296,7 @@
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
+      todayCopyDate: "",
       scheduleClipboard: null,
       recordTab: localStorage.getItem("maint_record_tab") || "todo",
       scheduleContextTimer: null,
@@ -4325,8 +4326,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.27";
+    const appVersion = "1.6.28";
     const versionHistory = [
+      {
+        version: "1.6.28",
+        date: "2026-06-21",
+        title: "내일 할일 클립보드 복사 추가",
+        changes: [
+          "오늘 할일 길게 누르기 복사 기능을 내일 할일에도 동일하게 적용",
+          "복사 팝업 제목과 메시지 문구가 오늘/내일 날짜에 맞게 바뀌도록 개선",
+          "방문, 원격, 팀, 개인 일정 선택 복사 방식을 내일 일정에도 그대로 지원"
+        ]
+      },
       {
         version: "1.6.27",
         date: "2026-06-20",
@@ -4763,7 +4774,8 @@
     todoMemoOrgSearch.addEventListener("blur", () => {
       setTimeout(() => renderTodoMemoOrgSuggestions(false), 160);
     });
-    installLongPressCopy(document.getElementById("todayTaskTitle"));
+    installLongPressCopy(document.getElementById("todayTaskTitle"), () => todayISO());
+    installLongPressCopy(document.getElementById("tomorrowTaskTitle"), () => todayISO(1));
     function switchRecordTab(tab = "todo") {
       const normalized = ["todo", "memo", "vehicle"].includes(tab) ? tab : "todo";
       state.recordTab = normalized;
@@ -5246,9 +5258,18 @@
       return todayCopySchedules()
         .filter(schedule => state.todayCopySelections[schedule.id] !== false);
     }
+    function todayCopyDate() {
+      return state.todayCopyDate || todayISO();
+    }
+    function todayCopyLabel(date = todayCopyDate()) {
+      if (date === todayISO()) return "오늘";
+      if (date === todayISO(1)) return "내일";
+      return "선택한 날";
+    }
     function todayMessengerText() {
       const schedules = selectedTodaySchedules();
       if (!schedules.length) return "";
+      const date = todayCopyDate();
       const visitNames = schedules
         .filter(schedule => schedule.type === "visit" || schedule.type === "org")
         .map(scheduleCopyName)
@@ -5270,7 +5291,7 @@
       if (remoteNames.length) sections.push(`【원격 일정】\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
       if (teamNames.length) sections.push(`【팀 일정】\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
       if (personalNames.length) sections.push(`【개인 일정】\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
-      return `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}`;
+      return `[${todayCopyLabel(date)}의 유지보수 일정 - ${messengerDateLabel(date)}]\n\n${sections.join("\n\n")}`;
     }
     async function copyTextToClipboard(text) {
       if (navigator.clipboard && window.isSecureContext) {
@@ -5295,7 +5316,7 @@
           return false;
         }
         await copyTextToClipboard(text);
-        toast("오늘 유지보수 일정이 복사되었습니다.");
+        toast(`${todayCopyLabel()} 유지보수 일정이 복사되었습니다.`);
         return true;
       } catch (error) {
         console.warn(error);
@@ -5304,11 +5325,13 @@
       }
     }
     function todayCopySchedules() {
-      return sortedSchedules(todayISO());
+      return sortedSchedules(todayCopyDate());
     }
     function renderTodayCopyDialog() {
       const items = todayCopySchedules();
-      todayCopySub.textContent = items.length ? `${items.length}개 일정` : "등록된 오늘 일정이 없습니다.";
+      const label = todayCopyLabel();
+      todayCopyTitle.textContent = `${label} 할일 복사`;
+      todayCopySub.textContent = items.length ? `${items.length}개 일정` : `등록된 ${label} 일정이 없습니다.`;
       todayCopyList.innerHTML = items.length ? items.map(schedule => {
         const org = orgForSchedule(schedule);
         const checked = state.todayCopySelections[schedule.id] !== false ? "checked" : "";
@@ -5321,14 +5344,16 @@
         </label>`;
       }).join("") : '<div class="empty">복사할 일정이 없습니다.</div>';
     }
-    function openTodayCopyDialog() {
+    function openTodayCopyDialog(date = todayISO()) {
+      state.todayCopyDate = date || todayISO();
       const items = todayCopySchedules();
       state.todayCopySelections = {};
       items.forEach(schedule => { state.todayCopySelections[schedule.id] = true; });
       renderTodayCopyDialog();
       todayCopyDialog.showModal();
     }
-    function installLongPressCopy(el) {
+    function installLongPressCopy(el, dateGetter = () => todayISO()) {
+      if (!el) return;
       let timer = null;
       let startX = 0;
       let startY = 0;
@@ -5345,7 +5370,7 @@
           timer = null;
           event.preventDefault();
           hapticTap(18);
-          openTodayCopyDialog();
+          openTodayCopyDialog(dateGetter());
         }, 650);
       });
       el.addEventListener("pointermove", event => {
