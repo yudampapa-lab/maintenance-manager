@@ -1531,7 +1531,8 @@
       max-height: min(72vh, 680px);
       object-fit: contain;
     }
-    #todayTaskTitle {
+    #todayTaskTitle,
+    #tomorrowTaskTitle {
       touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
@@ -3034,6 +3035,15 @@
             <input id="scheduleOrgSearch" autocomplete="off" placeholder="기관명 일부만 입력">
             <div class="org-suggestions" id="scheduleOrgSuggestions"></div>
           </div>
+          <div class="field"><label>방문사유</label><select id="scheduleVisitReason">
+            <option value="">사유없음</option>
+            <option value="유지보수 방문">유지보수 방문</option>
+            <option value="장애처리">장애처리</option>
+            <option value="담당자 미팅">담당자 미팅</option>
+            <option value="담당자 교육">담당자 교육</option>
+            <option value="기타 사유">기타 사유</option>
+            <option value="업체 미팅">업체 미팅</option>
+          </select></div>
           <div class="field"><label>시작일</label><input id="scheduleDate" type="date" required></div>
           <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
@@ -3826,6 +3836,7 @@
         orgId: schedule.orgId || "",
         title: schedule.title || "일정",
         teamMembers: schedule.teamMembers || "",
+        visitReason: schedule.visitReason === "사유없음" ? "" : (schedule.visitReason || ""),
         body: schedule.body || "",
         todoMemoId: schedule.todoMemoId || "",
         date: schedule.date || todayISO(),
@@ -3864,7 +3875,8 @@
         schedule.endTime || "",
         schedule.orgId || "",
         schedule.type || "",
-        schedule.teamMembers || ""
+        schedule.teamMembers || "",
+        schedule.visitReason || ""
       ].join("|");
     }
     function scheduleContentKey(schedule = {}) {
@@ -3876,7 +3888,8 @@
         schedule.endTime || "",
         schedule.orgId || "",
         schedule.type || "",
-        schedule.teamMembers || ""
+        schedule.teamMembers || "",
+        schedule.visitReason || ""
       ].join("|");
     }
     function betterSchedule(base, next) {
@@ -4326,8 +4339,29 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.28";
+    const appVersion = "1.6.30";
     const versionHistory = [
+      {
+        version: "1.6.30",
+        date: "2026-06-22",
+        title: "방문사유 선택 목록화",
+        changes: [
+          "일정 방문사유를 직접 입력에서 선택 목록 방식으로 변경",
+          "사유없음, 유지보수 방문, 장애처리, 담당자 미팅, 담당자 교육, 기타 사유, 업체 미팅 순서로 제공",
+          "사유없음은 화면과 클립보드 문구에 표시되지 않도록 처리"
+        ]
+      },
+      {
+        version: "1.6.29",
+        date: "2026-06-22",
+        title: "일정 방문사유 추가",
+        changes: [
+          "일정 등록과 수정 화면에 방문사유 입력 항목 추가",
+          "오늘 할일, 내일 할일, 날짜 일정 목록에 방문사유 표시",
+          "오늘/내일 할일 클립보드 문구에 방문사유와 팀원 정보를 함께 반영",
+          "내일 할일 길게 누르기 시 텍스트가 선택되는 문제 보완"
+        ]
+      },
       {
         version: "1.6.28",
         date: "2026-06-21",
@@ -5123,6 +5157,14 @@
       }, 360);
     }
     window.requestTodayMapLocation = requestTodayMapLocation;
+    function scheduleVisitReasonLabel(schedule = {}) {
+      const value = String(schedule.visitReason || "").trim();
+      return value === "사유없음" ? "" : value;
+    }
+    function baseScheduleCopyName(schedule) {
+      const org = orgForSchedule(schedule);
+      return org ? org.name : schedule.title;
+    }
     function scheduleTextForClipboard(schedule) {
       if (schedule.type === "team" && schedule.teamMembers) return `${schedule.title || ""} (${formatTeamMembersWithRoles(schedule.teamMembers)})`;
       return schedule.title || "";
@@ -5135,6 +5177,7 @@
         orgId: schedule.orgId || "",
         title: schedule.title || "",
         teamMembers: schedule.teamMembers || "",
+        visitReason: schedule.visitReason || "",
         startTime: schedule.startTime || "",
         endTime: schedule.endTime || "",
         color: schedule.color || "",
@@ -5160,6 +5203,7 @@
         orgId: clip.orgId || "",
         title: clip.title || "일정",
         teamMembers: clip.teamMembers || "",
+        visitReason: clip.visitReason || "",
         date,
         endDate: addDaysISO(date, Number(clip.duration || 0)),
         startTime: clip.startTime || "",
@@ -5247,12 +5291,17 @@
       return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
     }
     function scheduleCopyName(schedule) {
-      const org = orgForSchedule(schedule);
-      return org ? org.name : schedule.title;
+      const name = baseScheduleCopyName(schedule);
+      const reason = scheduleVisitReasonLabel(schedule);
+      return reason ? `${name}(${reason})` : name;
     }
     function teamScheduleCopyName(schedule) {
-      const name = scheduleCopyName(schedule);
-      return schedule.teamMembers ? `${name} (팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)})` : name;
+      const name = baseScheduleCopyName(schedule);
+      const parts = [];
+      const reason = scheduleVisitReasonLabel(schedule);
+      if (reason) parts.push(reason);
+      if (schedule.teamMembers) parts.push(`팀원:${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      return parts.length ? `${name} (${parts.join(" / ")})` : name;
     }
     function selectedTodaySchedules() {
       return todayCopySchedules()
@@ -5287,10 +5336,10 @@
         .map(scheduleCopyName)
         .filter(Boolean);
       const sections = [];
-      if (visitNames.length) sections.push(`【방문 일정】\n${visitNames.join(", ")} 다녀오겠습니다.`);
-      if (remoteNames.length) sections.push(`【원격 일정】\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
-      if (teamNames.length) sections.push(`【팀 일정】\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
-      if (personalNames.length) sections.push(`【개인 일정】\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
+      if (visitNames.length) sections.push(`[방문일정]\n${visitNames.join(", ")} 다녀오겠습니다.`);
+      if (remoteNames.length) sections.push(`[원격일정]\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
+      if (teamNames.length) sections.push(`[팀 일정]\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
+      if (personalNames.length) sections.push(`[개인 일정]\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
       return `[${todayCopyLabel(date)}의 유지보수 일정 - ${messengerDateLabel(date)}]\n\n${sections.join("\n\n")}`;
     }
     async function copyTextToClipboard(text) {
@@ -5337,7 +5386,9 @@
         const checked = state.todayCopySelections[schedule.id] !== false ? "checked" : "";
         const main = scheduleCopyName(schedule);
         const team = schedule.type === "team" && schedule.teamMembers ? ` · 팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)}` : "";
-        const meta = org ? `${scheduleTypeLabel(schedule)} · ${schedule.title} · ${org.region}${team} · ${scheduleTimeLabel(schedule)}` : `${scheduleTypeLabel(schedule)}${team} · ${scheduleTimeLabel(schedule)}`;
+        const reason = scheduleVisitReasonLabel(schedule);
+        const reasonText = reason ? ` · 방문사유: ${reason}` : "";
+        const meta = org ? `${scheduleTypeLabel(schedule)} · ${schedule.title} · ${org.region}${reasonText}${team} · ${scheduleTimeLabel(schedule)}` : `${scheduleTypeLabel(schedule)}${reasonText}${team} · ${scheduleTimeLabel(schedule)}`;
         return `<label class="copy-schedule-item" ${scheduleColorStyleAttr(schedule)}>
           <input type="checkbox" ${checked} onchange="toggleTodayCopySchedule('${schedule.id}', this.checked)">
           <div><strong>${escapeHTML(main)}</strong><span>${escapeHTML(meta)}</span></div>
@@ -5363,6 +5414,7 @@
       };
       el.addEventListener("pointerdown", event => {
         if (event.button && event.button !== 0) return;
+        event.preventDefault();
         startX = event.clientX;
         startY = event.clientY;
         clear();
@@ -5378,6 +5430,7 @@
       });
       ["pointerup", "pointercancel", "pointerleave"].forEach(name => el.addEventListener(name, clear));
       el.addEventListener("contextmenu", event => event.preventDefault());
+      el.addEventListener("selectstart", event => event.preventDefault());
     }
     function installLongPressAction(el, action, delay = 560) {
       if (!el) return;
@@ -5552,10 +5605,11 @@
       const org = orgForSchedule(schedule);
       const meta = org ? `${scheduleTypeLabel(schedule)} · ${org.name} · ${org.region}` : scheduleTypeLabel(schedule);
       const team = schedule.type === "team" && schedule.teamMembers ? ` · 팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)}` : "";
+      const reason = scheduleVisitReasonLabel(schedule) ? ` · 방문사유: ${scheduleVisitReasonLabel(schedule)}` : "";
       return `<article class="day-schedule-item" data-schedule-id="${schedule.id}" ${scheduleColorStyleAttr(schedule)}>
         <div>
           <h3>${escapeHTML(schedule.title)}</h3>
-          <p>${escapeHTML(meta)}${escapeHTML(team)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</p>
+          <p>${escapeHTML(meta)}${escapeHTML(reason)}${escapeHTML(team)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</p>
         </div>
         <div class="visit-actions">
           <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
@@ -5629,12 +5683,14 @@
     function scheduleCard(schedule, options = {}) {
       const o = orgForSchedule(schedule);
       const teamLine = schedule.type === "team" && schedule.teamMembers ? `<div class="visit-meta">팀원: ${escapeHTML(formatTeamMembersWithRoles(schedule.teamMembers))}</div>` : "";
+      const reasonLine = scheduleVisitReasonLabel(schedule) ? `<div class="visit-meta">방문사유: ${escapeHTML(scheduleVisitReasonLabel(schedule))}</div>` : "";
       if (!o) {
         return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <span class="tag gray">개인</span>
           </div>
+          ${reasonLine}
           ${teamLine}
           <div class="visit-actions">
             <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
@@ -5652,6 +5708,7 @@
           ${o.cycle && normalizedMaintenanceCycle(o.cycle) !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${cycleLabelHTML(o.cycle)}</span>` : ""}
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        ${reasonLine}
         ${teamLine}
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
         <div class="visit-meta">주요 담당자: ${escapeHTML(contact.name || "미등록")} · 특이사항 ${(o.issues || []).length}건</div>
@@ -5677,6 +5734,7 @@
         schedule.startTime,
         schedule.endTime,
         schedule.teamMembers,
+        schedule.visitReason,
         org?.name,
         org?.region,
         org?.type,
@@ -7493,6 +7551,7 @@
       scheduleOrgSearch.value = org ? org.name : "";
       scheduleName.value = schedule.title || "";
       scheduleTeamMembers.value = schedule.teamMembers || "";
+      scheduleVisitReason.value = schedule.visitReason || "";
       scheduleDate.value = schedule.date || todayISO();
       scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
@@ -7526,6 +7585,7 @@
         orgId,
         title,
         teamMembers: type === "team" ? scheduleTeamMembers.value.trim() : "",
+        visitReason: scheduleVisitReason.value.trim(),
         date,
         endDate,
         startTime: scheduleStartTime.value,
@@ -9049,6 +9109,7 @@
       const lines = org
         ? [org.name, org.region, `${org.method} / ${normalizedMaintenanceCycle(org.cycle)}`, `솔루션: ${org.solution || ""}`]
         : [scheduleTypeLabel(schedule)];
+      if (schedule.visitReason) lines.push(`방문사유: ${schedule.visitReason}`);
       if (schedule.type === "team" && schedule.teamMembers) lines.push(`팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)}`);
       if (schedule.body) lines.push(`내용: ${schedule.body}`);
       return lines.filter(Boolean).join("\n");
@@ -9080,7 +9141,8 @@
             maintenanceManagerId: schedule.id,
             maintenanceManagerType: schedule.type || "",
             maintenanceManagerOrgId: schedule.orgId || "",
-            maintenanceManagerTeamMembers: schedule.teamMembers || ""
+            maintenanceManagerTeamMembers: schedule.teamMembers || "",
+            maintenanceManagerVisitReason: schedule.visitReason || ""
           }
         }
       };
@@ -9201,6 +9263,7 @@
         orgId: org?.id || "",
         title: event.summary || "(제목 없음)",
         teamMembers: privateProps.maintenanceManagerTeamMembers || "",
+        visitReason: privateProps.maintenanceManagerVisitReason || "",
         date,
         endDate: safeEndDate,
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
