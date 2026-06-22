@@ -4341,8 +4341,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.31";
+    const appVersion = "1.6.32";
     const versionHistory = [
+      {
+        version: "1.6.32",
+        date: "2026-06-22",
+        title: "할일 클립보드 교육청 도서관 묶음",
+        changes: [
+          "오늘/내일 할일 클립보드에서 같은 교육청 소속 도서관 3개 이상을 한 줄로 묶어 표기",
+          "방문사유와 팀원 정보가 같은 묶음끼리만 합쳐지도록 처리",
+          "방문, 원격, 팀, 개인 일정 섹션에 동일한 묶음 규칙 적용"
+        ]
+      },
       {
         version: "1.6.31",
         date: "2026-06-22",
@@ -5315,6 +5325,45 @@
       if (schedule.teamMembers) parts.push(`팀원:${formatTeamMembersWithRoles(schedule.teamMembers)}`);
       return parts.length ? `${name} (${parts.join(" / ")})` : name;
     }
+    function clipboardAffiliationGroupLabel(schedule) {
+      const name = baseScheduleCopyName(schedule);
+      const match = String(name || "").match(/^(.+?교육청).+도서관$/);
+      return match ? `${match[1]} 소속 도서관` : "";
+    }
+    function clipboardSuffixParts(schedule, { includeTeam = false } = {}) {
+      const parts = [];
+      const reason = scheduleVisitReasonLabel(schedule);
+      if (reason) parts.push(reason);
+      if (includeTeam && schedule.teamMembers) parts.push(`팀원:${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      return parts;
+    }
+    function clipboardNameWithParts(name, parts = []) {
+      return parts.length ? `${name} (${parts.join(" / ")})` : name;
+    }
+    function groupedClipboardNames(schedules = [], { includeTeam = false } = {}) {
+      const groups = new Map();
+      schedules.forEach((schedule, index) => {
+        const label = clipboardAffiliationGroupLabel(schedule);
+        if (!label) return;
+        const parts = clipboardSuffixParts(schedule, { includeTeam });
+        const key = `${label}|${parts.join("|")}`;
+        const current = groups.get(key) || { label, parts, indexes: [] };
+        current.indexes.push(index);
+        groups.set(key, current);
+      });
+      const groupedByIndex = new Map();
+      groups.forEach(group => {
+        if (group.indexes.length < 3) return;
+        group.indexes.forEach((index, order) => {
+          groupedByIndex.set(index, order === 0 ? clipboardNameWithParts(group.label, group.parts) : "");
+        });
+      });
+      return schedules.map((schedule, index) => {
+        if (groupedByIndex.has(index)) return groupedByIndex.get(index);
+        const name = baseScheduleCopyName(schedule);
+        return clipboardNameWithParts(name, clipboardSuffixParts(schedule, { includeTeam }));
+      }).filter(Boolean);
+    }
     function selectedTodaySchedules() {
       return todayCopySchedules()
         .filter(schedule => state.todayCopySelections[schedule.id] !== false);
@@ -5331,22 +5380,10 @@
       const schedules = selectedTodaySchedules();
       if (!schedules.length) return "";
       const date = todayCopyDate();
-      const visitNames = schedules
-        .filter(schedule => schedule.type === "visit" || schedule.type === "org")
-        .map(scheduleCopyName)
-        .filter(Boolean);
-      const remoteNames = schedules
-        .filter(schedule => schedule.type === "remote")
-        .map(scheduleCopyName)
-        .filter(Boolean);
-      const teamNames = schedules
-        .filter(schedule => schedule.type === "team")
-        .map(teamScheduleCopyName)
-        .filter(Boolean);
-      const personalNames = schedules
-        .filter(schedule => schedule.type === "personal")
-        .map(scheduleCopyName)
-        .filter(Boolean);
+      const visitNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "visit" || schedule.type === "org"));
+      const remoteNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "remote"));
+      const teamNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "team"), { includeTeam: true });
+      const personalNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "personal"));
       const sections = [];
       if (visitNames.length) sections.push(`[방문일정]\n${visitNames.join(", ")} 다녀오겠습니다.`);
       if (remoteNames.length) sections.push(`[원격일정]\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
