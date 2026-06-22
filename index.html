@@ -4341,8 +4341,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.32";
+    const appVersion = "1.6.33";
     const versionHistory = [
+      {
+        version: "1.6.33",
+        date: "2026-06-22",
+        title: "오늘의 지도 일정 종류 조정",
+        changes: [
+          "오늘의 지도 표시 대상을 방문일정, 팀 일정, 개인일정으로 조정",
+          "기관 정보가 연결된 일정만 지도에 표시되도록 유지"
+        ]
+      },
       {
         version: "1.6.32",
         date: "2026-06-22",
@@ -4974,7 +4983,7 @@
     function todayDestinationItems() {
       const grouped = new Map();
       sortedSchedules(todayISO()).forEach(schedule => {
-        if (!(schedule.type === "visit" || schedule.type === "org")) return;
+        if (!["visit", "org", "team", "personal"].includes(schedule.type)) return;
         const org = orgForSchedule(schedule);
         if (!org) return;
         const address = destinationAddress(org);
