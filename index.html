@@ -3038,12 +3038,14 @@
           <div class="field"><label>방문사유</label><select id="scheduleVisitReason">
             <option value="">사유없음</option>
             <option value="유지보수 방문">유지보수 방문</option>
+            <option value="납품">납품</option>
             <option value="장애처리">장애처리</option>
             <option value="담당자 미팅">담당자 미팅</option>
             <option value="담당자 교육">담당자 교육</option>
-            <option value="기타 사유">기타 사유</option>
             <option value="업체 미팅">업체 미팅</option>
+            <option value="custom">수기입력</option>
           </select></div>
+          <div class="field hidden" id="scheduleVisitReasonCustomWrap"><label>방문사유 직접입력</label><input id="scheduleVisitReasonCustom" autocomplete="off" placeholder="방문사유 입력"></div>
           <div class="field"><label>시작일</label><input id="scheduleDate" type="date" required></div>
           <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
@@ -4339,8 +4341,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.30";
+    const appVersion = "1.6.31";
     const versionHistory = [
+      {
+        version: "1.6.31",
+        date: "2026-06-22",
+        title: "방문사유 납품과 수기입력 추가",
+        changes: [
+          "방문사유 목록에서 유지보수 방문 아래에 납품 추가",
+          "기타 사유를 수기입력으로 변경하고 목록 제일 아래로 이동",
+          "수기입력 선택 시 방문사유 직접입력 칸이 열리도록 개선"
+        ]
+      },
       {
         version: "1.6.30",
         date: "2026-06-22",
@@ -7512,6 +7524,32 @@
       }
       renderScheduleOrgSuggestions(false);
     }
+    function scheduleVisitReasonOptions() {
+      return [...scheduleVisitReason.options].map(option => option.value).filter(value => value && value !== "custom");
+    }
+    function syncScheduleVisitReason() {
+      const custom = scheduleVisitReason.value === "custom";
+      scheduleVisitReasonCustomWrap.classList.toggle("hidden", !custom);
+      if (!custom) scheduleVisitReasonCustom.value = "";
+    }
+    function setScheduleVisitReason(value = "") {
+      const normalized = value === "사유없음" ? "" : String(value || "").trim();
+      if (!normalized) {
+        scheduleVisitReason.value = "";
+        scheduleVisitReasonCustom.value = "";
+      } else if (scheduleVisitReasonOptions().includes(normalized)) {
+        scheduleVisitReason.value = normalized;
+        scheduleVisitReasonCustom.value = "";
+      } else {
+        scheduleVisitReason.value = "custom";
+        scheduleVisitReasonCustom.value = normalized;
+      }
+      syncScheduleVisitReason();
+    }
+    function scheduleVisitReasonFromForm() {
+      if (scheduleVisitReason.value === "custom") return scheduleVisitReasonCustom.value.trim();
+      return scheduleVisitReason.value.trim();
+    }
     function guardScheduleTimeInputs(duration = 450) {
       state.scheduleTimeGuardUntil = Date.now() + duration;
       scheduleDialog.classList.add("time-input-guard");
@@ -7551,7 +7589,7 @@
       scheduleOrgSearch.value = org ? org.name : "";
       scheduleName.value = schedule.title || "";
       scheduleTeamMembers.value = schedule.teamMembers || "";
-      scheduleVisitReason.value = schedule.visitReason || "";
+      setScheduleVisitReason(schedule.visitReason || "");
       scheduleDate.value = schedule.date || todayISO();
       scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
@@ -7585,7 +7623,7 @@
         orgId,
         title,
         teamMembers: type === "team" ? scheduleTeamMembers.value.trim() : "",
-        visitReason: scheduleVisitReason.value.trim(),
+        visitReason: scheduleVisitReasonFromForm(),
         date,
         endDate,
         startTime: scheduleStartTime.value,
@@ -7669,6 +7707,7 @@
       scheduleGoogleAutoSync("schedule-delete");
     };
     scheduleType.onchange = syncScheduleType;
+    scheduleVisitReason.onchange = syncScheduleVisitReason;
     deleteScheduleBtn.onclick = () => {
       if (scheduleId.value) deleteSchedule(scheduleId.value);
     };
