@@ -342,7 +342,7 @@
     }
     .weekly-report-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
     .weekly-report-card {
@@ -2692,6 +2692,16 @@
             <div class="weekly-report-grid">
               <article class="weekly-report-card">
                 <header>
+                  <h3>전주 주요내용</h3>
+                  <span class="range" id="prevWeekRange"></span>
+                </header>
+                <div class="weekly-report-fields">
+                  <div class="field"><label>제목</label><input id="prevWeekTitle"></div>
+                  <div class="field"><label>전주실적</label><textarea id="prevWeekBody"></textarea></div>
+                </div>
+              </article>
+              <article class="weekly-report-card">
+                <header>
                   <h3>금주 주요내용</h3>
                   <span class="range" id="thisWeekRange"></span>
                 </header>
@@ -2702,12 +2712,12 @@
               </article>
               <article class="weekly-report-card">
                 <header>
-                  <h3>차주 계획내용</h3>
+                  <h3>차주 주요내용</h3>
                   <span class="range" id="nextWeekRange"></span>
                 </header>
                 <div class="weekly-report-fields">
                   <div class="field"><label>제목</label><input id="nextWeekTitle"></div>
-                  <div class="field"><label>차주계획</label><textarea id="nextWeekBody"></textarea></div>
+                  <div class="field"><label>차주내용</label><textarea id="nextWeekBody"></textarea></div>
                 </div>
               </article>
             </div>
@@ -4341,8 +4351,28 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.33";
+    const appVersion = "1.6.35";
     const versionHistory = [
+      {
+        version: "1.6.35",
+        date: "2026-06-22",
+        title: "주간업무기록 보고형 자동정리",
+        changes: [
+          "주간업무기록 자동 채우기를 날짜별 구분 대신 일정 종류별 보고 형식으로 정리",
+          "방문목적과 팀원 정보를 주간업무기록 항목에 함께 반영",
+          "캘린더 날짜별 특이사항을 별도 보고 섹션으로 정리"
+        ]
+      },
+      {
+        version: "1.6.34",
+        date: "2026-06-22",
+        title: "주간업무기록 전주 항목 추가",
+        changes: [
+          "주간업무기록을 전주 주요내용, 금주 주요내용, 차주 주요내용 3단 구성으로 확장",
+          "캘린더로 채우기에 전주 일정과 특이사항 자동 정리 포함",
+          "전주 주요내용 저장과 동기화 데이터 포함"
+        ]
+      },
       {
         version: "1.6.33",
         date: "2026-06-22",
@@ -5542,10 +5572,14 @@
       return `${shortDotDate(startISO)} ~ ${shortDotDate(endISO)}`;
     }
     function weeklyReportMeta() {
+      const prevStart = weekStartISO(todayISO(), -1);
       const thisStart = weekStartISO(todayISO(), 0);
       const nextStart = weekStartISO(todayISO(), 1);
       return {
         key: thisStart,
+        prevStart,
+        prevBusinessEnd: addDaysISO(prevStart, 4),
+        prevEnd: addDaysISO(prevStart, 6),
         thisStart,
         thisBusinessEnd: addDaysISO(thisStart, 4),
         thisEnd: addDaysISO(thisStart, 6),
@@ -5565,6 +5599,26 @@
       if (orgName && schedule.title && normalizedScheduleText(schedule.title) !== normalizedScheduleText(orgName)) return `${orgName} - ${schedule.title}`;
       return orgName || schedule.title || "일정";
     }
+    function weeklyScheduleReportLine(schedule = {}) {
+      const parts = [];
+      const reason = scheduleVisitReasonLabel(schedule);
+      if (reason) parts.push(reason);
+      if (schedule.type === "team" && schedule.teamMembers) parts.push(`팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      return parts.length ? `${weeklyScheduleName(schedule)} - ${parts.join(" / ")}` : weeklyScheduleName(schedule);
+    }
+    function weeklyReportScheduleGroups(schedules = []) {
+      const definitions = [
+        { title: "방문일정", match: schedule => schedule.type === "visit" || schedule.type === "org" },
+        { title: "원격일정", match: schedule => schedule.type === "remote" },
+        { title: "팀 일정", match: schedule => schedule.type === "team" },
+        { title: "개인 일정", match: schedule => schedule.type === "personal" },
+        { title: "기타 일정", match: schedule => !["visit", "org", "remote", "team", "personal", "daily"].includes(schedule.type || "") }
+      ];
+      return definitions.map(group => {
+        const lines = [...new Set(schedules.filter(group.match).map(weeklyScheduleReportLine).filter(Boolean))];
+        return lines.length ? `【${group.title}】\n${lines.map(line => `- ${line}`).join("\n")}` : "";
+      }).filter(Boolean);
+    }
     function datesInRange(startISO, endISO) {
       const dates = [];
       for (let date = startISO; date <= endISO; date = addDaysISO(date, 1)) dates.push(date);
@@ -5578,31 +5632,27 @@
       const schedules = schedulesInRange(startISO, endISO).filter(schedule => schedule.type !== "daily");
       const names = [...new Set(schedules.map(weeklyScheduleName).filter(Boolean))];
       const title = names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` 외 ${names.length - 2}건` : "") : fallbackTitle;
-      const sections = datesInRange(startISO, endISO).map(date => {
-        const daySchedules = schedules.filter(schedule => scheduleIncludesDate(schedule, date));
+      const scheduleSections = weeklyReportScheduleGroups(schedules);
+      const noteLines = datesInRange(startISO, endISO).flatMap(date => {
         const note = (state.dayNotes?.[date] || "").trim();
-        if (!daySchedules.length && !note) return "";
-        const lines = [];
-        if (daySchedules.length) {
-          [...new Set(daySchedules.map(weeklyScheduleName).filter(Boolean))]
-            .forEach(name => lines.push(`  - ${name}`));
-        }
-        if (note) {
-          note.split(/\n+/).map(line => line.trim()).filter(Boolean)
-            .forEach(line => lines.push(`  - 특이사항: ${line}`));
-        }
-        return `- ${weeklyLineDateLabel(date)}\n${lines.join("\n")}`;
-      }).filter(Boolean);
-      const body = sections.length ? sections.join("\n") : "- 등록된 일정 및 특이사항 없음";
+        if (!note) return [];
+        return note.split(/\n+/).map(line => line.trim()).filter(Boolean)
+          .map(line => `- ${weeklyLineDateLabel(date)} 특이사항: ${line}`);
+      });
+      const sections = [...scheduleSections, noteLines.length ? `【특이사항】\n${noteLines.join("\n")}` : ""].filter(Boolean);
+      const body = sections.length ? sections.join("\n\n") : "- 등록된 일정 및 특이사항 없음";
       return { title, body };
     }
     function currentWeeklyReportDraft() {
       const meta = weeklyReportMeta();
       const saved = state.weeklyReports?.[meta.key] || {};
+      const prevAuto = weeklyGeneratedReport(meta.prevStart, meta.prevEnd, "전주 유지보수 업무");
       const thisAuto = weeklyGeneratedReport(meta.thisStart, meta.thisEnd, "금주 유지보수 업무");
       const nextAuto = weeklyGeneratedReport(meta.nextStart, meta.nextEnd, "차주 유지보수 계획");
       return {
         meta,
+        prevTitle: saved.prevTitle || prevAuto.title,
+        prevBody: saved.prevBody || prevAuto.body,
         thisTitle: saved.thisTitle || thisAuto.title,
         thisBody: saved.thisBody || thisAuto.body,
         nextTitle: saved.nextTitle || nextAuto.title,
@@ -5615,8 +5665,11 @@
       const draft = currentWeeklyReportDraft();
       const { meta } = draft;
       weeklyReportSub.textContent = draft.updatedAt ? `마지막 저장 ${new Date(draft.updatedAt).toLocaleString("ko-KR")}` : "캘린더 일정으로 업무보고 초안을 만듭니다.";
+      prevWeekRange.textContent = weeklyRangeLabel(meta.prevStart, meta.prevBusinessEnd);
       thisWeekRange.textContent = weeklyRangeLabel(meta.thisStart, meta.thisBusinessEnd);
       nextWeekRange.textContent = weeklyRangeLabel(meta.nextStart, meta.nextBusinessEnd);
+      prevWeekTitle.value = draft.prevTitle;
+      prevWeekBody.value = draft.prevBody;
       thisWeekTitle.value = draft.thisTitle;
       thisWeekBody.value = draft.thisBody;
       nextWeekTitle.value = draft.nextTitle;
@@ -5624,8 +5677,11 @@
     }
     function fillWeeklyReportFromCalendar() {
       const meta = weeklyReportMeta();
+      const prevAuto = weeklyGeneratedReport(meta.prevStart, meta.prevEnd, "전주 유지보수 업무");
       const thisAuto = weeklyGeneratedReport(meta.thisStart, meta.thisEnd, "금주 유지보수 업무");
       const nextAuto = weeklyGeneratedReport(meta.nextStart, meta.nextEnd, "차주 유지보수 계획");
+      prevWeekTitle.value = prevAuto.title;
+      prevWeekBody.value = prevAuto.body;
       thisWeekTitle.value = thisAuto.title;
       thisWeekBody.value = thisAuto.body;
       nextWeekTitle.value = nextAuto.title;
@@ -5637,15 +5693,18 @@
       state.weeklyReports = state.weeklyReports || {};
       state.weeklyReports[meta.key] = {
         key: meta.key,
+        prevRange: weeklyRangeLabel(meta.prevStart, meta.prevBusinessEnd),
         thisRange: weeklyRangeLabel(meta.thisStart, meta.thisBusinessEnd),
         nextRange: weeklyRangeLabel(meta.nextStart, meta.nextBusinessEnd),
+        prevTitle: prevWeekTitle.value.trim(),
+        prevBody: prevWeekBody.value.trim(),
         thisTitle: thisWeekTitle.value.trim(),
         thisBody: thisWeekBody.value.trim(),
         nextTitle: nextWeekTitle.value.trim(),
         nextBody: nextWeekBody.value.trim(),
         updatedAt: new Date().toISOString()
       };
-      logAdminAction("대시보드", "주간업무기록 저장", `${state.weeklyReports[meta.key].thisRange} / ${state.weeklyReports[meta.key].nextRange}`);
+      logAdminAction("대시보드", "주간업무기록 저장", `${state.weeklyReports[meta.key].prevRange} / ${state.weeklyReports[meta.key].thisRange} / ${state.weeklyReports[meta.key].nextRange}`);
       save();
       renderWeeklyReport();
       toast("주간업무기록을 저장했습니다.");
