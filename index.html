@@ -2955,6 +2955,8 @@
               <div class="org-suggestions" id="todoMemoOrgSuggestions"></div>
             </div>
             <datalist id="todoMemoOrgOptions"></datalist>
+            <div class="field"><label>방문목적</label><select id="todoMemoVisitReason"><option value="">사유없음</option><option value="유지보수 방문">유지보수 방문</option><option value="납품">납품</option><option value="장애처리">장애처리</option><option value="담당자 미팅">담당자 미팅</option><option value="담당자 교육">담당자 교육</option><option value="업체 미팅">업체 미팅</option><option value="custom">수기입력</option></select></div>
+            <div class="field hidden" id="todoMemoVisitReasonCustomWrap"><label>방문목적 직접입력</label><input id="todoMemoVisitReasonCustom" autocomplete="off" placeholder="방문목적 입력"></div>
             <div class="field"><label>시작일</label><input id="todoMemoDate" type="date"></div>
             <div class="field"><label>종료일</label><input id="todoMemoEndDate" type="date"></div>
             <div class="field"><label>작업 시작시간</label><input id="todoMemoStartTime" type="time"></div>
@@ -4064,6 +4066,7 @@
           orgId: item.orgId || "",
           orgName: item.orgName || "",
           teamMembers: item.teamMembers || "",
+          visitReason: item.visitReason === "사유없음" ? "" : (item.visitReason || ""),
           date: item.date || "",
           endDate: item.endDate || item.date || "",
           startTime: item.startTime || "",
@@ -4351,8 +4354,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.35";
+    const appVersion = "1.6.36";
     const versionHistory = [
+      {
+        version: "1.6.36",
+        date: "2026-06-23",
+        title: "할일메모 방문목적 추가",
+        changes: [
+          "할일메모 등록과 수정 화면에 방문목적 선택과 수기입력 추가",
+          "할일메모 저장 데이터와 검색 대상에 방문목적 포함",
+          "날짜가 있는 할일메모가 캘린더 일정으로 생성될 때 방문목적도 함께 반영"
+        ]
+      },
       {
         version: "1.6.35",
         date: "2026-06-22",
@@ -7655,6 +7668,32 @@
       if (scheduleVisitReason.value === "custom") return scheduleVisitReasonCustom.value.trim();
       return scheduleVisitReason.value.trim();
     }
+    function todoMemoVisitReasonOptions() {
+      return [...todoMemoVisitReason.options].map(option => option.value).filter(value => value && value !== "custom");
+    }
+    function syncTodoMemoVisitReason() {
+      const custom = todoMemoVisitReason.value === "custom";
+      todoMemoVisitReasonCustomWrap.classList.toggle("hidden", !custom);
+      if (!custom) todoMemoVisitReasonCustom.value = "";
+    }
+    function setTodoMemoVisitReason(value = "") {
+      const normalized = value === "사유없음" ? "" : String(value || "").trim();
+      if (!normalized) {
+        todoMemoVisitReason.value = "";
+        todoMemoVisitReasonCustom.value = "";
+      } else if (todoMemoVisitReasonOptions().includes(normalized)) {
+        todoMemoVisitReason.value = normalized;
+        todoMemoVisitReasonCustom.value = "";
+      } else {
+        todoMemoVisitReason.value = "custom";
+        todoMemoVisitReasonCustom.value = normalized;
+      }
+      syncTodoMemoVisitReason();
+    }
+    function todoMemoVisitReasonFromForm() {
+      if (todoMemoVisitReason.value === "custom") return todoMemoVisitReasonCustom.value.trim();
+      return todoMemoVisitReason.value.trim();
+    }
     function guardScheduleTimeInputs(duration = 450) {
       state.scheduleTimeGuardUntil = Date.now() + duration;
       scheduleDialog.classList.add("time-input-guard");
@@ -8147,6 +8186,7 @@
       todoMemoDialogTitle.textContent = "할일등록";
       todoMemoType.value = "personal";
       todoMemoRepeat.value = "none";
+      setTodoMemoVisitReason("");
       todoMemoTeamMembersWrap.classList.add("hidden");
       selectTodoMemoColor(defaultScheduleColor({ type: "personal" }));
       renderTodoMemoOrgOptions();
@@ -8171,6 +8211,7 @@
         orgId: todo.orgId,
         title: todo.title || "제목없음",
         teamMembers: todo.type === "team" ? todo.teamMembers : "",
+        visitReason: todo.visitReason || "",
         body: todo.body,
         todoMemoId: todo.id,
         date: todo.date,
@@ -8211,6 +8252,7 @@
         orgId,
         orgName: todoMemoOrgSearch.value.trim(),
         teamMembers: todoMemoType.value === "team" ? todoMemoTeamMembers.value.trim() : "",
+        visitReason: todoMemoVisitReasonFromForm(),
         date: ordered[0],
         endDate: ordered[1],
         startTime: todoMemoStartTime.value,
@@ -8238,6 +8280,7 @@
           org?.region,
           scheduleTypeLabel(item),
           item.teamMembers,
+          item.visitReason,
           item.date,
           item.endDate
         ].filter(Boolean).join(" ").toLowerCase().includes(keyword);
@@ -8251,6 +8294,7 @@
         const isScheduled = Boolean(item.date);
         const dateText = isScheduled ? `${scheduleDateLabel(item)} · ${scheduleTimeLabel(item)}` : "일정미정";
         const team = item.type === "team" && item.teamMembers ? ` · 팀원: ${formatTeamMembersWithRoles(item.teamMembers)}` : "";
+        const reason = scheduleVisitReasonLabel(item) ? ` · 방문목적: ${scheduleVisitReasonLabel(item)}` : "";
         const orgText = org ? org.name : item.orgName;
         return `<article class="memo-card todo-card ${isScheduled ? "" : "unscheduled"}">
           <div class="todo-meta">
@@ -8258,7 +8302,7 @@
             <span class="tag">${escapeHTML(scheduleTypeLabel(item))}</span>
           </div>
           <h3>${escapeHTML(item.title)}</h3>
-          <p>${escapeHTML([orgText, team.replace(/^ · /, "")].filter(Boolean).join(" · "))}</p>
+          <p>${escapeHTML([orgText, reason.replace(/^ · /, ""), team.replace(/^ · /, "")].filter(Boolean).join(" · "))}</p>
           <div class="todo-body">${escapeHTML(item.body)}</div>
           <div class="visit-actions" style="margin-top:10px">
             <button type="button" class="secondary" onclick="editTodoMemo('${item.id}')">수정</button>
@@ -9693,6 +9737,7 @@
       todoMemoTeamMembersWrap.classList.toggle("hidden", todoMemoType.value !== "team");
       selectTodoMemoColor(defaultScheduleColor({ type: todoMemoType.value }));
     };
+    todoMemoVisitReason.onchange = syncTodoMemoVisitReason;
     todoMemoColorPicker.querySelectorAll("[data-todo-color]").forEach(button => {
       button.onclick = () => selectTodoMemoColor(button.dataset.todoColor);
     });
@@ -9737,6 +9782,7 @@
       todoMemoStartTime.value = todo.startTime || "";
       todoMemoEndTime.value = todo.endTime || "";
       todoMemoRepeat.value = todo.recurrence || "none";
+      setTodoMemoVisitReason(todo.visitReason || "");
       todoMemoBody.value = todo.body || "";
       selectTodoMemoColor(todo.color || defaultScheduleColor(todo));
       todoMemoDialog.showModal();
