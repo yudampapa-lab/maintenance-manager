@@ -1689,8 +1689,39 @@
       border: 1px solid var(--line);
       border-radius: 10px;
       background: linear-gradient(135deg, rgba(60,124,255,.08), rgba(0,168,137,.07));
-      padding: 11px 12px;
+      padding: 12px;
       box-shadow: 0 8px 18px rgba(36, 63, 112, .06);
+    }
+    .work-log-summary-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .work-log-summary-meta div,
+    .work-log-summary-field {
+      border: 1px solid rgba(60, 60, 67, .08);
+      border-radius: 8px;
+      background: rgba(255,255,255,.72);
+      padding: 9px 10px;
+    }
+    .work-log-summary-meta span,
+    .work-log-summary-field span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 850;
+    }
+    .work-log-summary-meta strong {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .work-log-summary-fields {
+      display: grid;
+      gap: 8px;
     }
     .work-log-history-card p {
       margin: 0;
@@ -1699,12 +1730,27 @@
       line-height: 1.55;
       white-space: pre-wrap;
     }
-    .work-log-history-card time {
+    .work-log-history-card details {
+      margin-top: 10px;
+      border-top: 1px solid rgba(60, 60, 67, .08);
+      padding-top: 8px;
+    }
+    .work-log-history-card summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .work-log-raw-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .work-log-raw-list time {
       display: block;
-      margin-top: 6px;
+      margin-bottom: 3px;
       color: var(--muted);
       font-size: 10px;
-      text-align: right;
     }
     .report-list {
       display: grid;
@@ -4808,8 +4854,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.39";
+    const appVersion = "1.6.40";
     const versionHistory = [
+      {
+        version: "1.6.40",
+        date: "2026-07-03",
+        title: "기관 업무기록 요약 조회",
+        changes: [
+          "기관탭 업무기록 내역을 날짜, 시간, 접수내용, 조치내용 요약 카드로 변경",
+          "업무기록 원문은 필요할 때 펼쳐볼 수 있도록 접힘 영역으로 유지",
+          "접수/조치 키워드와 작성 순서를 기준으로 날짜별 업무기록 자동 요약"
+        ]
+      },
       {
         version: "1.6.39",
         date: "2026-07-03",
@@ -8780,6 +8836,57 @@
       renderWorkLogs();
       toast("업무기록을 삭제했습니다.");
     };
+    function workLogTimeOnly(iso) {
+      if (!iso) return "-";
+      const date = new Date(String(iso).includes("T") ? iso : iso + "T00:00:00");
+      if (Number.isNaN(date.getTime())) return "-";
+      return new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(date);
+    }
+    function stripWorkLogLabel(line = "") {
+      return String(line).replace(/^\s*(접수내용|접수|요청내용|요청|문의|장애내용|장애|현상|조치내용|조치|처리내용|처리|완료|해결|대응|결과)\s*[:：\-]\s*/i, "").trim();
+    }
+    function summarizeWorkLogDay(items = []) {
+      const sorted = [...items].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+      const receipt = [];
+      const action = [];
+      const receiptLabel = /^(접수내용|접수|요청내용|요청|문의|장애내용|장애|현상)\s*[:：\-]/i;
+      const actionLabel = /^(조치내용|조치|처리내용|처리|완료|해결|대응|결과)\s*[:：\-]/i;
+      const actionKeywords = /(조치|처리|완료|해결|복구|점검|교체|수정|설치|안내|방문|원격|지원|교육|납품|전달|회신|적용|정리)/;
+      sorted.forEach((item, index) => {
+        const lines = String(item.body || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
+        const targetLines = lines.length ? lines : [String(item.body || "").trim()].filter(Boolean);
+        targetLines.forEach(line => {
+          if (receiptLabel.test(line)) {
+            receipt.push(stripWorkLogLabel(line));
+          } else if (actionLabel.test(line)) {
+            action.push(stripWorkLogLabel(line));
+          } else if (actionKeywords.test(line) && (index > 0 || sorted.length === 1)) {
+            action.push(line);
+          } else {
+            receipt.push(line);
+          }
+        });
+      });
+      if (!action.length && sorted.length > 1) {
+        const fallback = sorted.slice(1).map(item => String(item.body || "").trim()).filter(Boolean);
+        if (fallback.length) {
+          action.push(...fallback);
+          const firstBody = String(sorted[0]?.body || "").trim();
+          if (firstBody) {
+            receipt.splice(0, receipt.length, firstBody);
+          }
+        }
+      }
+      const unique = list => [...new Set(list.map(text => String(text || "").trim()).filter(Boolean))];
+      const firstAt = sorted[0]?.at || "";
+      const lastAt = sorted[sorted.length - 1]?.at || "";
+      return {
+        timeLabel: firstAt && lastAt && firstAt !== lastAt ? `${workLogTimeOnly(firstAt)} ~ ${workLogTimeOnly(lastAt)}` : workLogTimeOnly(firstAt || lastAt),
+        receipt: unique(receipt).join("\n") || "접수내용 미기록",
+        action: unique(action).join("\n") || "조치내용 미기록",
+        raw: sorted
+      };
+    }
     function renderWorkLogHistory(orgId) {
       const org = state.orgs.find(o => o.id === orgId);
       if (!org) return;
@@ -8798,15 +8905,33 @@
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(item);
       });
-      workLogHistoryList.innerHTML = [...groups.entries()].map(([date, items]) => `
+      workLogHistoryList.innerHTML = [...groups.entries()].map(([date, items]) => {
+        const summary = summarizeWorkLogDay(items);
+        return `
         <section class="work-log-history-day">
           <h3>${date === "날짜 미기입" ? "날짜 미기입" : escapeHTML(formatDateWithYear(date))}</h3>
-          ${items.map(item => `<article class="work-log-history-card">
-            <p>${escapeHTML(item.body)}</p>
-            <time datetime="${escapeAttr(item.at)}">${escapeHTML(formatDateTimeShort(item.at))}</time>
-          </article>`).join("")}
+          <article class="work-log-history-card">
+            <div class="work-log-summary-meta">
+              <div><span>날짜</span><strong>${date === "날짜 미기입" ? "날짜 미기입" : escapeHTML(formatDateWithYear(date))}</strong></div>
+              <div><span>시간</span><strong>${escapeHTML(summary.timeLabel)}</strong></div>
+            </div>
+            <div class="work-log-summary-fields">
+              <div class="work-log-summary-field"><span>접수내용</span><p>${escapeHTML(summary.receipt)}</p></div>
+              <div class="work-log-summary-field"><span>조치내용</span><p>${escapeHTML(summary.action)}</p></div>
+            </div>
+            <details>
+              <summary>채팅 원문 ${items.length}건 보기</summary>
+              <div class="work-log-raw-list">
+                ${summary.raw.map(item => `<div>
+                  <time datetime="${escapeAttr(item.at)}">${escapeHTML(formatDateTimeShort(item.at))}</time>
+                  <p>${escapeHTML(item.body)}</p>
+                </div>`).join("")}
+              </div>
+            </details>
+          </article>
         </section>
-      `).join("");
+      `;
+      }).join("");
     }
     window.openWorkLogHistory = orgId => {
       const org = state.orgs.find(o => o.id === orgId);
