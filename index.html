@@ -4150,6 +4150,13 @@
       d.setDate(d.getDate() + offset);
       return localDateISO(d);
     }
+    function debounce(fn, wait = 120) {
+      let timer = null;
+      return (...args) => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), wait);
+      };
+    }
     function currentYearStartISO() {
       const year = new Date().getFullYear();
       return `${year}-01-01`;
@@ -4909,8 +4916,7 @@
       dashboardSettingsBtn.style.display = view === "dashboard" ? "inline-grid" : "none";
       document.querySelector(".app-shell")?.classList.toggle("hide-header", view !== "dashboard");
       localStorage.setItem("maint_active_view", view);
-      render();
-      if (view === "memo") switchRecordTab(state.recordTab);
+      renderActiveView();
       if (view === "dashboard") autoRequestTodayMapLocation();
     }
 
@@ -6506,7 +6512,8 @@
     }
     function renderOrgs() {
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
-      const filtered = state.orgs.filter(o => JSON.stringify(o).toLowerCase().includes(q)).sort(orgSearchSort);
+      const upcomingScheduleMap = buildUpcomingScheduleLabelMap();
+      const filtered = state.orgs.filter(o => orgSearchBlob(o).includes(q)).sort(orgSearchSort);
       const pageCount = Math.max(1, Math.ceil(filtered.length / orgPageSize));
       state.orgPage = Math.min(Math.max(Number(state.orgPage) || 1, 1), pageCount);
       const startIndex = (state.orgPage - 1) * orgPageSize;
@@ -6521,7 +6528,7 @@
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         ${orgStatusTags(o)}
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${nextScheduleLabel(o.id)} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${(() => { const schedule = upcomingScheduleMap.get(o.id); return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-"; })()} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
         <div class="org-actions">
           <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap" onclick="openTmap('${o.id}')">${icon("map")}</button>
@@ -6557,6 +6564,53 @@
         .filter(item => item.orgId === orgId && (item.endDate || item.date) >= today)
         .sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0];
       return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-";
+    }
+    function buildUpcomingScheduleLabelMap() {
+      const today = todayISO();
+      const byOrg = new Map();
+      for (const schedule of (state.schedules || [])) {
+        if (!schedule?.orgId) continue;
+        if ((schedule.endDate || schedule.date) < today) continue;
+        const current = byOrg.get(schedule.orgId);
+        const currentKey = current ? `${current.date || ""} ${current.startTime || ""}` : "";
+        const nextKey = `${schedule.date || ""} ${schedule.startTime || ""}`;
+        if (!current || nextKey.localeCompare(currentKey) < 0) {
+          byOrg.set(schedule.orgId, schedule);
+        }
+      }
+      return byOrg;
+    }
+    function orgSearchBlob(org = {}) {
+      return [
+        org.name,
+        org.region,
+        org.type,
+        org.contractor,
+        org.contractDate,
+        org.solution,
+        org.address,
+        org.note,
+        org.closedDay,
+        org.sourceName,
+        ...(Array.isArray(org.contacts) ? org.contacts.flatMap(contact => [contact.name, contact.tel, contact.mobile, contact.email, contact.note]) : [])
+      ].filter(Boolean).join(" ").toLowerCase();
+    }
+    function memoSearchBlob(memo = {}) {
+      return [memo.title, memo.tags, memo.body].filter(Boolean).join(" ").toLowerCase();
+    }
+    function todoMemoSearchBlob(item = {}, org = null) {
+      return [
+        item.title,
+        item.body,
+        item.orgName,
+        org?.name,
+        org?.region,
+        scheduleTypeLabel(item),
+        item.teamMembers,
+        item.visitReason,
+        item.date,
+        item.endDate
+      ].filter(Boolean).join(" ").toLowerCase();
     }
     function daysBetweenISO(start, end) {
       return Math.round((new Date(end + "T00:00:00") - new Date(start + "T00:00:00")) / 86400000);
@@ -7996,7 +8050,7 @@
     };
     async function renderMemos() {
       const q = document.getElementById("memoSearch").value.trim().toLowerCase();
-      const list = state.memos.filter(m => JSON.stringify(m).toLowerCase().includes(q));
+      const list = state.memos.filter(m => memoSearchBlob(m).includes(q));
       const cards = await Promise.all(list.map(async m => {
         const attachments = await attachmentGrid("memo", m.id);
         return `<article class="memo-card">
@@ -8272,18 +8326,7 @@
       const items = [...state.todoMemos].filter(item => {
         if (!keyword) return true;
         const org = item.orgId ? state.orgs.find(orgItem => orgItem.id === item.orgId) : null;
-        return [
-          item.title,
-          item.body,
-          item.orgName,
-          org?.name,
-          org?.region,
-          scheduleTypeLabel(item),
-          item.teamMembers,
-          item.visitReason,
-          item.date,
-          item.endDate
-        ].filter(Boolean).join(" ").toLowerCase().includes(keyword);
+        return todoMemoSearchBlob(item, org).includes(keyword);
       }).sort((a, b) => {
         const aDate = a.date || "9999-12-31";
         const bDate = b.date || "9999-12-31";
@@ -8511,8 +8554,17 @@
       if (immediate) downloadCloudData({ silent: true, uploadIfEmpty: true });
       updateCloudStatus();
     }
-    function render() {
-      cleanupMaintenanceDragGhosts();
+    async function refreshCloudDataIfStale(minIntervalMs = 30000) {
+      if (!canUseCloudSync()) return;
+      const now = Date.now();
+      if ((state.lastCloudRefreshAt || 0) + minIntervalMs > now) return;
+      state.lastCloudRefreshAt = now;
+      await downloadCloudData({ silent: true });
+    }
+    function currentViewName() {
+      return document.querySelector(".view.active")?.id?.replace("view-", "") || "dashboard";
+    }
+    function renderDashboardView() {
       todayDateTag.textContent = formatDate(todayISO());
       tomorrowDateTag.textContent = formatDate(todayISO(1));
       renderVisits("todayVisits", todayISO());
@@ -8520,12 +8572,32 @@
       renderDashboardSearch();
       renderWeeklyReport();
       scheduleTodayDestinationMapRender();
-      renderCalendar("mainCalendar", false);
-      renderOrgs();
-      renderTodoMemos();
-      renderMemos();
-      renderVehicle();
-      renderSettings();
+    }
+    function renderMemoView() {
+      switchRecordTab(state.recordTab);
+    }
+    function renderActiveView() {
+      cleanupMaintenanceDragGhosts();
+      const view = currentViewName();
+      if (view === "dashboard") renderDashboardView();
+      else if (view === "calendar") renderCalendar("mainCalendar", false);
+      else if (view === "orgs") renderOrgs();
+      else if (view === "memo") renderMemoView();
+      else if (view === "settings") renderSettings();
+    }
+    function render(options = {}) {
+      if (options.all) {
+        cleanupMaintenanceDragGhosts();
+        renderDashboardView();
+        renderCalendar("mainCalendar", false);
+        renderOrgs();
+        renderTodoMemos();
+        renderMemos();
+        renderVehicle();
+        renderSettings();
+        return;
+      }
+      renderActiveView();
     }
     function clearOrgForm() {
       orgForm.reset();
@@ -10076,10 +10148,10 @@
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) startCloudAutoSync({ immediate: true });
+      if (!document.hidden) refreshCloudDataIfStale();
     });
     window.addEventListener("focus", () => {
-      startCloudAutoSync({ immediate: true });
+      refreshCloudDataIfStale();
     });
     window.addEventListener("resize", () => {
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
@@ -10088,12 +10160,16 @@
       showInfo("카카오워크 알림", "브라우저 단독 시안에서는 보안상 Webhook 직접 호출 대신 설정 저장까지만 지원합니다. 운영 서버에서 청구일 기준으로 스케줄러를 실행해 카카오워크 Incoming Webhook으로 메시지를 보내면 됩니다.");
     };
     closeInfoDialogBtn.onclick = () => infoDialog.close();
-    orgSearch.oninput = () => {
+    const debouncedRenderOrgs = debounce(() => {
       state.orgPage = 1;
       renderOrgs();
-    };
-    todoMemoSearch.oninput = renderTodoMemos;
-    memoSearch.oninput = renderMemos;
+    }, 140);
+    const debouncedRenderTodoMemos = debounce(renderTodoMemos, 120);
+    const debouncedRenderMemos = debounce(renderMemos, 120);
+    const debouncedRenderDashboardSearch = debounce(renderDashboardSearch, 120);
+    orgSearch.oninput = debouncedRenderOrgs;
+    todoMemoSearch.oninput = debouncedRenderTodoMemos;
+    memoSearch.oninput = debouncedRenderMemos;
     [vehicleSearch, vehicleStartDateSearch, vehicleEndDateSearch].forEach(input => {
       input?.addEventListener("keydown", event => {
         if (event.key === "Enter") {
@@ -10105,7 +10181,7 @@
     document.querySelectorAll("[data-record-tab]").forEach(button => {
       button.onclick = () => switchRecordTab(button.dataset.recordTab);
     });
-    dashboardSearch.oninput = renderDashboardSearch;
+    dashboardSearch.oninput = debouncedRenderDashboardSearch;
     clearDashboardSearchBtn.onclick = () => {
       dashboardSearch.value = "";
       renderDashboardSearch();
