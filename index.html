@@ -280,13 +280,14 @@
     }
     .record-tabs {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 6px;
-      padding: 4px;
+      padding: 5px;
       border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(232, 238, 243, .72);
-      margin-bottom: 12px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(244,247,251,.92), rgba(232,238,243,.72));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.72), 0 10px 24px rgba(22,34,45,.05);
+      margin-bottom: 14px;
     }
     .record-tab {
       min-height: 38px;
@@ -297,11 +298,13 @@
       box-shadow: none;
       font-weight: 800;
       white-space: nowrap;
+      transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
     }
     .record-tab.active {
-      background: #fff;
+      background: linear-gradient(180deg, #fff, rgba(255,255,255,.9));
       color: var(--ink);
-      box-shadow: 0 8px 18px rgba(22, 34, 45, .08);
+      box-shadow: 0 10px 22px rgba(22, 34, 45, .09);
+      transform: translateY(-1px);
     }
     .record-pane[hidden] {
       display: none;
@@ -336,6 +339,236 @@
       color: var(--ink);
       font: inherit;
       flex: 0 0 auto;
+    }
+    .work-log-shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      height: calc(100dvh - 188px);
+      min-height: 360px;
+      max-height: none;
+      overflow: hidden;
+    }
+    .work-log-picker {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+    .work-log-room {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(236,245,252,.94), rgba(247,250,252,.96)),
+        radial-gradient(circle at 12% 8%, rgba(60,124,255,.08), transparent 28%);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      min-height: 0;
+      height: 100%;
+    }
+    .work-log-room-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      background: rgba(255,255,255,.78);
+    }
+    .work-log-room-head strong {
+      display: block;
+      font-size: 14px;
+    }
+    .work-log-room-head span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .work-log-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .work-log-search-bar {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.9);
+    }
+    .work-log-search-bar.show {
+      display: flex;
+    }
+    .work-log-search-input {
+      min-width: 0;
+      flex: 1 1 auto;
+      min-height: 36px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      background: rgba(247,250,252,.96);
+    }
+    .work-log-search-input svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+      color: var(--muted);
+    }
+    .work-log-search-input input {
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      border-radius: 0;
+      font-weight: 700;
+    }
+    .work-log-search-count {
+      min-width: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .work-log-date-wrap {
+      position: relative;
+      display: inline-grid;
+    }
+    .work-log-date-input {
+      position: absolute;
+      inset: 0;
+      width: 36px;
+      height: 36px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .work-log-messages {
+      overflow: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      scroll-behavior: smooth;
+      overscroll-behavior: contain;
+    }
+    .work-log-bubble {
+      width: 100%;
+      max-width: none;
+      margin-left: 0;
+      padding: 12px 12px 9px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(60,124,255,.14), rgba(0,168,137,.12));
+      border: 1px solid rgba(60,124,255,.14);
+      box-shadow: 0 10px 24px rgba(36, 63, 112, .08);
+      transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      scroll-margin: 72px;
+    }
+    .work-log-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 8px;
+    }
+    .work-log-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      opacity: .74;
+    }
+    .work-log-bubble:hover .work-log-actions,
+    .work-log-bubble:focus-within .work-log-actions {
+      opacity: 1;
+    }
+    .work-log-actions button.icon.tiny {
+      width: 27px;
+      min-height: 27px;
+      border-radius: 9px;
+      padding: 0;
+      box-shadow: none;
+    }
+    .work-log-actions button.icon.tiny svg {
+      width: 13px;
+      height: 13px;
+    }
+    .work-log-bubble.search-match {
+      border-color: rgba(255, 159, 10, .34);
+      background: linear-gradient(135deg, rgba(255, 241, 178, .72), rgba(255,255,255,.96));
+    }
+    .work-log-bubble.active-match {
+      border-color: rgba(0, 122, 255, .36);
+      box-shadow: 0 14px 34px rgba(0, 122, 255, .16);
+      transform: translateY(-1px);
+    }
+    .work-log-bubble p {
+      margin: 0;
+      white-space: pre-wrap;
+      line-height: 1.48;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .work-log-time {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: right;
+    }
+    .work-log-composer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: end;
+      min-height: 0;
+      flex: 0 0 auto;
+    }
+    .work-log-composer textarea {
+      min-height: 46px;
+      max-height: 104px;
+      resize: vertical;
+      border-radius: 18px;
+      padding: 12px 14px;
+    }
+    .work-log-composer button {
+      width: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+    }
+    .work-log-composer button svg {
+      width: 18px;
+      height: 18px;
+    }
+    .work-log-composer.editing textarea {
+      border-color: rgba(0, 122, 255, .38);
+      box-shadow: 0 0 0 4px rgba(0, 122, 255, .10);
+    }
+    .work-log-composer button.hidden {
+      display: none;
+    }
+    .work-log-org-clear {
+      width: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
+      border-radius: 999px;
+      box-shadow: none;
+      background: rgba(118, 118, 128, .12);
+      color: var(--muted);
+    }
+    .work-log-org-clear svg {
+      width: 13px;
+      height: 13px;
     }
     .weekly-work-report {
       margin-top: 14px;
@@ -1430,6 +1663,49 @@
     }
     .issue-card h3 { margin: 0 0 6px; font-size: 14px; }
     .issue-card p { margin: 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; line-height: 1.5; }
+    .work-log-history-list {
+      display: grid;
+      gap: 12px;
+      max-height: min(66vh, 680px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .work-log-history-day {
+      display: grid;
+      gap: 8px;
+    }
+    .work-log-history-day h3 {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      margin: 0;
+      padding: 8px 2px 4px;
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.86));
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .work-log-history-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(60,124,255,.08), rgba(0,168,137,.07));
+      padding: 11px 12px;
+      box-shadow: 0 8px 18px rgba(36, 63, 112, .06);
+    }
+    .work-log-history-card p {
+      margin: 0;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .work-log-history-card time {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: right;
+    }
     .report-list {
       display: grid;
       gap: 10px;
@@ -2460,6 +2736,22 @@
       }
       .brand strong { font-size: 15px; }
       .panel-body { padding: 12px; }
+      .record-tabs {
+        gap: 4px;
+        padding: 3px;
+      }
+      .record-tab {
+        min-height: 34px;
+        padding: 0 4px;
+        font-size: 12px;
+      }
+      .work-log-picker {
+        grid-template-columns: 1fr;
+      }
+      .work-log-shell {
+        height: calc(100dvh - 178px);
+        min-height: 340px;
+      }
       .visit-actions, .org-actions { gap: 7px; }
       .calendar-toolbar {
         align-items: center;
@@ -2757,11 +3049,75 @@
         <section class="panel">
           <div class="panel-body">
             <div class="record-tabs" role="tablist" aria-label="기록 종류">
-              <button type="button" class="record-tab active" id="recordTodoTab" data-record-tab="todo">할일메모</button>
+              <button type="button" class="record-tab active" id="recordWorkLogTab" data-record-tab="worklog">업무기록</button>
+              <button type="button" class="record-tab" id="recordTodoTab" data-record-tab="todo">할일메모</button>
               <button type="button" class="record-tab" id="recordMemoTab" data-record-tab="memo">기술정보 메모</button>
               <button type="button" class="record-tab" id="recordVehicleTab" data-record-tab="vehicle">차량관리</button>
             </div>
-            <div class="record-pane" id="recordTodoPane">
+            <div class="record-pane" id="recordWorkLogPane">
+              <div class="work-log-shell">
+                <div class="work-log-picker">
+                  <div class="org-autocomplete">
+                    <div class="search">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                      <input id="workLogOrgSearch" placeholder="기관을 먼저 선택">
+                      <input type="hidden" id="workLogOrgId">
+                      <button type="button" class="icon tiny secondary work-log-org-clear" id="clearWorkLogOrgBtn" title="기관 선택 지우기" aria-label="기관 선택 지우기">
+                        <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                      </button>
+                    </div>
+                    <div class="org-suggestions" id="workLogOrgSuggestions"></div>
+                  </div>
+                </div>
+                <section class="work-log-room" aria-label="업무기록 대화">
+                  <div class="work-log-room-head">
+                    <div>
+                      <strong id="workLogRoomTitle">기관을 선택해주세요</strong>
+                      <span id="workLogRoomSub">기관별 업무기록이 채팅처럼 쌓입니다.</span>
+                    </div>
+                    <div class="work-log-head-actions">
+                      <span class="tag" id="workLogCountTag">0건</span>
+                      <button type="button" class="icon tiny secondary" id="openWorkLogSearchBtn" title="업무기록 검색" aria-label="업무기록 검색">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="work-log-search-bar" id="workLogSearchBar">
+                    <div class="work-log-search-input">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                      <input id="workLogSearch" placeholder="업무기록 검색">
+                    </div>
+                    <span class="work-log-search-count" id="workLogSearchCount">0/0</span>
+                    <button type="button" class="icon tiny secondary" id="prevWorkLogSearchBtn" title="이전 검색" aria-label="이전 검색">
+                      <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+                    </button>
+                    <button type="button" class="icon tiny secondary" id="nextWorkLogSearchBtn" title="다음 검색" aria-label="다음 검색">
+                      <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <span class="work-log-date-wrap">
+                      <button type="button" class="icon tiny secondary" id="workLogDateBtn" title="날짜 조회" aria-label="날짜 조회">
+                        <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+                      </button>
+                      <input id="workLogDateSearch" class="work-log-date-input" type="date" aria-label="업무기록 날짜 조회">
+                    </span>
+                    <button type="button" class="icon tiny secondary" id="closeWorkLogSearchBtn" title="검색 닫기" aria-label="검색 닫기">
+                      <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                  </div>
+                  <div class="work-log-messages" id="workLogMessages"></div>
+                </section>
+                <div class="work-log-composer">
+                  <textarea id="workLogMessageInput" placeholder="업무 내용을 입력"></textarea>
+                  <button type="button" class="secondary hidden" id="cancelWorkLogEditBtn" title="수정 취소" aria-label="수정 취소">
+                    <svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
+                  <button type="button" id="sendWorkLogBtn" title="업무기록 저장" aria-label="업무기록 저장">
+                    <svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="record-pane" id="recordTodoPane" hidden>
               <div class="toolbar record-toolbar">
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="todoMemoSearch" placeholder="제목, 내용, 기관명으로 검색"></div>
                 <button id="addTodoMemoBtn" class="secondary icon record-add-btn" type="button" title="할일등록" aria-label="할일등록">
@@ -2994,6 +3350,17 @@
     <div class="modal-actions">
       <button class="secondary" id="addReportFromDialogBtn">사진 추가</button>
       <button id="closeReportDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="workLogHistoryDialog">
+    <div class="modal-body">
+      <h2 class="panel-title" id="workLogHistoryTitle">업무기록 내역</h2>
+      <p class="panel-sub" id="workLogHistorySub"></p>
+      <div class="work-log-history-list" id="workLogHistoryList" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeWorkLogHistoryDialogBtn">닫기</button>
     </div>
   </dialog>
 
@@ -3309,6 +3676,7 @@
     const state = {
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
+      workLogs: load("maint_work_logs", []),
       todoMemos: load("maint_todo_memos", []),
       memos: load("maint_memos", [{ id: uid(), title: "VPN 원격점검 절차", tags: "원격점검, VPN", body: "1. 기관 담당자에게 원격 가능 시간 확인\n2. 접속 로그 백업\n3. 점검 후 캘린더 일정 완료 처리" }]),
       dayNotes: load("maint_day_notes", {}),
@@ -3316,13 +3684,18 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
       todayCopyDate: "",
       scheduleClipboard: null,
-      recordTab: localStorage.getItem("maint_record_tab") || "todo",
+      recordTab: localStorage.getItem("maint_record_tab") || "worklog",
+      selectedWorkLogOrgId: localStorage.getItem("maint_work_log_org_id") || "",
+      editingWorkLogId: "",
+      workLogSearchOpen: false,
+      workLogSearchMatchIds: [],
+      workLogSearchIndex: -1,
       scheduleContextTimer: null,
       maintenanceOrgDrag: null,
       dayContextTimer: null,
@@ -3368,9 +3741,11 @@
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
     state.settings.deletedOrgKeys = state.settings.deletedOrgKeys || [];
     state.settings.deletedTodoMemoIds = state.settings.deletedTodoMemoIds || [];
+    state.settings.deletedWorkLogIds = state.settings.deletedWorkLogIds || [];
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
+    normalizeWorkLogs();
     normalizeTodoMemos();
     normalizeTeamDirectory();
     normalizeVehicle();
@@ -4041,6 +4416,70 @@
       });
       return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "ko") || a.role.localeCompare(b.role, "ko"));
     }
+    function normalizeWorkLogs() {
+      state.workLogs = (Array.isArray(state.workLogs) ? state.workLogs : [])
+        .filter(item => item && typeof item === "object")
+        .map(item => ({
+          id: item.id || uid(),
+          orgId: item.orgId || "",
+          orgName: String(item.orgName || "").trim(),
+          body: String(item.body || "").trim(),
+          at: item.at || item.createdAt || new Date().toISOString(),
+          createdAt: item.createdAt || item.at || new Date().toISOString(),
+          updatedAt: item.updatedAt || item.at || item.createdAt || new Date().toISOString()
+        }))
+        .filter(item => item.orgId && item.body && !(state.settings.deletedWorkLogIds || []).includes(item.id))
+        .sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+    }
+    function mergeWorkLogs(localItems = [], cloudItems = []) {
+      const byId = new Map();
+      const deleted = new Set(state.settings.deletedWorkLogIds || []);
+      [...(Array.isArray(localItems) ? localItems : []), ...(Array.isArray(cloudItems) ? cloudItems : [])].forEach(item => {
+        if (!item || typeof item !== "object") return;
+        const id = item.id || uid();
+        if (deleted.has(id)) return;
+        const current = byId.get(id);
+        const currentTime = Date.parse(current?.updatedAt || current?.at || current?.createdAt || "") || 0;
+        const incomingTime = Date.parse(item.updatedAt || item.at || item.createdAt || "") || 0;
+        if (!current || incomingTime >= currentTime) byId.set(id, { ...current, ...item, id });
+      });
+      return [...byId.values()].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+    }
+    function rememberDeletedWorkLogs(logs = []) {
+      const ids = logs.map(item => item?.id).filter(Boolean);
+      if (!ids.length) return;
+      state.settings.deletedWorkLogIds = [...new Set([...(state.settings.deletedWorkLogIds || []), ...ids])];
+    }
+    function forgetDeletedWorkLogs(logs = []) {
+      const ids = new Set(logs.map(item => item?.id).filter(Boolean));
+      if (!ids.size) return;
+      state.settings.deletedWorkLogIds = (state.settings.deletedWorkLogIds || []).filter(id => !ids.has(id));
+    }
+    function selectedWorkLogOrg() {
+      return state.orgs.find(org => org.id === state.selectedWorkLogOrgId) || null;
+    }
+    function workLogOrgLabel(org = {}) {
+      return [org.name, org.region].filter(Boolean).join(" · ");
+    }
+    function workLogOrgMatchesInput(value = "") {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const exact = state.orgs.find(org => workLogOrgLabel(org) === trimmed)
+        || state.orgs.find(org => org.name === trimmed)
+        || null;
+      if (exact) return exact;
+      const matches = matchingScheduleOrgs(trimmed, state.orgs.length);
+      return matches.length === 1 ? matches[0] : null;
+    }
+    function workLogSearchBlob(item = {}, org = null) {
+      return [
+        item.body,
+        item.orgName,
+        org?.name,
+        org?.region,
+        item.at ? formatDateTimeShort(item.at) : ""
+      ].filter(Boolean).join(" ").toLowerCase();
+    }
     function teamMemberLabel(member = {}) {
       return member.role ? `${member.name} · ${member.role}` : member.name || "";
     }
@@ -4125,12 +4564,14 @@
     function save(options = {}) {
       normalizeOrgs();
       normalizeSchedules();
+      normalizeWorkLogs();
       normalizeTodoMemos();
       normalizeTeamDirectory();
       normalizeVehicle();
       normalizeAdminLogs();
       localStorage.setItem("maint_orgs", JSON.stringify(state.orgs));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+      localStorage.setItem("maint_work_logs", JSON.stringify(state.workLogs || []));
       localStorage.setItem("maint_todo_memos", JSON.stringify(state.todoMemos));
       localStorage.setItem("maint_memos", JSON.stringify(state.memos));
       localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
@@ -4326,6 +4767,11 @@
       const date = value.includes("T") ? new Date(value) : new Date(value + "T00:00:00");
       return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
     }
+    function formatDateTimeShort(iso) {
+      if (!iso) return "";
+      const date = new Date(String(iso).includes("T") ? iso : iso + "T00:00:00");
+      return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+    }
     function reportDateLabel(report = {}) {
       return formatDateTimeWithYear(report.capturedAt || report.createdAt || report.visitDate || todayISO());
     }
@@ -4342,6 +4788,7 @@
         camera: '<svg viewBox="0 0 24 24"><path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>',
         image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
         note: '<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h4"/></svg>',
+        worklog: '<svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-4 3V5Z"/><path d="M8 8h8"/><path d="M8 12h6"/><path d="M8 16h4"/></svg>',
         package: '<svg viewBox="0 0 24 24"><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
         edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
         copy: '<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
@@ -4361,8 +4808,38 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.36";
+    const appVersion = "1.6.39";
     const versionHistory = [
+      {
+        version: "1.6.39",
+        date: "2026-07-03",
+        title: "업무기록 검색과 수정 보강",
+        changes: [
+          "업무기록 기관 검색창에 선택값을 한 번에 지우는 X 버튼 추가",
+          "기관명 검색 입력 시 기존 선택기관을 자동 해제하도록 개선",
+          "업무기록 수정 버튼을 입력창 수정모드 방식으로 변경해 모바일 동작 안정화"
+        ]
+      },
+      {
+        version: "1.6.38",
+        date: "2026-07-03",
+        title: "기관별 업무기록 조회",
+        changes: [
+          "기관탭 카드에 업무기록 건수와 조회 아이콘 추가",
+          "기관별 업무기록을 날짜별로 묶어 볼 수 있는 내역 창 추가",
+          "업무기록 메시지 수정과 삭제, 삭제 동기화 보강"
+        ]
+      },
+      {
+        version: "1.6.37",
+        date: "2026-07-03",
+        title: "기관별 업무기록 추가",
+        changes: [
+          "기록탭 첫 메뉴로 업무기록 신설",
+          "기관 선택 후 채팅형으로 업무 내용을 누적 기록",
+          "기관별 이전 기록 조회와 기록 내용 검색, 클라우드 동기화 지원"
+        ]
+      },
       {
         version: "1.6.36",
         date: "2026-06-23",
@@ -4889,19 +5366,70 @@
     todoMemoOrgSearch.addEventListener("blur", () => {
       setTimeout(() => renderTodoMemoOrgSuggestions(false), 160);
     });
+    workLogOrgSearch.addEventListener("input", () => {
+      if (state.selectedWorkLogOrgId || workLogOrgId.value) {
+        resetWorkLogEdit();
+        state.selectedWorkLogOrgId = "";
+        localStorage.removeItem("maint_work_log_org_id");
+      }
+      workLogOrgId.value = "";
+      renderWorkLogOrgSuggestions(true);
+      renderWorkLogs();
+    });
+    clearWorkLogOrgBtn.onclick = () => clearWorkLogOrgSelection({ focus: true });
+    workLogOrgSearch.addEventListener("focus", () => renderWorkLogOrgSuggestions(true));
+    workLogOrgSearch.addEventListener("blur", () => {
+      setTimeout(() => renderWorkLogOrgSuggestions(false), 160);
+    });
+    workLogOrgSearch.addEventListener("change", () => {
+      const org = syncWorkLogOrgSelectionFromInput();
+      if (!org) renderWorkLogs();
+    });
+    openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
+    closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
+    workLogSearch.addEventListener("input", debounce(() => {
+      renderWorkLogs({ preferLatest: true });
+      scrollToActiveWorkLog();
+    }, 120));
+    prevWorkLogSearchBtn.onclick = () => moveWorkLogSearch(-1);
+    nextWorkLogSearchBtn.onclick = () => moveWorkLogSearch(1);
+    workLogDateBtn.onclick = () => {
+      try { workLogDateSearch.showPicker?.(); }
+      catch {}
+      if (!workLogDateSearch.showPicker) workLogDateSearch.click();
+    };
+    workLogDateSearch.onchange = () => {
+      setWorkLogSearchOpen(true);
+      renderWorkLogs({ preferLatest: true });
+      scrollToActiveWorkLog();
+    };
+    sendWorkLogBtn.onclick = addWorkLogMessage;
+    cancelWorkLogEditBtn.onclick = () => {
+      resetWorkLogEdit();
+      workLogMessageInput.value = "";
+      toast("수정을 취소했습니다.");
+    };
+    workLogMessageInput.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        addWorkLogMessage();
+      }
+    });
     installLongPressCopy(document.getElementById("todayTaskTitle"), () => todayISO());
     installLongPressCopy(document.getElementById("tomorrowTaskTitle"), () => todayISO(1));
-    function switchRecordTab(tab = "todo") {
-      const normalized = ["todo", "memo", "vehicle"].includes(tab) ? tab : "todo";
+    function switchRecordTab(tab = "worklog") {
+      const normalized = ["worklog", "todo", "memo", "vehicle"].includes(tab) ? tab : "worklog";
       state.recordTab = normalized;
       localStorage.setItem("maint_record_tab", normalized);
       document.querySelectorAll(".record-tab").forEach(button => {
         button.classList.toggle("active", button.dataset.recordTab === normalized);
       });
+      recordWorkLogPane.hidden = normalized !== "worklog";
       recordTodoPane.hidden = normalized !== "todo";
       recordMemoPane.hidden = normalized !== "memo";
       recordVehiclePane.hidden = normalized !== "vehicle";
-      if (normalized === "todo") renderTodoMemos();
+      if (normalized === "worklog") renderWorkLogs({ scrollBottom: true });
+      else if (normalized === "todo") renderTodoMemos();
       else if (normalized === "memo") renderMemos();
       else renderVehicle();
     }
@@ -6513,6 +7041,7 @@
     function renderOrgs() {
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const upcomingScheduleMap = buildUpcomingScheduleLabelMap();
+      const workLogCountMap = buildWorkLogCountMap();
       const filtered = state.orgs.filter(o => orgSearchBlob(o).includes(q)).sort(orgSearchSort);
       const pageCount = Math.max(1, Math.ceil(filtered.length / orgPageSize));
       state.orgPage = Math.min(Math.max(Number(state.orgPage) || 1, 1), pageCount);
@@ -6528,15 +7057,24 @@
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         ${orgStatusTags(o)}
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${(() => { const schedule = upcomingScheduleMap.get(o.id); return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-"; })()} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${(() => { const schedule = upcomingScheduleMap.get(o.id); return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-"; })()} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건 · 업무기록 ${workLogCountMap.get(o.id) || 0}건</p>
         <div class="org-actions">
           <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap" onclick="openTmap('${o.id}')">${icon("map")}</button>
           <button class="icon secondary" title="레포트 내역" onclick="openReports('${o.id}')">${icon("image")}</button>
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
+          <button class="icon secondary" title="업무기록 내역" onclick="openWorkLogHistory('${o.id}')">${icon("worklog")}</button>
         </div>
       </article>`).join("") : '<div class="empty">검색 결과가 없습니다.</div>';
       renderOrgPagination(filtered.length, startIndex, pageItems.length, pageCount);
+    }
+    function buildWorkLogCountMap() {
+      const byOrg = new Map();
+      for (const item of (state.workLogs || [])) {
+        if (!item?.orgId) continue;
+        byOrg.set(item.orgId, (byOrg.get(item.orgId) || 0) + 1);
+      }
+      return byOrg;
     }
     function renderOrgPagination(total, startIndex, visibleCount, pageCount) {
       const el = document.getElementById("orgPagination");
@@ -8043,11 +8581,286 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
     };
+    function matchingWorkLogOrgs(value = "", limit = 20) {
+      const input = normalizeOrgKeyword(value);
+      return state.orgs
+        .filter(org => !input || normalizeOrgKeyword(workLogOrgLabel(org)).includes(input) || normalizeOrgKeyword(org.name).includes(input))
+        .sort(scheduleOrgSort)
+        .slice(0, limit);
+    }
+    function renderWorkLogOrgSuggestions(show = true) {
+      if (!show) {
+        workLogOrgSuggestions.classList.remove("show");
+        workLogOrgSuggestions.innerHTML = "";
+        return;
+      }
+      const matches = matchingWorkLogOrgs(workLogOrgSearch.value, 20);
+      workLogOrgSuggestions.innerHTML = matches.length ? matches.map(org => `<button type="button" class="org-suggestion" onclick="selectWorkLogOrg('${org.id}')">
+        <strong>${escapeHTML(org.name)}</strong>
+        <span>${escapeHTML([org.region, org.address].filter(Boolean).join(" · ") || "기관 정보 없음")}</span>
+      </button>`).join("") : '<div class="empty">검색된 기관이 없습니다.</div>';
+      workLogOrgSuggestions.classList.add("show");
+    }
+    function selectWorkLogOrg(orgOrId) {
+      const org = typeof orgOrId === "string" ? state.orgs.find(item => item.id === orgOrId) : orgOrId;
+      if (!org) return;
+      resetWorkLogEdit();
+      state.selectedWorkLogOrgId = org.id;
+      workLogOrgId.value = org.id;
+      workLogOrgSearch.value = workLogOrgLabel(org);
+      localStorage.setItem("maint_work_log_org_id", org.id);
+      renderWorkLogOrgSuggestions(false);
+      renderWorkLogs({ scrollBottom: true });
+    }
+    function clearWorkLogOrgSelection({ focus = false } = {}) {
+      resetWorkLogEdit();
+      state.selectedWorkLogOrgId = "";
+      workLogOrgId.value = "";
+      workLogOrgSearch.value = "";
+      localStorage.removeItem("maint_work_log_org_id");
+      renderWorkLogOrgSuggestions(false);
+      renderWorkLogs();
+      if (focus) {
+        setTimeout(() => {
+          workLogOrgSearch.focus();
+          renderWorkLogOrgSuggestions(true);
+        }, 20);
+      }
+    }
+    function updateWorkLogEditState() {
+      const editing = Boolean(state.editingWorkLogId);
+      document.querySelector(".work-log-composer")?.classList.toggle("editing", editing);
+      cancelWorkLogEditBtn.classList.toggle("hidden", !editing);
+      sendWorkLogBtn.title = editing ? "업무기록 수정 저장" : "업무기록 저장";
+      sendWorkLogBtn.setAttribute("aria-label", editing ? "업무기록 수정 저장" : "업무기록 저장");
+      workLogMessageInput.placeholder = editing ? "수정할 업무 내용을 입력" : "업무 내용을 입력";
+    }
+    function resetWorkLogEdit() {
+      state.editingWorkLogId = "";
+      updateWorkLogEditState();
+    }
+    function syncWorkLogOrgSelectionFromInput() {
+      const org = workLogOrgMatchesInput(workLogOrgSearch.value);
+      if (!org) {
+        workLogOrgId.value = "";
+        return null;
+      }
+      if (state.selectedWorkLogOrgId !== org.id) selectWorkLogOrg(org);
+      else workLogOrgId.value = org.id;
+      return org;
+    }
+    function workLogDateISO(item = {}) {
+      if (!item.at) return "";
+      const date = new Date(item.at);
+      return Number.isNaN(date.getTime()) ? "" : localDateISO(date);
+    }
+    function setWorkLogSearchOpen(open = true) {
+      state.workLogSearchOpen = Boolean(open);
+      workLogSearchBar.classList.toggle("show", state.workLogSearchOpen);
+      if (state.workLogSearchOpen) {
+        setTimeout(() => workLogSearch.focus(), 40);
+      } else {
+        workLogSearch.value = "";
+        workLogDateSearch.value = "";
+        state.workLogSearchMatchIds = [];
+        state.workLogSearchIndex = -1;
+        renderWorkLogs();
+      }
+    }
+    function workLogSearchMatches(logs = [], org = null) {
+      const keyword = (workLogSearch?.value || "").trim().toLowerCase();
+      const date = workLogDateSearch?.value || "";
+      if (!keyword && !date) return [];
+      return logs.filter(item => {
+        const keywordOk = !keyword || workLogSearchBlob(item, org).includes(keyword);
+        const dateOk = !date || workLogDateISO(item) === date;
+        return keywordOk && dateOk;
+      });
+    }
+    function scrollToActiveWorkLog() {
+      const id = state.workLogSearchMatchIds[state.workLogSearchIndex];
+      if (!id) return;
+      const el = workLogMessages.querySelector(`[data-work-log-id="${CSS.escape(id)}"]`);
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    function updateWorkLogSearchState(logs = [], org = null, { preferLatest = false } = {}) {
+      const matches = workLogSearchMatches(logs, org);
+      const ids = matches.map(item => item.id);
+      const previousId = state.workLogSearchMatchIds[state.workLogSearchIndex];
+      state.workLogSearchMatchIds = ids;
+      if (!ids.length) {
+        state.workLogSearchIndex = -1;
+      } else if (preferLatest || !ids.includes(previousId)) {
+        state.workLogSearchIndex = ids.length - 1;
+      } else {
+        state.workLogSearchIndex = ids.indexOf(previousId);
+      }
+      workLogSearchCount.textContent = ids.length ? `${state.workLogSearchIndex + 1}/${ids.length}` : "0/0";
+      prevWorkLogSearchBtn.disabled = ids.length < 2;
+      nextWorkLogSearchBtn.disabled = ids.length < 2;
+    }
+    function moveWorkLogSearch(step) {
+      const total = state.workLogSearchMatchIds.length;
+      if (!total) return;
+      state.workLogSearchIndex = (state.workLogSearchIndex + step + total) % total;
+      renderWorkLogs();
+      scrollToActiveWorkLog();
+    }
+    function renderWorkLogs({ scrollBottom = false, preferLatest = false } = {}) {
+      normalizeWorkLogs();
+      const org = selectedWorkLogOrg();
+      const typedOrgText = workLogOrgSearch.value.trim();
+      const isSelectedLabel = org && (!typedOrgText || workLogOrgId.value === org.id);
+      if (isSelectedLabel && workLogOrgSearch.value !== workLogOrgLabel(org)) {
+        workLogOrgId.value = org.id;
+        workLogOrgSearch.value = workLogOrgLabel(org);
+      }
+      const keyword = (workLogSearch?.value || "").trim().toLowerCase();
+      const orgLogs = org ? state.workLogs.filter(item => item.orgId === org.id) : [];
+      updateWorkLogSearchState(orgLogs, org, { preferLatest });
+      const matchIds = new Set(state.workLogSearchMatchIds);
+      const activeId = state.workLogSearchMatchIds[state.workLogSearchIndex] || "";
+      workLogRoomTitle.textContent = org ? org.name : "기관을 선택해주세요";
+      workLogRoomSub.textContent = org ? `${org.region || "지역 미기입"} · 전체 ${orgLogs.length}건${keyword || workLogDateSearch?.value ? ` · 검색 ${state.workLogSearchMatchIds.length}건` : ""}` : "기관별 업무기록이 채팅처럼 쌓입니다.";
+      workLogCountTag.textContent = `${orgLogs.length}건`;
+      if (!org) {
+        workLogMessages.innerHTML = '<div class="empty">기관을 먼저 선택하면 이전 업무기록이 표시됩니다.</div>';
+        workLogMessageInput.disabled = true;
+        sendWorkLogBtn.disabled = true;
+        return;
+      }
+      workLogMessageInput.disabled = false;
+      sendWorkLogBtn.disabled = false;
+      workLogMessages.innerHTML = orgLogs.length ? orgLogs.map(item => `<article class="work-log-bubble ${matchIds.has(item.id) ? "search-match" : ""} ${item.id === activeId ? "active-match" : ""}" data-work-log-id="${escapeAttr(item.id)}">
+        <div class="work-log-main">
+          <p>${escapeHTML(item.body)}</p>
+          <div class="work-log-actions">
+            <button type="button" class="icon tiny secondary" title="수정" aria-label="업무기록 수정" onclick="editWorkLogMessage('${escapeAttr(item.id)}')">${icon("edit")}</button>
+            <button type="button" class="icon tiny danger" title="삭제" aria-label="업무기록 삭제" onclick="deleteWorkLogMessage('${escapeAttr(item.id)}')">${icon("trash")}</button>
+          </div>
+        </div>
+        <time class="work-log-time" datetime="${escapeAttr(item.at)}">${escapeHTML(formatDateTimeShort(item.at))}</time>
+      </article>`).join("") : '<div class="empty">아직 업무기록이 없습니다.</div>';
+      if (scrollBottom) requestAnimationFrame(() => { workLogMessages.scrollTop = workLogMessages.scrollHeight; });
+    }
+    window.selectWorkLogOrg = selectWorkLogOrg;
+    window.editWorkLogMessage = id => {
+      const item = state.workLogs.find(log => log.id === id);
+      if (!item) {
+        toast("수정할 업무기록을 찾지 못했습니다.");
+        return;
+      }
+      const org = state.orgs.find(o => o.id === item.orgId);
+      if (org && state.selectedWorkLogOrgId !== org.id) selectWorkLogOrg(org);
+      state.editingWorkLogId = id;
+      updateWorkLogEditState();
+      workLogMessageInput.value = item.body;
+      workLogMessageInput.focus();
+      workLogMessageInput.setSelectionRange(workLogMessageInput.value.length, workLogMessageInput.value.length);
+      workLogMessages.querySelector(`[data-work-log-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+      toast("입력창에서 업무기록을 수정하세요.");
+    };
+    window.deleteWorkLogMessage = id => {
+      const item = state.workLogs.find(log => log.id === id);
+      if (!item) {
+        toast("삭제할 업무기록을 찾지 못했습니다.");
+        return;
+      }
+      if (!confirm("이 업무기록을 삭제할까요?")) return;
+      rememberDeletedWorkLogs([item]);
+      state.workLogs = state.workLogs.filter(log => log.id !== id);
+      const org = state.orgs.find(o => o.id === item.orgId);
+      logAdminAction("업무기록", "기록 삭제", `${org?.name || item.orgName || "기관 미기입"} · ${item.body.slice(0, 80)}`);
+      save();
+      renderWorkLogs();
+      toast("업무기록을 삭제했습니다.");
+    };
+    function renderWorkLogHistory(orgId) {
+      const org = state.orgs.find(o => o.id === orgId);
+      if (!org) return;
+      const logs = (state.workLogs || [])
+        .filter(item => item.orgId === orgId)
+        .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+      workLogHistoryTitle.textContent = `${org.name} 업무기록`;
+      workLogHistorySub.textContent = `${org.region || "지역 미기입"} · 총 ${logs.length}건`;
+      if (!logs.length) {
+        workLogHistoryList.innerHTML = '<div class="empty">아직 등록된 업무기록이 없습니다.</div>';
+        return;
+      }
+      const groups = new Map();
+      logs.forEach(item => {
+        const key = workLogDateISO(item) || "날짜 미기입";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      });
+      workLogHistoryList.innerHTML = [...groups.entries()].map(([date, items]) => `
+        <section class="work-log-history-day">
+          <h3>${date === "날짜 미기입" ? "날짜 미기입" : escapeHTML(formatDateWithYear(date))}</h3>
+          ${items.map(item => `<article class="work-log-history-card">
+            <p>${escapeHTML(item.body)}</p>
+            <time datetime="${escapeAttr(item.at)}">${escapeHTML(formatDateTimeShort(item.at))}</time>
+          </article>`).join("")}
+        </section>
+      `).join("");
+    }
+    window.openWorkLogHistory = orgId => {
+      const org = state.orgs.find(o => o.id === orgId);
+      if (!org) return;
+      renderWorkLogHistory(orgId);
+      workLogHistoryDialog.showModal();
+    };
+    function addWorkLogMessage() {
+      const org = syncWorkLogOrgSelectionFromInput() || selectedWorkLogOrg();
+      const body = workLogMessageInput.value.trim();
+      if (!org) {
+        toast("기관을 먼저 선택해주세요.");
+        workLogOrgSearch.focus();
+        return;
+      }
+      if (!body) {
+        toast("업무기록 내용을 입력해주세요.");
+        workLogMessageInput.focus();
+        return;
+      }
+      const editingItem = state.editingWorkLogId ? state.workLogs.find(log => log.id === state.editingWorkLogId) : null;
+      const now = new Date().toISOString();
+      if (editingItem) {
+        editingItem.body = body;
+        editingItem.updatedAt = now;
+        if (org && editingItem.orgId !== org.id) {
+          editingItem.orgId = org.id;
+          editingItem.orgName = org.name;
+        }
+        workLogMessageInput.value = "";
+        resetWorkLogEdit();
+        logAdminAction("업무기록", "기록 수정", `${org?.name || editingItem.orgName || "기관 미기입"} · ${body.slice(0, 80)}`);
+        save();
+        renderWorkLogs();
+        requestAnimationFrame(() => workLogMessages.querySelector(`[data-work-log-id="${CSS.escape(editingItem.id)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+        toast("업무기록을 수정했습니다.");
+        return;
+      }
+      state.workLogs.push({
+        id: uid(),
+        orgId: org.id,
+        orgName: org.name,
+        body,
+        at: now,
+        createdAt: now,
+        updatedAt: now
+      });
+      forgetDeletedWorkLogs(state.workLogs);
+      workLogMessageInput.value = "";
+      logAdminAction("업무기록", "기록 추가", `${org.name} · ${body.slice(0, 80)}`);
+      save();
+      renderWorkLogs({ scrollBottom: true });
+      toast("업무기록을 저장했습니다.");
+    }
     async function renderMemos() {
       const q = document.getElementById("memoSearch").value.trim().toLowerCase();
       const list = state.memos.filter(m => memoSearchBlob(m).includes(q));
@@ -8373,13 +9186,14 @@
         <p>${item.changes.map(change => "- " + escapeHTML(change)).join("\n")}</p>
       </article>`).join("");
     }
-    const cloudDataKeys = ["orgs", "schedules", "todoMemos", "memos", "dayNotes", "weeklyReports", "teamDirectory", "vehicle", "adminLogs"];
+    const cloudDataKeys = ["orgs", "schedules", "workLogs", "todoMemos", "memos", "dayNotes", "weeklyReports", "teamDirectory", "vehicle", "adminLogs"];
     function canUseCloudSync() {
       return firebaseConfigured() && state.firebaseReady && Boolean(state.firebase?.auth?.currentUser) && location.protocol !== "file:" && !document.body.classList.contains("auth-locked");
     }
     function applyCloudValue(key, value) {
       if (key === "orgs" && Array.isArray(value)) state.orgs = mergeOrgLists(state.orgs || [], value);
       if (key === "schedules" && Array.isArray(value)) state.schedules = [...(state.schedules || []), ...value];
+      if (key === "workLogs" && Array.isArray(value)) state.workLogs = mergeWorkLogs(state.workLogs || [], value);
       if (key === "todoMemos" && Array.isArray(value)) state.todoMemos = mergeTodoMemos(state.todoMemos || [], value);
       if (key === "memos" && Array.isArray(value)) state.memos = value;
       if (key === "dayNotes" && value && typeof value === "object" && !Array.isArray(value)) state.dayNotes = value;
@@ -8418,6 +9232,7 @@
       return {
         orgs: uploadableOrgs,
         schedules: state.schedules,
+        workLogs: state.workLogs || [],
         todoMemos: state.todoMemos || [],
         memos: state.memos,
         dayNotes: state.dayNotes || {},
@@ -8430,6 +9245,7 @@
         restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
         deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
+        deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -8458,11 +9274,15 @@
       if (Array.isArray(data.deletedTodoMemoIds)) {
         state.settings.deletedTodoMemoIds = [...new Set([...(state.settings.deletedTodoMemoIds || []), ...data.deletedTodoMemoIds])];
       }
+      if (Array.isArray(data.deletedWorkLogIds)) {
+        state.settings.deletedWorkLogIds = [...new Set([...(state.settings.deletedWorkLogIds || []), ...data.deletedWorkLogIds])];
+      }
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
       });
       normalizeOrgs();
       normalizeSchedules();
+      normalizeWorkLogs();
       normalizeTodoMemos();
       normalizeTeamDirectory();
       normalizeVehicle();
@@ -8591,6 +9411,7 @@
         renderDashboardView();
         renderCalendar("mainCalendar", false);
         renderOrgs();
+        renderWorkLogs();
         renderTodoMemos();
         renderMemos();
         renderVehicle();
@@ -8940,6 +9761,7 @@
     photoFileBtn.onclick = () => { photoSourceDialog.close(); openReportInput(reportFileInput); };
     closePhotoSourceDialogBtn.onclick = () => photoSourceDialog.close();
     closeReportDialogBtn.onclick = () => reportDialog.close();
+    closeWorkLogHistoryDialogBtn.onclick = () => workLogHistoryDialog.close();
     closePhotoPreviewDialogBtn.onclick = () => photoPreviewDialog.close();
     sharePhotoPreviewBtn.onclick = () => shareCurrentPhotoPreview();
     addReportFromDialogBtn.onclick = () => {
