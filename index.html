@@ -4854,8 +4854,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.40";
+    const appVersion = "1.6.41";
     const versionHistory = [
+      {
+        version: "1.6.41",
+        date: "2026-07-06",
+        title: "오늘의 지도 대한민국 범위 제한",
+        changes: [
+          "오늘의 지도 기본 표시 범위를 대한민국 중심으로 제한",
+          "지도 이동과 축소가 대한민국 범위를 벗어나지 않도록 maxBounds 적용",
+          "방문지가 없을 때도 대한민국 범위로 자동 맞춤"
+        ]
+      },
       {
         version: "1.6.40",
         date: "2026-07-03",
@@ -5629,16 +5639,25 @@
       const status = document.getElementById("todayDestinationMapStatus");
       if (status) status.textContent = text;
     }
+    function koreaMapBounds() {
+      return L.latLngBounds([32.55, 124.25], [38.75, 132.25]);
+    }
     function ensureDestinationMap() {
       const el = document.getElementById("todayDestinationMap");
       if (!el || !window.L) return null;
       if (state.destinationMap) return state.destinationMap;
+      const bounds = koreaMapBounds();
       state.destinationMap = L.map(el, {
         zoomControl: false,
-        attributionControl: true
+        attributionControl: true,
+        maxBounds: bounds,
+        maxBoundsViscosity: 1,
+        minZoom: 7
       }).setView([36.4, 127.9], 7);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
+        bounds,
+        noWrap: true,
         attribution: "&copy; OpenStreetMap"
       }).addTo(state.destinationMap);
       L.control.zoom({ position: "bottomright" }).addTo(state.destinationMap);
@@ -5719,8 +5738,9 @@
       } else if (points.length === 1) {
         map.setView(points[0], 12);
       } else {
-        map.setView([36.4, 127.9], 7);
+        map.fitBounds(koreaMapBounds(), { padding: [8, 8], maxZoom: 7 });
       }
+      map.panInsideBounds(koreaMapBounds(), { animate: false });
     }
     async function renderTodayDestinationMapNow() {
       const sub = document.getElementById("todayDestinationMapSub");
