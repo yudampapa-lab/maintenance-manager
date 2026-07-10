@@ -2098,6 +2098,9 @@
       opacity: .64;
       overflow: hidden;
     }
+    .ai-command-fab[hidden] {
+      display: none !important;
+    }
     .ai-command-fab::before {
       content: "";
       position: absolute;
@@ -3210,6 +3213,7 @@
               <div class="field"><label>카카오워크 Incoming Webhook URL</label><input id="kakaoWebhook" placeholder="https://..."></div>
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
+              <div class="field"><label>AI 기능</label><select id="aiFeatureEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>Gemini API 키</label><input id="geminiApiKey" type="password" autocomplete="off" placeholder="Google AI Studio API 키"></div>
               <div class="field"><label>Gemini 모델</label><input id="geminiModel" autocomplete="off" placeholder="gemini-3.5-flash"></div>
               <div class="field"><label>AI 답변 음성 재생</label><select id="aiVoiceEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
@@ -3730,7 +3734,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3781,6 +3785,7 @@
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.geminiApiKey = state.settings.geminiApiKey || "";
     if (!state.settings.geminiModel || state.settings.geminiModel === "gemini-1.5-flash") state.settings.geminiModel = "gemini-3.5-flash";
+    state.settings.aiEnabled = state.settings.aiEnabled === "0" ? "0" : "1";
     state.settings.aiVoiceEnabled = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
@@ -4854,8 +4859,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.41";
+    const appVersion = "1.6.42";
     const versionHistory = [
+      {
+        version: "1.6.42",
+        date: "2026-07-10",
+        title: "AI 기능 ON/OFF 설정",
+        changes: [
+          "설정에 AI 기능 전체 사용 여부 선택 항목 추가",
+          "AI 기능을 끄면 우측 하단 AI 버튼을 숨기고 열린 AI 창과 음성을 자동 종료",
+          "AI 비활성 상태에서 음성 인식, 질문 실행, 음성 재생이 동작하지 않도록 방어 처리"
+        ]
+      },
       {
         version: "1.6.41",
         date: "2026-07-06",
@@ -6566,6 +6581,18 @@
       ].join("");
       installScheduleDateJumpHandlers(dashboardSearchResults);
     }
+    function aiFeatureEnabled() {
+      return state.settings.aiEnabled !== "0";
+    }
+    function updateAiFeatureVisibility() {
+      const enabled = aiFeatureEnabled();
+      if (window.aiCommandFab) aiCommandFab.hidden = !enabled;
+      if (!enabled) {
+        stopAiListening();
+        stopAiSpeech();
+        if (window.aiCommandDialog?.open) aiCommandDialog.close();
+      }
+    }
     function setAiStatus(text) {
       aiCommandStatus.textContent = text;
     }
@@ -6592,6 +6619,7 @@
         || null;
     }
     function speakAiResult({ force = false } = {}) {
+      if (!aiFeatureEnabled()) return;
       if (!force && state.settings.aiVoiceEnabled === "0") return;
       if (!aiVoiceAvailable()) {
         if (force) toast("이 브라우저에서는 음성 재생을 지원하지 않습니다.");
@@ -7030,6 +7058,10 @@
       }
     }
     async function runAiCommand(command) {
+      if (!aiFeatureEnabled()) {
+        toast("설정에서 AI 기능이 꺼져 있습니다.");
+        return;
+      }
       const text = String(command || "").trim();
       aiCommandInput.value = text;
       if (!text) {
@@ -7064,6 +7096,10 @@
       return window.SpeechRecognition || window.webkitSpeechRecognition;
     }
     function startAiListening() {
+      if (!aiFeatureEnabled()) {
+        toast("설정에서 AI 기능이 꺼져 있습니다.");
+        return;
+      }
       const Recognition = speechRecognitionClass();
       if (!Recognition) {
         setAiStatus("음성 인식 미지원");
@@ -8620,6 +8656,11 @@
       if (await copyTodayMessengerText()) todayCopyDialog.close();
     };
     aiCommandFab.onclick = () => {
+      if (!aiFeatureEnabled()) {
+        toast("설정에서 AI 기능이 꺼져 있습니다.");
+        updateAiFeatureVisibility();
+        return;
+      }
       if (!aiCommandDialog.open) aiCommandDialog.showModal();
       aiCommandInput.value = "";
       aiCommandInput.blur();
@@ -9141,7 +9182,9 @@
       tmapKey.value = state.settings.tmapKey || "";
       geminiApiKey.value = state.settings.geminiApiKey || "";
       geminiModel.value = state.settings.geminiModel || "gemini-3.5-flash";
+      aiFeatureEnabled.value = state.settings.aiEnabled === "0" ? "0" : "1";
       aiVoiceEnabled.value = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
+      updateAiFeatureVisibility();
       resetTeamDirectoryForm();
       renderTeamDirectory();
       updateCloudStatus();
@@ -10995,9 +11038,11 @@
         tmapKey: tmapKey.value.trim(),
         geminiApiKey: geminiApiKey.value.trim(),
         geminiModel: geminiModel.value.trim() || "gemini-3.5-flash",
+        aiEnabled: aiFeatureEnabled.value === "0" ? "0" : "1",
         aiVoiceEnabled: aiVoiceEnabled.value === "0" ? "0" : "1"
       };
-      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap, Gemini, AI 음성 설정을 저장했습니다.");
+      updateAiFeatureVisibility();
+      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap, Gemini, AI 기능 설정을 저장했습니다.");
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
@@ -11170,6 +11215,7 @@
     const savedView = localStorage.getItem("maint_active_view");
     const initialView = savedView === "vehicle" ? "memo" : savedView;
     if (savedView === "vehicle") state.recordTab = "vehicle";
+    updateAiFeatureVisibility();
     if (initialView && document.getElementById("view-" + initialView)) {
       switchView(initialView);
     } else {
