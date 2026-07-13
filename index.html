@@ -6610,11 +6610,11 @@
       ].join("");
       installScheduleDateJumpHandlers(dashboardSearchResults);
     }
-    function aiFeatureEnabled() {
+    function isAiFeatureEnabled() {
       return state.settings.aiEnabled === "1";
     }
     function updateAiFeatureVisibility() {
-      const enabled = aiFeatureEnabled();
+      const enabled = isAiFeatureEnabled();
       const fab = document.getElementById("aiCommandFab");
       document.body.classList.toggle("ai-feature-disabled", !enabled);
       if (fab) {
@@ -6655,7 +6655,7 @@
         || null;
     }
     function speakAiResult({ force = false } = {}) {
-      if (!aiFeatureEnabled()) return;
+      if (!isAiFeatureEnabled()) return;
       if (!force && state.settings.aiVoiceEnabled === "0") return;
       if (!aiVoiceAvailable()) {
         if (force) toast("이 브라우저에서는 음성 재생을 지원하지 않습니다.");
@@ -7094,7 +7094,7 @@
       }
     }
     async function runAiCommand(command) {
-      if (!aiFeatureEnabled()) {
+      if (!isAiFeatureEnabled()) {
         toast("설정에서 AI 기능이 꺼져 있습니다.");
         return;
       }
@@ -7132,7 +7132,7 @@
       return window.SpeechRecognition || window.webkitSpeechRecognition;
     }
     function startAiListening() {
-      if (!aiFeatureEnabled()) {
+      if (!isAiFeatureEnabled()) {
         toast("설정에서 AI 기능이 꺼져 있습니다.");
         return;
       }
@@ -8693,7 +8693,7 @@
       if (await copyTodayMessengerText()) todayCopyDialog.close();
     };
     aiCommandFab.onclick = () => {
-      if (!aiFeatureEnabled()) {
+      if (!isAiFeatureEnabled()) {
         toast("설정에서 AI 기능이 꺼져 있습니다.");
         updateAiFeatureVisibility();
         return;
