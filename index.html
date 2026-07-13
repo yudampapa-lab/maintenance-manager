@@ -3216,6 +3216,8 @@
             <div class="settings-grid">
               <div class="field"><label>카카오워크 Incoming Webhook URL</label><input id="kakaoWebhook" placeholder="https://..."></div>
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
+              <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
+              <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
               <div class="field"><label>AI 기능</label><select id="aiFeatureEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>Gemini API 키</label><input id="geminiApiKey" type="password" autocomplete="off" placeholder="Google AI Studio API 키"></div>
@@ -3244,7 +3246,8 @@
             </section>
             <div class="toolbar" style="margin-top:14px">
               <button id="saveSettingsBtn">설정 저장</button>
-              <button class="secondary" id="testKakaoBtn">알림 테스트</button>
+              <button class="secondary" id="testDailyNotificationBtn" type="button">오늘 일정 알림 테스트</button>
+              <button class="secondary" id="testKakaoBtn">카카오워크 테스트</button>
               <button class="secondary" id="exportIcsBtn" type="button">캘린더 파일 내보내기</button>
               <button class="secondary" id="openAdminLogBtn" type="button">로그 확인</button>
               <button class="secondary" id="openVersionHistoryBtn" type="button">버전 확인</button>
@@ -3738,7 +3741,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3791,6 +3794,8 @@
     if (!state.settings.geminiModel || state.settings.geminiModel === "gemini-1.5-flash") state.settings.geminiModel = "gemini-3.5-flash";
     state.settings.aiEnabled = ["0", 0, false, "false", "off", "disabled"].includes(state.settings.aiEnabled) ? "0" : "1";
     state.settings.aiVoiceEnabled = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
+    state.settings.dailyNotificationEnabled = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
+    state.settings.dailyNotificationTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.dailyNotificationTime || "") ? state.settings.dailyNotificationTime : "09:00";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -4893,8 +4898,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.45";
+    const appVersion = "1.6.46";
     const versionHistory = [
+      {
+        version: "1.6.46",
+        date: "2026-07-13",
+        title: "오늘 일정 알림 설정",
+        changes: [
+          "APK에서 오늘 일정을 지정한 시각에 알림으로 안내",
+          "설정에서 알림 사용 여부와 시간을 변경하면 Android 예약을 즉시 갱신",
+          "재부팅과 시간대 변경 후에도 다음 알림을 자동 재예약"
+        ]
+      },
       {
         version: "1.6.45",
         date: "2026-07-13",
@@ -9261,6 +9276,8 @@
     function renderSettings() {
       kakaoWebhook.value = state.settings.kakaoWebhook || "";
       billingNotice.value = state.settings.billingNotice || "3";
+      dailyNotificationEnabled.value = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
+      dailyNotificationTime.value = state.settings.dailyNotificationTime || "09:00";
       tmapKey.value = state.settings.tmapKey || "";
       geminiApiKey.value = state.settings.geminiApiKey || "";
       geminiModel.value = state.settings.geminiModel || "gemini-3.5-flash";
@@ -9270,6 +9287,17 @@
       resetTeamDirectoryForm();
       renderTeamDirectory();
       updateCloudStatus();
+    }
+    function syncDailyNotificationToAndroid() {
+      try {
+        if (!window.ReportMateAndroid?.configureDailyNotification) return;
+        window.ReportMateAndroid.configureDailyNotification(
+          state.settings.dailyNotificationEnabled === "0" ? "0" : "1",
+          state.settings.dailyNotificationTime || "09:00"
+        );
+      } catch (error) {
+        console.warn("Android daily notification sync failed", error);
+      }
     }
     function renderTodoMemoOrgOptions(keyword = "") {
       todoMemoOrgOptions.innerHTML = matchingScheduleOrgs(keyword, 20)
@@ -11141,6 +11169,8 @@
         ...state.settings,
         kakaoWebhook: kakaoWebhook.value.trim(),
         billingNotice: billingNotice.value,
+        dailyNotificationEnabled: dailyNotificationEnabled.value === "0" ? "0" : "1",
+        dailyNotificationTime: dailyNotificationTime.value || "09:00",
         tmapKey: tmapKey.value.trim(),
         geminiApiKey: geminiApiKey.value.trim(),
         geminiModel: geminiModel.value.trim() || "gemini-3.5-flash",
@@ -11148,7 +11178,8 @@
         aiVoiceEnabled: aiVoiceEnabled.value === "0" ? "0" : "1"
       };
       updateAiFeatureVisibility();
-      logAdminAction("설정", "연동 설정 저장", "카카오워크, 청구 알림, Tmap, Gemini, AI 기능 설정을 저장했습니다.");
+      syncDailyNotificationToAndroid();
+      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
@@ -11158,6 +11189,15 @@
       updateAiFeatureVisibility();
       save();
     });
+    testDailyNotificationBtn.onclick = () => {
+      if (window.ReportMateAndroid?.showDailyNotificationNow) {
+        syncDailyNotificationToAndroid();
+        window.ReportMateAndroid.showDailyNotificationNow();
+        toast("오늘 일정 알림을 전송했습니다.");
+      } else {
+        showInfo("오늘 일정 알림", "이 기능은 ReportMate APK에서 사용할 수 있습니다.");
+      }
+    };
     openAdminLogBtn.onclick = () => {
       renderAdminLogs();
       adminLogDialog.showModal();
