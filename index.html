@@ -4859,8 +4859,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.43";
+    const appVersion = "1.6.44";
     const versionHistory = [
+      {
+        version: "1.6.44",
+        date: "2026-07-13",
+        title: "대학 도서관명 축약 보완",
+        changes: [
+          "대학교 도서관 일정은 학교명과 세부 도서관명을 함께 알아볼 수 있도록 별도 축약 규칙 적용",
+          "순천향대학교 중앙도서관을 순천향대 중앙도서관으로 표시"
+        ]
+      },
       {
         version: "1.6.43",
         date: "2026-07-13",
@@ -5981,6 +5990,10 @@
       });
       text = text.replace(/^(인천광역시|서울특별시|부산광역시|대구광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|충청북도|충청남도|전북특별자치도|전라남도|경상북도|경상남도|제주특별자치도)/, "");
       text = text.trim() || String(title || "").trim();
+      const universityLibrary = text.match(/^(.+?)대학교\s*(.+도서관)$/);
+      if (universityLibrary) {
+        return `${universityLibrary[1]}대 ${universityLibrary[2]}`.trim();
+      }
       if (text.length > 9 && /도서관$/.test(text)) {
         const core = text.replace(/도서관$/, "");
         text = `${core.slice(-5)}도서관`;
