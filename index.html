@@ -4859,8 +4859,17 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.42";
+    const appVersion = "1.6.43";
     const versionHistory = [
+      {
+        version: "1.6.43",
+        date: "2026-07-13",
+        title: "달력 공휴일 및 기관명 축약 보완",
+        changes: [
+          "2026년부터 제헌절을 공휴일로 표시하도록 달력 데이터 보완",
+          "기관명 접두어 제거 후 도서관만 남는 경우 원래 기관명을 유지하도록 예외 처리"
+        ]
+      },
       {
         version: "1.6.42",
         date: "2026-07-10",
@@ -5966,7 +5975,10 @@
         /^[가-힣]+군립/,
         /^[가-힣]+구립/
       ];
-      prefixes.forEach(pattern => { text = text.replace(pattern, ""); });
+      prefixes.forEach(pattern => {
+        const compacted = text.replace(pattern, "").trim();
+        if (compacted && compacted !== "도서관") text = compacted;
+      });
       text = text.replace(/^(인천광역시|서울특별시|부산광역시|대구광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|충청북도|충청남도|전북특별자치도|전라남도|경상북도|경상남도|제주특별자치도)/, "");
       text = text.trim() || String(title || "").trim();
       if (text.length > 9 && /도서관$/.test(text)) {
@@ -7333,6 +7345,7 @@
       "03-01": { label: "삼일절", substitute: "weekend" },
       "05-05": { label: "어린이날", substitute: "weekend" },
       "06-06": { label: "현충일", substitute: false },
+      "07-17": { label: "제헌절", substitute: "weekend", fromYear: 2026 },
       "08-15": { label: "광복절", substitute: "weekend" },
       "10-03": { label: "개천절", substitute: "weekend" },
       "10-09": { label: "한글날", substitute: "weekend" },
@@ -7374,7 +7387,7 @@
       return entries;
     }
     function buildHolidayCalendar(year) {
-      const entries = Object.entries(fixedHolidays).map(([monthDay, info]) => ({
+      const entries = Object.entries(fixedHolidays).filter(([, info]) => !info.fromYear || year >= info.fromYear).map(([monthDay, info]) => ({
         iso: `${year}-${monthDay}`,
         label: info.label,
         substitute: info.substitute
