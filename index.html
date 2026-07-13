@@ -2101,6 +2101,10 @@
     .ai-command-fab[hidden] {
       display: none !important;
     }
+    body.ai-feature-disabled .ai-command-fab {
+      display: none !important;
+      pointer-events: none !important;
+    }
     .ai-command-fab::before {
       content: "";
       position: absolute;
@@ -3648,7 +3652,7 @@
   <input id="reportCameraInput" type="file" accept="image/*" capture="environment" hidden>
   <input id="reportGalleryInput" type="file" accept="image/*" hidden>
   <input id="reportFileInput" type="file" accept="image/*" hidden>
-  <button type="button" class="ai-command-fab" id="aiCommandFab" title="AI 등록" aria-label="AI 등록">
+  <button type="button" class="ai-command-fab" id="aiCommandFab" title="AI 등록" aria-label="AI 등록" hidden style="display:none" aria-hidden="true" tabindex="-1">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3.2"/>
       <circle cx="6.5" cy="7.5" r="1.7"/>
@@ -3785,7 +3789,7 @@
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
     state.settings.geminiApiKey = state.settings.geminiApiKey || "";
     if (!state.settings.geminiModel || state.settings.geminiModel === "gemini-1.5-flash") state.settings.geminiModel = "gemini-3.5-flash";
-    state.settings.aiEnabled = state.settings.aiEnabled === "0" ? "0" : "1";
+    state.settings.aiEnabled = ["0", 0, false, "false", "off", "disabled"].includes(state.settings.aiEnabled) ? "0" : "1";
     state.settings.aiVoiceEnabled = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
@@ -6607,11 +6611,18 @@
       installScheduleDateJumpHandlers(dashboardSearchResults);
     }
     function aiFeatureEnabled() {
-      return state.settings.aiEnabled !== "0";
+      return state.settings.aiEnabled === "1";
     }
     function updateAiFeatureVisibility() {
       const enabled = aiFeatureEnabled();
-      if (window.aiCommandFab) aiCommandFab.hidden = !enabled;
+      const fab = document.getElementById("aiCommandFab");
+      document.body.classList.toggle("ai-feature-disabled", !enabled);
+      if (fab) {
+        fab.hidden = !enabled;
+        fab.style.display = enabled ? "inline-grid" : "none";
+        fab.setAttribute("aria-hidden", enabled ? "false" : "true");
+        fab.tabIndex = enabled ? 0 : -1;
+      }
       if (!enabled) {
         stopAiListening();
         stopAiSpeech();
@@ -9508,6 +9519,7 @@
         setTimeout(() => uploadCloudData({ silent: true }), 250);
       }
       render();
+      updateAiFeatureVisibility();
       updateCloudStatus();
     }
     async function uploadCloudData({ silent = false } = {}) {
@@ -11073,6 +11085,11 @@
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
     };
+    aiFeatureEnabled.addEventListener("change", () => {
+      state.settings.aiEnabled = aiFeatureEnabled.value === "0" ? "0" : "1";
+      updateAiFeatureVisibility();
+      save();
+    });
     openAdminLogBtn.onclick = () => {
       renderAdminLogs();
       adminLogDialog.showModal();
