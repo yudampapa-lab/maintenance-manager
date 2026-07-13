@@ -4278,7 +4278,7 @@
         if (key && !migrated[key]) migrated[key] = { deleted: true, at: 1 };
       });
       (state.settings.restoredScheduleIds || []).forEach(key => {
-        if (key && !migrated[key]) migrated[key] = { deleted: false, at: 2 };
+        if (key && !migrated[key]) migrated[key] = { deleted: false, at: 0 };
       });
       state.settings.scheduleDeletionState = migrated;
       syncLegacyScheduleDeletionArrays();
@@ -9534,7 +9534,7 @@
         if (key && !incomingDeletionState[key]) incomingDeletionState[key] = { deleted: true, at: 1 };
       });
       (Array.isArray(data.restoredScheduleIds) ? data.restoredScheduleIds : []).forEach(key => {
-        if (key && !incomingDeletionState[key]) incomingDeletionState[key] = { deleted: false, at: 2 };
+        if (key && !incomingDeletionState[key]) incomingDeletionState[key] = { deleted: false, at: 0 };
       });
       state.settings.scheduleDeletionState = mergeScheduleDeletionStates(state.settings.scheduleDeletionState, incomingDeletionState);
       syncLegacyScheduleDeletionArrays();
