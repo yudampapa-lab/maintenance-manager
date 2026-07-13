@@ -4898,8 +4898,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.46";
+    const appVersion = "1.6.47";
     const versionHistory = [
+      {
+        version: "1.6.47",
+        date: "2026-07-13",
+        title: "위젯 일정 스크롤과 복사",
+        changes: [
+          "위젯 오늘 일정 영역을 전체 일정을 볼 수 있는 스크롤 목록으로 변경",
+          "위젯 상단에 오늘 할 일 클립보드 복사 아이콘 추가",
+          "웹과 위젯이 동일한 방문·원격·팀·개인 일정 복사 문구를 사용하도록 연결"
+        ]
+      },
       {
         version: "1.6.46",
         date: "2026-07-13",
@@ -6151,6 +6161,20 @@
       if (teamNames.length) sections.push(`[팀 일정]\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
       if (personalNames.length) sections.push(`[개인 일정]\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
       return `[${todayCopyLabel(date)}의 유지보수 일정 - ${messengerDateLabel(date)}]\n\n${sections.join("\n\n")}`;
+    }
+    function widgetTodayMessengerText() {
+      const schedules = sortedSchedules(todayISO());
+      if (!schedules.length) return "";
+      const visitNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "visit" || schedule.type === "org"));
+      const remoteNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "remote"));
+      const teamNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "team"), { includeTeam: true });
+      const personalNames = groupedClipboardNames(schedules.filter(schedule => schedule.type === "personal"));
+      const sections = [];
+      if (visitNames.length) sections.push(`[방문일정]\n${visitNames.join(", ")} 다녀오겠습니다.`);
+      if (remoteNames.length) sections.push(`[원격일정]\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
+      if (teamNames.length) sections.push(`[팀 일정]\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
+      if (personalNames.length) sections.push(`[개인 일정]\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
+      return sections.length ? `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}` : "";
     }
     async function copyTextToClipboard(text) {
       if (navigator.clipboard && window.isSecureContext) {
