@@ -3738,7 +3738,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -3794,6 +3794,7 @@
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
+    migrateLegacyScheduleDeletionState();
     state.settings.deletedOrgKeys = state.settings.deletedOrgKeys || [];
     state.settings.deletedTodoMemoIds = state.settings.deletedTodoMemoIds || [];
     state.settings.deletedWorkLogIds = state.settings.deletedWorkLogIds || [];
@@ -4245,33 +4246,62 @@
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
     }
     function scheduleDeleteKeys(schedule = {}) {
-      const keys = [
+      return [...new Set([
         schedule.id,
         schedule.googleEventId,
         ...(Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds : [])
-      ].filter(Boolean);
-      const contentKey = scheduleContentKey(schedule);
-      if (contentKey.replace(/\|/g, "")) keys.push("content:" + contentKey);
-      return keys;
+      ].filter(Boolean))];
+    }
+    function normalizedScheduleDeletionState(value = {}) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+      return Object.fromEntries(Object.entries(value).filter(([key]) => key).map(([key, record]) => {
+        if (record && typeof record === "object") return [key, { deleted: Boolean(record.deleted), at: Number(record.at) || 0 }];
+        return [key, { deleted: Boolean(record), at: 0 }];
+      }));
+    }
+    function mergeScheduleDeletionStates(localState = {}, incomingState = {}) {
+      const merged = normalizedScheduleDeletionState(localState);
+      Object.entries(normalizedScheduleDeletionState(incomingState)).forEach(([key, incoming]) => {
+        const current = merged[key];
+        if (!current || incoming.at > current.at || (incoming.at === current.at && incoming.deleted && !current.deleted)) merged[key] = incoming;
+      });
+      return merged;
+    }
+    function syncLegacyScheduleDeletionArrays() {
+      const entries = Object.entries(normalizedScheduleDeletionState(state.settings.scheduleDeletionState));
+      state.settings.deletedScheduleIds = entries.filter(([, record]) => record.deleted).map(([key]) => key);
+      state.settings.restoredScheduleIds = entries.filter(([, record]) => !record.deleted).map(([key]) => key);
+    }
+    function migrateLegacyScheduleDeletionState() {
+      const migrated = normalizedScheduleDeletionState(state.settings.scheduleDeletionState);
+      (state.settings.deletedScheduleIds || []).forEach(key => {
+        if (key && !migrated[key]) migrated[key] = { deleted: true, at: 1 };
+      });
+      (state.settings.restoredScheduleIds || []).forEach(key => {
+        if (key && !migrated[key]) migrated[key] = { deleted: false, at: 2 };
+      });
+      state.settings.scheduleDeletionState = migrated;
+      syncLegacyScheduleDeletionArrays();
+    }
+    function setScheduleDeletionState(schedules = [], deleted) {
+      const at = Date.now();
+      const deletionState = normalizedScheduleDeletionState(state.settings.scheduleDeletionState);
+      schedules.flatMap(scheduleDeleteKeys).forEach(key => { deletionState[key] = { deleted: Boolean(deleted), at }; });
+      state.settings.scheduleDeletionState = deletionState;
+      syncLegacyScheduleDeletionArrays();
     }
     function rememberDeletedSchedules(schedules = []) {
-      const ids = schedules.flatMap(scheduleDeleteKeys);
-      if (!ids.length) return;
-      state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...ids])];
-      const deleted = new Set(ids);
-      state.settings.restoredScheduleIds = (state.settings.restoredScheduleIds || []).filter(id => !deleted.has(id));
+      setScheduleDeletionState(schedules, true);
     }
     function forgetDeletedSchedules(schedules = []) {
       const ids = new Set(schedules.flatMap(scheduleDeleteKeys));
       if (!ids.size) return;
-      state.settings.deletedScheduleIds = (state.settings.deletedScheduleIds || []).filter(id => !ids.has(id));
       state.settings.googleDeletedEventIds = (state.settings.googleDeletedEventIds || []).filter(id => !ids.has(id));
-      state.settings.restoredScheduleIds = [...new Set([...(state.settings.restoredScheduleIds || []), ...ids])];
+      setScheduleDeletionState(schedules, false);
     }
     function isDeletedSchedule(schedule = {}) {
-      const deleted = new Set(state.settings.deletedScheduleIds || []);
-      const restored = new Set(state.settings.restoredScheduleIds || []);
-      return scheduleDeleteKeys(schedule).some(id => deleted.has(id) && !restored.has(id));
+      const deletionState = normalizedScheduleDeletionState(state.settings.scheduleDeletionState);
+      return scheduleDeleteKeys(schedule).some(id => deletionState[id]?.deleted === true);
     }
     function normalizeSchedules() {
       state.schedules = (state.schedules || []).map(schedule => ({
@@ -4863,8 +4893,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.44";
+    const appVersion = "1.6.45";
     const versionHistory = [
+      {
+        version: "1.6.45",
+        date: "2026-07-13",
+        title: "일정 삭제 동기화 안정화",
+        changes: [
+          "PC와 모바일의 삭제/복구 충돌을 작업 시각 기준으로 판정",
+          "삭제 직후 Firestore에 즉시 반영하고 실패 여부 안내",
+          "삭제 대기 중인 일정을 Google 동기화가 다시 가져오지 않도록 보강"
+        ]
+      },
       {
         version: "1.6.44",
         date: "2026-07-13",
@@ -8540,7 +8580,7 @@
       e.preventDefault();
       saveScheduleFromForm();
     };
-    window.deleteSchedule = id => {
+    window.deleteSchedule = async id => {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
       const recurringGroup = schedule.recurrenceRootId && schedule.recurrence !== "none"
@@ -8588,7 +8628,12 @@
       if (scheduleDialog.open) scheduleDialog.close();
       render();
       if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayScheduleDialog(state.selectedCalendarDate);
-      toast(deleteTargets.length > 1 ? `반복 일정 ${deleteTargets.length}개를 삭제했습니다.` : "일정을 삭제했습니다.");
+      const cloudSaved = await persistScheduleDeletionNow();
+      if (cloudSaved === false) {
+        toast("기기에서는 삭제됐지만 클라우드 반영에 실패했습니다. 네트워크 확인 후 다시 시도해주세요.");
+      } else {
+        toast(deleteTargets.length > 1 ? `반복 일정 ${deleteTargets.length}개를 삭제했습니다.` : "일정을 삭제했습니다.");
+      }
       scheduleGoogleAutoSync("schedule-delete");
     };
     scheduleType.onchange = syncScheduleType;
@@ -9468,6 +9513,7 @@
         googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
         deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
         restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
+        scheduleDeletionState: normalizedScheduleDeletionState(state.settings.scheduleDeletionState),
         deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
@@ -9483,16 +9529,15 @@
       if (Array.isArray(data.googleDeletedEventIds)) {
         state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...data.googleDeletedEventIds])];
       }
-      if (Array.isArray(data.restoredScheduleIds)) {
-        state.settings.restoredScheduleIds = [...new Set([...(state.settings.restoredScheduleIds || []), ...data.restoredScheduleIds])];
-      }
-      const restoredScheduleIds = new Set(state.settings.restoredScheduleIds || []);
-      if (Array.isArray(data.deletedScheduleIds)) {
-        state.settings.deletedScheduleIds = [...new Set([...(state.settings.deletedScheduleIds || []), ...data.deletedScheduleIds])].filter(id => !restoredScheduleIds.has(id));
-      }
-      if (state.settings.googleDeletedEventIds?.length) {
-        state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds.filter(id => !restoredScheduleIds.has(id));
-      }
+      const incomingDeletionState = normalizedScheduleDeletionState(data.scheduleDeletionState);
+      (Array.isArray(data.deletedScheduleIds) ? data.deletedScheduleIds : []).forEach(key => {
+        if (key && !incomingDeletionState[key]) incomingDeletionState[key] = { deleted: true, at: 1 };
+      });
+      (Array.isArray(data.restoredScheduleIds) ? data.restoredScheduleIds : []).forEach(key => {
+        if (key && !incomingDeletionState[key]) incomingDeletionState[key] = { deleted: false, at: 2 };
+      });
+      state.settings.scheduleDeletionState = mergeScheduleDeletionStates(state.settings.scheduleDeletionState, incomingDeletionState);
+      syncLegacyScheduleDeletionArrays();
       if (Array.isArray(data.deletedOrgKeys)) {
         state.settings.deletedOrgKeys = [...new Set([...(state.settings.deletedOrgKeys || []), ...data.deletedOrgKeys])];
       }
@@ -9521,6 +9566,28 @@
       render();
       updateAiFeatureVisibility();
       updateCloudStatus();
+    }
+    async function persistScheduleDeletionNow() {
+      if (!canUseCloudSync()) return null;
+      try {
+        await userStateDoc().set({
+          schedules: state.schedules,
+          googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
+          deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
+          restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
+          scheduleDeletionState: normalizedScheduleDeletionState(state.settings.scheduleDeletionState),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail
+        }, { merge: true });
+        state.settings.cloudLastSync = new Date().toISOString();
+        save({ skipCloud: true });
+        updateCloudStatus();
+        return true;
+      } catch (error) {
+        console.warn("Schedule deletion cloud commit failed", error);
+        scheduleCloudSave("schedule-delete-retry", 1200);
+        return false;
+      }
     }
     async function uploadCloudData({ silent = false } = {}) {
       if (!canUseCloudSync()) {
@@ -10653,6 +10720,7 @@
           return;
         }
         const fromGoogle = scheduleFromGoogleEvent(event);
+        if (isDeletedSchedule(fromGoogle) || (local && isDeletedSchedule(local))) return;
         forgetDeletedSchedules([fromGoogle, local].filter(Boolean));
         if (!local) {
           state.schedules.push(fromGoogle);
