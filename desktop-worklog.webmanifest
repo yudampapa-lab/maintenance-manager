@@ -1,0 +1,25 @@
+{
+  "name": "ReportMate 업무기록",
+  "short_name": "업무기록",
+  "id": "./?desktop=worklog",
+  "start_url": "./?desktop=worklog",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#d7e4ee",
+  "theme_color": "#172433",
+  "icons": [
+    {
+      "src": "./reportmate-icon-192.png?v=166",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./reportmate-icon-512.png?v=166",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
