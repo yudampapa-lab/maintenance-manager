@@ -16,7 +16,7 @@
       document.getElementById("appManifest").href = "./desktop-worklog.webmanifest?v=1";
     }
   </script>
-  <link rel="stylesheet" href="./desktop-worklog.css?v=3">
+  <link rel="stylesheet" href="./desktop-worklog.css?v=4">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -3122,6 +3122,11 @@
                     <span>기관별 업무 대화</span>
                   </div>
                   <span class="desktop-worklog-online"><i></i> 연결됨</span>
+                  <div class="desktop-window-controls" aria-label="창 제어">
+                    <button type="button" title="최소화" aria-label="최소화" onclick="desktopWindowAction('minimize', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+                    <button type="button" title="최대화 또는 복원" aria-label="최대화 또는 복원" onclick="desktopWindowAction('maximize', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
+                    <button type="button" class="close" title="닫기" aria-label="닫기" onclick="desktopWindowAction('close', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                  </div>
                 </header>
                 <div class="work-log-picker">
                   <div class="org-autocomplete">
@@ -11427,9 +11432,23 @@
       render();
     }
     restoreLoginSession();
+    window.desktopWindowAction = (action, event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      fetch(`http://127.0.0.1:17845/window/${encodeURIComponent(action)}`, {
+        method: "POST",
+        mode: "cors",
+        cache: "no-store"
+      }).catch(() => {});
+    };
     if (new URLSearchParams(location.search).get("desktop") === "worklog") {
       document.documentElement.classList.add("reportmate-desktop-mini");
       document.title = "ReportMate 업무기록";
+      const titlebar = document.querySelector(".desktop-worklog-titlebar");
+      titlebar?.addEventListener("pointerdown", event => {
+        if (event.button !== 0 || event.target.closest(".desktop-window-controls")) return;
+        window.desktopWindowAction("drag", event);
+      });
       requestAnimationFrame(() => {
         switchView("memo");
         switchRecordTab("worklog");
