@@ -2946,6 +2946,156 @@
         transition-duration: .001ms !important;
       }
     }
+
+    /* Samsung Calendar-inspired mobile month proportions. Interaction logic remains unchanged. */
+    @media (max-width: 540px) {
+      #view-calendar {
+        margin: -12px -10px 0;
+      }
+      #view-calendar > .panel {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+      }
+      #view-calendar > .panel > .panel-body {
+        padding: 0 12px 92px;
+      }
+      #view-calendar .calendar-toolbar {
+        min-height: 68px;
+        margin: 0;
+        padding: 8px 4px 7px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      #view-calendar .calendar-toolbar .calendar-nav {
+        width: 100%;
+        padding: 0 72px 0 38px;
+        justify-content: center;
+      }
+      #view-calendar .calendar-title-button {
+        min-width: 116px;
+        min-height: 38px;
+        padding: 4px 8px;
+        font-size: 18px;
+        font-weight: 850;
+        border-radius: 10px;
+      }
+      #view-calendar .calendar-nav .icon {
+        width: 36px;
+        min-height: 36px;
+        border-radius: 10px;
+      }
+      #view-calendar #manualGoogleSyncBtn,
+      #view-calendar #openCalendarSearchBtn {
+        width: 36px;
+        min-height: 36px;
+        top: 50%;
+        border-radius: 11px;
+      }
+      #view-calendar #manualGoogleSyncBtn { right: 46px; }
+      #view-calendar #openCalendarSearchBtn { right: 4px; }
+      #view-calendar .calendar-grid {
+        --calendar-weeks: 6;
+        width: 100%;
+        border: 0;
+        border-top: 1px solid rgba(60, 60, 67, .12);
+        border-radius: 0;
+        background: rgba(255, 255, 255, .76);
+        box-shadow: none;
+      }
+      #view-calendar .calendar-day-names {
+        height: 36px;
+      }
+      #view-calendar .day-name {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 36px;
+        padding: 0;
+        border-bottom: 1px solid rgba(60, 60, 67, .12);
+        background: rgba(255, 255, 255, .9);
+        color: #4c4c50;
+        font-size: 11px;
+        font-weight: 750;
+      }
+      #view-calendar .day-name:first-child { color: #d83b3b; }
+      #view-calendar .day-name:last-child { color: #8da8b8; }
+      #view-calendar .calendar-week {
+        height: clamp(112px, calc(16.667dvh - 25px), 132px);
+        min-height: 0;
+        overflow: hidden;
+        border-top: 0;
+      }
+      #view-calendar .calendar-grid.weeks-5 .calendar-week {
+        height: clamp(126px, calc(20dvh - 30px), 152px);
+      }
+      #view-calendar .calendar-grid.weeks-4 .calendar-week {
+        height: clamp(138px, calc(25dvh - 37.5px), 168px);
+      }
+      #view-calendar .calendar-week + .calendar-week {
+        border-top: 1px solid rgba(60, 60, 67, .1);
+      }
+      #view-calendar .calendar-week .day-cell {
+        height: 100%;
+        min-height: 0;
+        padding: 7px 4px 4px;
+        gap: 3px;
+        border-color: rgba(60, 60, 67, .1);
+        background: rgba(255, 255, 255, .74);
+      }
+      #view-calendar .calendar-week .day-cell.muted {
+        background: rgba(248, 248, 250, .54);
+      }
+      #view-calendar .day-number {
+        min-height: 18px;
+        justify-content: flex-start;
+        padding-left: 3px;
+        font-size: 12px;
+        font-weight: 750;
+        line-height: 18px;
+      }
+      #view-calendar .day-cell.today {
+        background: rgba(248, 248, 250, .78);
+        box-shadow: inset 0 0 0 1.5px rgba(28, 28, 30, .62);
+      }
+      #view-calendar .day-cell.today .day-number > span:first-child {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        margin: -1px 0 -1px -2px;
+        padding: 0 4px;
+        border-radius: 7px;
+        background: #171719;
+        color: #fff;
+      }
+      #view-calendar .week-events {
+        top: 31px;
+        bottom: 3px;
+        height: auto;
+        grid-auto-rows: 19px;
+        gap: 3px 0;
+        padding: 0 3px;
+        overflow: hidden;
+      }
+      #view-calendar .event-pill {
+        font-size: 9px;
+        font-weight: 560;
+        line-height: 1.08;
+      }
+      #view-calendar .event-pill.calendar-bar {
+        min-height: 19px;
+        height: 19px;
+        margin: 0 2px;
+        padding: 3px 4px;
+        border-radius: 5px;
+      }
+    }
   </style>
 </head>
 <body class="auth-pending">
@@ -4941,8 +5091,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.56";
+    const appVersion = "1.6.57";
     const versionHistory = [
+      {
+        version: "1.6.57",
+        date: "2026-07-14",
+        title: "모바일 캘린더 삼성형 레이아웃 적용",
+        changes: [
+          "모바일 캘린더를 화면 좌우에 넓게 배치하고 상단·요일·날짜 영역 비율을 재조정",
+          "일정 개수와 관계없이 모든 주간 행의 세로폭을 동일하게 고정",
+          "월별로 필요한 주만 표시하고 기존 드래그·검색·동기화·일정 목록 기능은 유지"
+        ]
+      },
       {
         version: "1.6.56",
         date: "2026-07-14",
@@ -7995,7 +8155,9 @@
       const first = new Date(y, m, 1);
       const start = new Date(y, m, 1 - first.getDay());
       const weeks = [];
-      for (let w = 0; w < 6; w++) {
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const weekCount = Math.ceil((first.getDay() + daysInMonth) / 7);
+      for (let w = 0; w < weekCount; w++) {
         const weekDates = [];
         const cells = [];
         for (let dIndex = 0; dIndex < 7; dIndex++) {
@@ -8035,7 +8197,7 @@
         </div>
         <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-      </div><div class="calendar-grid"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
+      </div><div class="calendar-grid weeks-${weekCount}" style="--calendar-weeks:${weekCount}"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
       renderMonthlyMaintenancePanel();
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
