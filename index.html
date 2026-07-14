@@ -3025,16 +3025,10 @@
       #view-calendar .day-name:first-child { color: #d83b3b; }
       #view-calendar .day-name:last-child { color: #8da8b8; }
       #view-calendar .calendar-week {
-        height: clamp(112px, calc(16.667dvh - 25px), 132px);
-        min-height: 0;
-        overflow: hidden;
+        height: auto;
+        min-height: calc(68px + var(--event-rows) * 23px);
+        overflow: visible;
         border-top: 0;
-      }
-      #view-calendar .calendar-grid.weeks-5 .calendar-week {
-        height: clamp(126px, calc(20dvh - 30px), 152px);
-      }
-      #view-calendar .calendar-grid.weeks-4 .calendar-week {
-        height: clamp(138px, calc(25dvh - 37.5px), 168px);
       }
       #view-calendar .calendar-week + .calendar-week {
         border-top: 1px solid rgba(60, 60, 67, .1);
@@ -3076,12 +3070,12 @@
       }
       #view-calendar .week-events {
         top: 31px;
-        bottom: 3px;
+        bottom: auto;
         height: auto;
-        grid-auto-rows: 19px;
+        grid-auto-rows: minmax(19px, auto);
         gap: 3px 0;
         padding: 0 3px;
-        overflow: hidden;
+        overflow: visible;
       }
       #view-calendar .event-pill {
         font-size: 9px;
@@ -5091,8 +5085,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.57";
+    const appVersion = "1.6.58";
     const versionHistory = [
+      {
+        version: "1.6.58",
+        date: "2026-07-14",
+        title: "모바일 캘린더 일정별 높이 복원",
+        changes: [
+          "삼성형 캘린더 가로폭과 상단 비율은 유지",
+          "등록된 일정 수에 따라 해당 주의 세로 높이가 자동으로 확장되도록 복원",
+          "모든 일정 타일을 노출해 기존 드래그 앤 드롭 기능을 온전히 유지"
+        ]
+      },
       {
         version: "1.6.57",
         date: "2026-07-14",
