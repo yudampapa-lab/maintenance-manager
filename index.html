@@ -16,7 +16,7 @@
       document.getElementById("appManifest").href = "./desktop-worklog.webmanifest?v=1";
     }
   </script>
-  <link rel="stylesheet" href="./desktop-worklog.css?v=4">
+  <link rel="stylesheet" href="./desktop-worklog.css?v=5">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -3115,19 +3115,6 @@
             </div>
             <div class="record-pane" id="recordWorkLogPane">
               <div class="work-log-shell">
-                <header class="desktop-worklog-titlebar" aria-label="ReportMate 업무기록">
-                  <img src="./reportmate-icon-192.png" alt="" aria-hidden="true">
-                  <div class="desktop-worklog-titlecopy">
-                    <strong>ReportMate 업무기록</strong>
-                    <span>기관별 업무 대화</span>
-                  </div>
-                  <span class="desktop-worklog-online"><i></i> 연결됨</span>
-                  <div class="desktop-window-controls" aria-label="창 제어">
-                    <button type="button" title="최소화" aria-label="최소화" onclick="desktopWindowAction('minimize', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-                    <button type="button" title="최대화 또는 복원" aria-label="최대화 또는 복원" onclick="desktopWindowAction('maximize', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1"/></svg></button>
-                    <button type="button" class="close" title="닫기" aria-label="닫기" onclick="desktopWindowAction('close', event)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-                  </div>
-                </header>
                 <div class="work-log-picker">
                   <div class="org-autocomplete">
                     <div class="search">
@@ -4954,9 +4941,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.50";
+    const appVersion = "1.6.51";
     const versionHistory = [
       {
+        version: "1.6.51",
+        date: "2026-07-14",
+        title: "PC 업무기록 전체 화면 개선",
+        changes: [
+          "PC 업무기록의 내부 상단바를 제거하고 Windows 기본 제목 표시줄을 유지",
+          "최대화 화면에서 업무기록 영역이 전체 해상도 너비를 사용하도록 개선",
+          "작은 업무기록 창과 넓은 화면 모두에서 채팅 영역과 입력창을 반응형으로 정렬"
+        ]
+      },      {
         version: "1.6.50",
         date: "2026-07-14",
         title: "PC 업무기록 일체형 창 복구",
@@ -11516,11 +11512,6 @@
     if (new URLSearchParams(location.search).get("desktop") === "worklog") {
       document.documentElement.classList.add("reportmate-desktop-mini");
       document.title = "ReportMate 업무기록";
-      const titlebar = document.querySelector(".desktop-worklog-titlebar");
-      titlebar?.addEventListener("pointerdown", event => {
-        if (event.button !== 0 || event.target.closest(".desktop-window-controls")) return;
-        window.desktopWindowAction("drag", event);
-      });
       requestAnimationFrame(() => {
         switchView("memo");
         switchRecordTab("worklog");
