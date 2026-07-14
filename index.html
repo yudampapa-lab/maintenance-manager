@@ -2947,6 +2947,110 @@
       }
     }
 
+
+    /* Samsung-style month layout shared by phone, foldable and desktop. */
+    #view-calendar > .panel {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+    }
+    #view-calendar > .panel > .panel-body { padding: 0 12px 96px; }
+    #view-calendar .calendar-toolbar {
+      min-height: 64px;
+      margin: 0;
+      padding: 8px 4px 7px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    #view-calendar .calendar-grid {
+      width: 100%;
+      border: 0;
+      border-top: 1px solid rgba(60, 60, 67, .12);
+      border-radius: 0;
+      background: rgba(255, 255, 255, .76);
+      box-shadow: none;
+      overflow: visible;
+    }
+    #view-calendar .calendar-day-names { height: 36px; }
+    #view-calendar .day-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 36px;
+      padding: 0;
+      border-bottom: 1px solid rgba(60, 60, 67, .12);
+      background: rgba(255, 255, 255, .9);
+      color: #4c4c50;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    #view-calendar .day-name:first-child { color: #d83b3b; }
+    #view-calendar .day-name:last-child { color: #8da8b8; }
+    #view-calendar .calendar-week {
+      height: auto;
+      min-height: max(calc(76px + var(--event-rows) * 25px), calc(16.667dvh - 28px));
+      overflow: visible;
+      border-top: 0;
+    }
+    #view-calendar .calendar-grid.weeks-5 .calendar-week {
+      min-height: max(calc(76px + var(--event-rows) * 25px), calc(20dvh - 34px));
+    }
+    #view-calendar .calendar-grid.weeks-4 .calendar-week {
+      min-height: max(calc(76px + var(--event-rows) * 25px), calc(25dvh - 43px));
+    }
+    #view-calendar .calendar-week + .calendar-week { border-top: 1px solid rgba(60, 60, 67, .1); }
+    #view-calendar .calendar-week .day-cell {
+      height: 100%;
+      min-height: inherit;
+      padding: 7px 5px 4px;
+      gap: 3px;
+      border-color: rgba(60, 60, 67, .1);
+      background: rgba(255, 255, 255, .74);
+    }
+    #view-calendar .calendar-week .day-cell.muted { background: rgba(248, 248, 250, .54); }
+    #view-calendar .day-number {
+      min-height: 20px;
+      justify-content: flex-start;
+      padding-left: 3px;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 20px;
+    }
+    #view-calendar .day-cell.today {
+      background: rgba(248, 248, 250, .78);
+      box-shadow: inset 0 0 0 1.5px rgba(28, 28, 30, .62);
+    }
+    #view-calendar .day-cell.today .day-number > span:first-child {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      margin: 0 0 0 -2px;
+      padding: 0 4px;
+      border-radius: 7px;
+      background: #171719;
+      color: #fff;
+    }
+    #view-calendar .week-events {
+      top: 32px;
+      bottom: auto;
+      height: auto;
+      grid-auto-rows: minmax(21px, auto);
+      gap: 3px 0;
+      padding: 0 3px;
+      overflow: visible;
+    }
+    #view-calendar .event-pill.calendar-bar {
+      touch-action: pan-y;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
     /* Samsung Calendar-inspired mobile month proportions. Interaction logic remains unchanged. */
     @media (max-width: 540px) {
       #view-calendar {
@@ -3026,9 +3130,15 @@
       #view-calendar .day-name:last-child { color: #8da8b8; }
       #view-calendar .calendar-week {
         height: auto;
-        min-height: calc(68px + var(--event-rows) * 23px);
+        min-height: max(calc(68px + var(--event-rows) * 23px), calc(16.667dvh - 25px));
         overflow: visible;
         border-top: 0;
+      }
+      #view-calendar .calendar-grid.weeks-5 .calendar-week {
+        min-height: max(calc(68px + var(--event-rows) * 23px), calc(20dvh - 30px));
+      }
+      #view-calendar .calendar-grid.weeks-4 .calendar-week {
+        min-height: max(calc(68px + var(--event-rows) * 23px), calc(25dvh - 38px));
       }
       #view-calendar .calendar-week + .calendar-week {
         border-top: 1px solid rgba(60, 60, 67, .1);
@@ -5085,8 +5195,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.58";
+    const appVersion = "1.6.59";
     const versionHistory = [
+      {
+        version: "1.6.59",
+        date: "2026-07-14",
+        title: "전체 화면 삼성형 캘린더와 터치 스크롤 개선",
+        changes: [
+          "모바일·폴드 펼침·PC 화면에 동일한 삼성형 캘린더 레이아웃 적용",
+          "일정이 적을 때도 달력이 화면 높이를 고르게 채우고 일정이 많으면 해당 주가 자동 확장",
+          "일정 타일 위 세로 스와이프는 페이지 스크롤로 처리하고 길게 누른 뒤에만 드래그 활성화"
+        ]
+      },
       {
         version: "1.6.58",
         date: "2026-07-14",
@@ -8063,6 +8183,7 @@
         drag.armed = true;
         drag.startX = event.clientX;
         drag.startY = event.clientY;
+        el.setPointerCapture?.(event.pointerId);
         el.classList.add("drag-ready");
         hapticTap(18);
       }, 520);
@@ -8308,10 +8429,8 @@
       return ghost;
     }
     window.schedulePointerStart = (event, id) => {
-      event.preventDefault();
       event.stopPropagation();
       const el = event.currentTarget;
-      el.setPointerCapture?.(event.pointerId);
       const rect = el.getBoundingClientRect();
       const drag = { id, el, startX: event.clientX, startY: event.clientY, grabX: event.clientX - rect.left, grabY: event.clientY - rect.top, moved: false, armed: false, cancelled: false, lastX: event.clientX, lastY: event.clientY };
       drag.longPressTimer = setTimeout(() => {
@@ -8319,6 +8438,7 @@
         drag.armed = true;
         drag.startX = event.clientX;
         drag.startY = event.clientY;
+        el.setPointerCapture?.(event.pointerId);
         el.classList.add("drag-ready");
         hapticTap(18);
       }, 520);
