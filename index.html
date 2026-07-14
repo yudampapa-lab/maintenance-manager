@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
@@ -4016,10 +4016,46 @@
         setLoginMessage("Google 로그인 정보를 확인하지 못했습니다. 다시 시도해주세요.");
       }
     }
+    async function completeAndroidFirebaseGoogleLogin(idToken) {
+      const services = initFirebaseServices();
+      if (!services || !idToken) {
+        setLoginMessage("Android Google 로그인 정보를 Firebase에 연결하지 못했습니다.");
+        return;
+      }
+      try {
+        await services.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+        const result = await services.auth.signInWithCredential(credential);
+        const user = result.user;
+        if (!handleFirebaseUser(user)) {
+          await services.auth.signOut();
+          localStorage.removeItem(loginSessionKey);
+          localStorage.removeItem(firebasePendingActionKey);
+          setLoginMessage(`${user?.email || "이 계정"}은 허용된 계정이 아닙니다.`);
+          return;
+        }
+        await completePendingFirebaseAction();
+      } catch (error) {
+        console.warn(error);
+        localStorage.removeItem(firebasePendingActionKey);
+        setLoginMessage("Android Google 로그인을 Firebase에 연결하지 못했습니다.\n" + (error.message || ""));
+      }
+    }
+    function failAndroidFirebaseGoogleLogin(message) {
+      setLoginMessage(message || "Google 로그인이 취소되었거나 완료되지 않았습니다.");
+    }
+    window.completeAndroidFirebaseGoogleLogin = completeAndroidFirebaseGoogleLogin;
+    window.failAndroidFirebaseGoogleLogin = failAndroidFirebaseGoogleLogin;
     async function signInWithFirebaseGoogle(options = {}) {
       const services = initFirebaseServices();
       if (!services) {
         setLoginMessage("Firebase 설정이 필요합니다. outputs/firebase-config.js 파일에 Firebase 웹 앱 설정을 입력해주세요.");
+        return;
+      }
+      if (window.ReportMateAndroid?.signInWithGoogle) {
+        if (options.pendingAction) localStorage.setItem(firebasePendingActionKey, options.pendingAction);
+        setLoginMessage("Android Google 계정 선택 화면을 여는 중입니다.");
+        window.ReportMateAndroid.signInWithGoogle();
         return;
       }
       try {
