@@ -50,6 +50,7 @@ html.reportmate-desktop-mini #view-memo > .panel,
 html.reportmate-desktop-mini #view-memo > .panel > .panel-body,
 html.reportmate-desktop-mini #recordWorkLogPane {
   width: 100% !important;
+  max-width: none !important;
   height: 100vh !important;
   min-height: 0 !important;
   margin: 0 !important;
@@ -61,7 +62,7 @@ html.reportmate-desktop-mini #recordWorkLogPane {
 }
 
 html.reportmate-desktop-mini .work-log-shell {
-  grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
   height: 100vh !important;
   min-height: 0 !important;
   gap: 0 !important;
@@ -70,8 +71,8 @@ html.reportmate-desktop-mini .work-log-shell {
 }
 
 html.reportmate-desktop-mini .desktop-worklog-titlebar {
+  display: none !important;
   position: relative;
-  display: grid !important;
   grid-template-columns: 28px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
