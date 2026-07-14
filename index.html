@@ -3269,6 +3269,7 @@
               <button class="secondary" id="testKakaoBtn">카카오워크 테스트</button>
               <button class="secondary" id="exportIcsBtn" type="button">캘린더 파일 내보내기</button>
               <button class="secondary" id="openAdminLogBtn" type="button">로그 확인</button>
+              <button class="secondary" id="checkAndroidUpdateBtn" type="button" hidden>Android 앱 업데이트</button>
               <button class="secondary" id="openVersionHistoryBtn" type="button">버전 확인</button>
               <button class="secondary" id="logoutBtn" type="button">로그아웃</button>
             </div>
@@ -4953,8 +4954,18 @@
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
       gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
     };
-    const appVersion = "1.6.48";
+    const appVersion = "1.6.49";
     const versionHistory = [
+      {
+        version: "1.6.49",
+        date: "2026-07-14",
+        title: "Android GitHub 업데이트",
+        changes: [
+          "Android 앱 실행 시 GitHub Releases의 최신 android-v 버전을 자동 확인",
+          "새 APK 다운로드 후 Android 설치 화면으로 바로 연결",
+          "설정에 Android 앱 업데이트 수동 확인 버튼 추가"
+        ]
+      },
       {
         version: "1.6.48",
         date: "2026-07-14",
@@ -11316,6 +11327,11 @@
       renderAdminLogs();
       toast("관리 로그를 비웠습니다.");
     };
+    const checkAndroidUpdateBtn = document.getElementById("checkAndroidUpdateBtn");
+    if (checkAndroidUpdateBtn) {
+      checkAndroidUpdateBtn.hidden = !window.ReportMateAndroid?.checkForUpdates;
+      checkAndroidUpdateBtn.onclick = () => window.ReportMateAndroid?.checkForUpdates();
+    }
     openVersionHistoryBtn.onclick = () => {
       renderVersionHistory();
       versionHistoryDialog.showModal();
