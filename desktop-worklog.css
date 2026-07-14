@@ -1,0 +1,88 @@
+html.reportmate-desktop-mini,
+html.reportmate-desktop-mini body {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  background: #f4f5f8 !important;
+}
+
+html.reportmate-desktop-mini .login-screen {
+  min-height: 100vh !important;
+}
+
+html.reportmate-desktop-mini .app-shell {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+html.reportmate-desktop-mini .app-header,
+html.reportmate-desktop-mini .bottom-nav,
+html.reportmate-desktop-mini .ai-fab,
+html.reportmate-desktop-mini #dashboardSettingsBtn,
+html.reportmate-desktop-mini #view-memo > .panel > .panel-body > .record-tabs,
+html.reportmate-desktop-mini #recordTodoPane,
+html.reportmate-desktop-mini #recordMemoPane,
+html.reportmate-desktop-mini #recordVehiclePane {
+  display: none !important;
+}
+
+html.reportmate-desktop-mini main,
+html.reportmate-desktop-mini #view-memo,
+html.reportmate-desktop-mini #view-memo > .panel,
+html.reportmate-desktop-mini #view-memo > .panel > .panel-body,
+html.reportmate-desktop-mini #recordWorkLogPane {
+  width: 100% !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #f4f5f8 !important;
+}
+
+html.reportmate-desktop-mini .work-log-shell {
+  height: 100vh !important;
+  min-height: 0 !important;
+  gap: 8px !important;
+  padding: 10px !important;
+}
+
+html.reportmate-desktop-mini .work-log-picker .search {
+  min-height: 42px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, .96) !important;
+}
+
+html.reportmate-desktop-mini .work-log-room {
+  border-radius: 14px !important;
+}
+
+html.reportmate-desktop-mini .work-log-room-head {
+  padding: 10px 12px !important;
+}
+
+html.reportmate-desktop-mini .work-log-messages {
+  padding: 10px !important;
+  gap: 8px !important;
+}
+
+html.reportmate-desktop-mini .work-log-bubble {
+  padding: 10px 10px 8px !important;
+  border-radius: 12px !important;
+}
+
+html.reportmate-desktop-mini .work-log-composer textarea {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  resize: none !important;
+}
+
+html.reportmate-desktop-mini dialog {
+  max-width: calc(100vw - 20px) !important;
+  max-height: calc(100vh - 20px) !important;
+}
