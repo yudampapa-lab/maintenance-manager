@@ -70,12 +70,13 @@ html.reportmate-desktop-mini .work-log-shell {
 }
 
 html.reportmate-desktop-mini .desktop-worklog-titlebar {
+  position: relative;
   display: grid !important;
   grid-template-columns: 28px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   min-height: 44px;
-  padding: 6px 10px;
+  padding: 6px 118px 6px 10px;
   color: #fff;
   background: #172433;
   border-bottom: 1px solid rgba(255, 255, 255, .08);
@@ -120,7 +121,59 @@ html.reportmate-desktop-mini .desktop-worklog-online {
   white-space: nowrap;
 }
 
+.desktop-window-controls {
+  display: none;
+}
+
+html.reportmate-desktop-mini .desktop-window-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  margin: 0;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+html.reportmate-desktop-mini .desktop-window-controls button {
+  display: grid;
+  width: 36px;
+  min-width: 36px !important;
+  min-height: 40px !important;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, .8);
+  box-shadow: none;
+}
+
+html.reportmate-desktop-mini .desktop-window-controls button:hover {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+
+html.reportmate-desktop-mini .desktop-window-controls button.close:hover {
+  background: #e5484d;
+}
+
+html.reportmate-desktop-mini .desktop-window-controls svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
 @media (display-mode: window-controls-overlay) {
+  html.reportmate-desktop-mini .desktop-window-controls {
+    display: none;
+  }
+
   html.reportmate-desktop-mini .desktop-worklog-titlebar {
     min-height: max(40px, env(titlebar-area-height, 40px));
     padding-left: max(10px, env(titlebar-area-x, 0px));
@@ -421,6 +474,10 @@ html.reportmate-desktop-mini dialog {
 }
 
 @media (max-width: 380px) {
+  html.reportmate-desktop-mini .desktop-worklog-online {
+    display: none;
+  }
+
   html.reportmate-desktop-mini .work-log-room-head strong {
     max-width: 200px !important;
   }
