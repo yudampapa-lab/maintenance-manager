@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="./reportmate-icon.svg?v=166">
   <link rel="apple-touch-icon" sizes="180x180" href="./reportmate-icon-180.png?v=166">
   <link rel="manifest" href="./site.webmanifest?v=166">
+  <link rel="stylesheet" href="./desktop-worklog.css?v=1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -11397,6 +11398,15 @@
       render();
     }
     restoreLoginSession();
+    if (new URLSearchParams(location.search).get("desktop") === "worklog") {
+      document.documentElement.classList.add("reportmate-desktop-mini");
+      document.title = "ReportMate 업무기록";
+      requestAnimationFrame(() => {
+        switchView("memo");
+        switchRecordTab("worklog");
+        setTimeout(() => document.getElementById("workLogOrgSearch")?.focus(), 180);
+      });
+    }
   </script>
 </body>
 </html>
