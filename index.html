@@ -3011,7 +3011,9 @@
       border-color: rgba(60, 60, 67, .1);
       background: rgba(255, 255, 255, .74);
     }
-    #view-calendar .calendar-week .day-cell.muted { background: rgba(248, 248, 250, .54); }
+    #view-calendar .calendar-week .day-cell.muted { background: rgba(185, 191, 201, .32);
+        color: rgba(60, 60, 67, .45);
+      }
     #view-calendar .day-number {
       min-height: 20px;
       justify-content: flex-start;
@@ -3044,6 +3046,33 @@
       gap: 3px 0;
       padding: 0 3px;
       overflow: visible;
+    }
+    .schedule-color-more {
+      grid-column: 1 / -1;
+      margin-top: 2px;
+    }
+    .schedule-color-more summary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 28px;
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      list-style: none;
+    }
+    .schedule-color-more summary::-webkit-details-marker { display: none; }
+    .schedule-color-more summary svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+    .schedule-color-more[open] summary svg { transform: rotate(180deg); }
+    .schedule-color-extra { margin-top: 6px; }
+    #view-calendar .day-cell.muted {
+      background: rgba(185, 191, 201, .32);
+      color: rgba(60, 60, 67, .45);
+    }
+    #view-calendar .event-pill.calendar-bar.outside-month {
+      opacity: .42;
+      filter: saturate(.55) brightness(.82);
     }
     #view-calendar .event-pill.calendar-bar {
       touch-action: pan-y;
@@ -3152,7 +3181,8 @@
         background: rgba(255, 255, 255, .74);
       }
       #view-calendar .calendar-week .day-cell.muted {
-        background: rgba(248, 248, 250, .54);
+        background: rgba(185, 191, 201, .32);
+        color: rgba(60, 60, 67, .45);
       }
       #view-calendar .day-number {
         min-height: 18px;
@@ -3192,7 +3222,7 @@
         font-weight: 560;
         line-height: 1.08;
       }
-      #view-calendar .event-pill.calendar-bar {
+    #view-calendar .event-pill.calendar-bar {
         min-height: 19px;
         height: 19px;
         margin: 0 2px;
@@ -3759,6 +3789,21 @@
               <button type="button" class="color-swatch" data-schedule-color="orange" style="--swatch:#ff9f0a" title="주황" aria-label="주황" onclick="window.selectScheduleColor('orange')"></button>
               <button type="button" class="color-swatch" data-schedule-color="red" style="--swatch:#ff3b30" title="빨강" aria-label="빨강" onclick="window.selectScheduleColor('red')"></button>
               <button type="button" class="color-swatch" data-schedule-color="gray" style="--swatch:#8e8e93" title="회색" aria-label="회색" onclick="window.selectScheduleColor('gray')"></button>
+              <details class="schedule-color-more">
+                <summary title="색상 더 보기" aria-label="색상 더 보기"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></summary>
+                <div class="color-picker schedule-color-extra">
+                  <button type="button" class="color-swatch" data-schedule-color="mint" style="--swatch:#8edbc5" title="민트" aria-label="민트" onclick="window.selectScheduleColor('mint')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="sky" style="--swatch:#8fc9ed" title="하늘" aria-label="하늘" onclick="window.selectScheduleColor('sky')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="lavender" style="--swatch:#b9a7e8" title="라벤더" aria-label="라벤더" onclick="window.selectScheduleColor('lavender')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="coral" style="--swatch:#f2a39a" title="코랄" aria-label="코랄" onclick="window.selectScheduleColor('coral')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="peach" style="--swatch:#f5bd91" title="피치" aria-label="피치" onclick="window.selectScheduleColor('peach')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="lemon" style="--swatch:#eadb87" title="레몬" aria-label="레몬" onclick="window.selectScheduleColor('lemon')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="aqua" style="--swatch:#83d6dd" title="아쿠아" aria-label="아쿠아" onclick="window.selectScheduleColor('aqua')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="lilac" style="--swatch:#d1a8df" title="라일락" aria-label="라일락" onclick="window.selectScheduleColor('lilac')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="rose" style="--swatch:#eaa2bd" title="로즈" aria-label="로즈" onclick="window.selectScheduleColor('rose')"></button>
+                  <button type="button" class="color-swatch" data-schedule-color="sage" style="--swatch:#a8c99c" title="세이지" aria-label="세이지" onclick="window.selectScheduleColor('sage')"></button>
+                </div>
+              </details>
             </div>
           </div>
         </div>
@@ -4547,9 +4592,14 @@
         }));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
     }
+    function recurrenceOccurrenceKey(schedule = {}) {
+      const rootId = schedule.recurrenceRootId || (schedule.recurrence && schedule.recurrence !== "none" ? schedule.id : "");
+      return rootId && schedule.date ? `recurrence:${rootId}:${schedule.date}` : "";
+    }
     function scheduleDeleteKeys(schedule = {}) {
       return [...new Set([
         schedule.id,
+        recurrenceOccurrenceKey(schedule),
         schedule.googleEventId,
         ...(Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds : [])
       ].filter(Boolean))];
@@ -4619,7 +4669,7 @@
         endDate: schedule.endDate || schedule.date || todayISO(),
         startTime: schedule.startTime || schedule.time || "",
         endTime: schedule.endTime || "",
-        color: ["blue", "green", "purple", "pink", "orange", "red", "gray"].includes(schedule.color) ? schedule.color : "",
+        color: ["blue", "green", "purple", "pink", "orange", "red", "gray", "mint", "sky", "lavender", "coral", "peach", "lemon", "aqua", "lilac", "rose", "sage"].includes(schedule.color) ? schedule.color : "",
         recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
         recurrenceRootId: schedule.recurrenceRootId || "",
         googleEventId: schedule.googleEventId || "",
@@ -4631,6 +4681,7 @@
         createdAt: schedule.createdAt || new Date().toISOString(),
         updatedAt: schedule.updatedAt || ""
       })).filter(schedule => !isDeletedSchedule(schedule));
+      state.schedules = repairBrokenRecurringSchedules(dedupeSchedules(state.schedules));
       state.schedules = dedupeSchedules(state.schedules);
     }
     function normalizedScheduleText(value = "") {
@@ -4897,7 +4948,7 @@
           endDate: item.endDate || item.date || "",
           startTime: item.startTime || "",
           endTime: item.endTime || "",
-          color: ["blue", "green", "purple", "pink", "orange", "red", "gray"].includes(item.color)
+          color: ["blue", "green", "purple", "pink", "orange", "red", "gray", "mint", "sky", "lavender", "coral", "peach", "lemon", "aqua", "lilac", "rose", "sage"].includes(item.color)
             ? item.color
             : ({ personal: "purple", daily: "pink", visit: "blue", remote: "green", team: "gray" })[item.type || "personal"] || "purple",
           recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(item.recurrence) ? item.recurrence : "none",
@@ -5093,7 +5144,7 @@
       while (date && copies.length < maxCount) {
         const copy = {
           ...data,
-          id: index === 0 ? rootId : uid(),
+          id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
           date,
           endDate: addDaysISO(date, duration),
           recurrence: repeat,
@@ -5107,6 +5158,53 @@
         index++;
       }
       return copies;
+    }
+    function recurringScheduleGroup(schedule = {}) {
+      const rootId = schedule.recurrenceRootId || (schedule.recurrence && schedule.recurrence !== "none" ? schedule.id : "");
+      if (!rootId) return [schedule].filter(Boolean);
+      return state.schedules.filter(item => (item.recurrenceRootId || item.id) === rootId && item.recurrence === schedule.recurrence);
+    }
+    function repairBrokenRecurringSchedules(schedules = []) {
+      const result = [...schedules];
+      const groups = new Map();
+      result.forEach(schedule => {
+        if (!schedule || !["daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence)) return;
+        const rootId = schedule.recurrenceRootId || schedule.id;
+        schedule.recurrenceRootId = rootId;
+        if (!groups.has(rootId)) groups.set(rootId, []);
+        groups.get(rootId).push(schedule);
+      });
+      groups.forEach(group => {
+        if (group.length !== 1) return;
+        const template = group[0];
+        const repeat = template.recurrence;
+        const rootId = template.recurrenceRootId || template.id;
+        const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
+        const duration = Math.max(0, Math.round((new Date((template.endDate || template.date) + "T00:00:00") - new Date(template.date + "T00:00:00")) / 86400000));
+        let date = template.date;
+        for (let index = 1; index < maxCount; index++) {
+          date = nextRepeatDate(date, repeat);
+          if (!date) break;
+          const copy = {
+            ...template,
+            id: `${rootId}--repeat--${date}`,
+            date,
+            endDate: addDaysISO(date, duration),
+            recurrence: repeat,
+            recurrenceRootId: rootId,
+            googleEventId: "",
+            googleDuplicateEventIds: [],
+            googleUpdated: "",
+            googleHtmlLink: "",
+            googleSyncedAt: "",
+            googleDirty: true,
+            createdAt: template.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          if (!isDeletedSchedule(copy)) result.push(copy);
+        }
+      });
+      return result;
     }
     function scheduleEndDateTime(schedule) {
       const endTime = getScheduleEndTime(schedule);
@@ -5193,10 +5291,30 @@
       pink: { bg: "rgba(255, 94, 168, .16)", fg: "#c2185b", border: "rgba(255, 94, 168, .22)" },
       orange: { bg: "rgba(255, 159, 10, .16)", fg: "#9a5a00", border: "rgba(255, 159, 10, .2)" },
       red: { bg: "rgba(255, 59, 48, .13)", fg: "#d70015", border: "rgba(255, 59, 48, .18)" },
-      gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" }
+      gray: { bg: "rgba(118, 118, 128, .14)", fg: "#54545a", border: "rgba(118, 118, 128, .18)" },
+      mint: { bg: "rgba(142, 219, 197, .34)", fg: "#286f5f", border: "rgba(83, 175, 149, .28)" },
+      sky: { bg: "rgba(143, 201, 237, .34)", fg: "#286687", border: "rgba(83, 155, 201, .28)" },
+      lavender: { bg: "rgba(185, 167, 232, .34)", fg: "#625092", border: "rgba(137, 111, 202, .26)" },
+      coral: { bg: "rgba(242, 163, 154, .34)", fg: "#914f49", border: "rgba(211, 112, 102, .25)" },
+      peach: { bg: "rgba(245, 189, 145, .36)", fg: "#8d5b34", border: "rgba(216, 148, 94, .27)" },
+      lemon: { bg: "rgba(234, 219, 135, .38)", fg: "#75651c", border: "rgba(196, 176, 78, .28)" },
+      aqua: { bg: "rgba(131, 214, 221, .34)", fg: "#267078", border: "rgba(70, 170, 180, .26)" },
+      lilac: { bg: "rgba(209, 168, 223, .34)", fg: "#765185", border: "rgba(169, 110, 188, .26)" },
+      rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
+      sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.59";
+    const appVersion = "1.6.60";
     const versionHistory = [
+      {
+        version: "1.6.60",
+        date: "2026-07-15",
+        title: "반복 일정 수정과 캘린더 색상 확장",
+        changes: [
+          "한 건만 남은 기존 반복 일정을 자동 복구하고 매년 반복 생성 안정화",
+          "반복 일정 수정 시 전체 반복 일정 또는 선택한 날짜만 수정 가능",
+          "파스텔 일정 색상 10개 추가 및 다른 달 날짜·일정 음영 강화"
+        ]
+      },
       {
         version: "1.6.59",
         date: "2026-07-14",
@@ -5883,11 +6001,7 @@
     window.selectScheduleColor = (color, { persist = true } = {}) => {
       const selected = paintScheduleColorPicker(color);
       if (persist) state.scheduleColorTouched = true;
-      if (!persist) return;
-      if (persistOpenScheduleColor(selected)) {
-        paintScheduleColorPicker(selected);
-        toast("일정 색상을 변경했습니다.");
-      }
+      return selected;
     };
 
     islandRegions.forEach(r => {
@@ -8308,8 +8422,9 @@
             const org = orgForSchedule(schedule);
             const expired = org && !isContractActive(org) ? "expired" : "";
             const multi = isMultiDaySchedule(schedule) ? "multi-day" : "";
+            const outsideMonth = !String(schedule.date || "").startsWith(`${y}-${String(m + 1).padStart(2, "0")}-`) ? "outside-month" : "";
             const span = endIndex - startIndex + 1;
-            return `<span class="event-pill calendar-bar has-color ${expired} ${multi}" style="${scheduleColorStyle(schedule)}grid-column:${startIndex + 1} / span ${span};grid-row:${row + 1};" title="길게 누른 다음 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${calendarScheduleMarkup(schedule)}</span>`;
+            return `<span class="event-pill calendar-bar has-color ${expired} ${multi} ${outsideMonth}" style="${scheduleColorStyle(schedule)}grid-column:${startIndex + 1} / span ${span};grid-row:${row + 1};" title="길게 누른 다음 다른 날짜로 이동" onpointerdown="schedulePointerStart(event, '${schedule.id}')" onpointermove="schedulePointerMove(event, '${schedule.id}')" onpointerup="schedulePointerEnd(event, '${schedule.id}')" onpointercancel="schedulePointerCancel(event, '${schedule.id}')">${calendarScheduleMarkup(schedule)}</span>`;
           }).join("");
         weeks.push(`<div class="calendar-week" style="--event-rows:${rowCount}">${cells.join("")}<div class="week-events">${bars}</div></div>`);
       }
@@ -9025,10 +9140,41 @@
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "date", "endDate", "startTime", "endTime", "color"].some(key => String(existing[key] || "") !== String(data[key] || ""));
+      if (existing && !scheduleChanged) {
+        if (closeAfter) scheduleDialog.close();
+        return true;
+      }
       if (existing) {
-        Object.assign(existing, data);
-        markGoogleDirty(existing);
-        logAdminAction("일정", "일정 수정", `${data.title} · ${formatDateWithYear(data.date)}`);
+        const recurringGroup = recurringScheduleGroup(existing);
+        const updateAll = recurringGroup.length > 1 && confirm(`반복 일정입니다. 같이 묶인 ${recurringGroup.length}개 일정도 모두 수정할까요?\n확인: 전체 반복 일정 수정\n취소: 이 일정만 수정`);
+        if (updateAll) {
+          const dateOffset = Math.round((new Date(data.date + "T00:00:00") - new Date(existing.date + "T00:00:00")) / 86400000);
+          recurringGroup.forEach(item => {
+            const itemDuration = Math.max(0, Math.round((new Date((item.endDate || item.date) + "T00:00:00") - new Date(item.date + "T00:00:00")) / 86400000));
+            item.type = data.type;
+            item.orgId = data.orgId;
+            item.title = data.title;
+            item.teamMembers = data.teamMembers;
+            item.visitReason = data.visitReason;
+            item.startTime = data.startTime;
+            item.endTime = data.endTime;
+            item.color = data.color;
+            item.date = addDaysISO(item.date, dateOffset);
+            item.endDate = addDaysISO(item.date, itemDuration);
+            item.updatedAt = data.updatedAt;
+            markGoogleDirty(item);
+          });
+          logAdminAction("일정", "반복 일정 전체 수정", `${data.title} · ${recurringGroup.length}건`);
+        } else {
+          Object.assign(existing, data);
+          if (recurringGroup.length > 1) {
+            existing.recurrence = "none";
+            existing.recurrenceRootId = "";
+          }
+          markGoogleDirty(existing);
+          logAdminAction("일정", "일정 수정", `${data.title} · ${formatDateWithYear(data.date)}`);
+        }
       } else {
         const copies = recurringScheduleCopies(data, data.recurrence);
         state.schedules.push(...copies);
@@ -10976,7 +11122,7 @@
       return org ? (org.address || org.region) : "";
     }
     function googleColorId(schedule) {
-      return ({ blue: "9", green: "10", purple: "3", pink: "4", orange: "6", red: "11", gray: "8" })[defaultScheduleColor(schedule)] || "9";
+      return ({ blue: "9", green: "10", purple: "3", pink: "4", orange: "6", red: "11", gray: "8", mint: "10", sky: "7", lavender: "3", coral: "4", peach: "6", lemon: "5", aqua: "7", lilac: "3", rose: "4", sage: "2" })[defaultScheduleColor(schedule)] || "9";
     }
     function scheduleGoogleBody(schedule) {
       const bodyStart = scheduleHasTime(schedule) ? { dateTime: `${schedule.date}T${schedule.startTime}:00`, timeZone: "Asia/Seoul" } : { date: schedule.date };
@@ -10999,7 +11145,8 @@
             maintenanceManagerType: schedule.type || "",
             maintenanceManagerOrgId: schedule.orgId || "",
             maintenanceManagerTeamMembers: schedule.teamMembers || "",
-            maintenanceManagerVisitReason: schedule.visitReason || ""
+            maintenanceManagerVisitReason: schedule.visitReason || "",
+            maintenanceManagerColor: defaultScheduleColor(schedule)
           }
         }
       };
@@ -11125,7 +11272,7 @@
         endDate: safeEndDate,
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
         endTime: isAllDay ? "" : googleTimeToLocal(endRaw),
-        color: googleEventColorToScheduleColor(event.colorId),
+        color: scheduleColors[privateProps.maintenanceManagerColor] ? privateProps.maintenanceManagerColor : googleEventColorToScheduleColor(event.colorId),
         googleEventId: event.id,
         googleDuplicateEventIds: [],
         googleUpdated: event.updated || "",
@@ -11225,6 +11372,7 @@
           local.googleHtmlLink = event.htmlLink || local.googleHtmlLink || "";
         }
       });
+      state.schedules = repairBrokenRecurringSchedules(dedupeSchedules(state.schedules));
       state.schedules = dedupeSchedules(state.schedules);
       return { imported, updated, removed, importedItems, updatedItems, removedItems };
     }
@@ -11318,6 +11466,7 @@
       }
       state.settings.googleDeletedEventIds = [];
       state.settings.googleDeletedEventDetails = [];
+      state.schedules = repairBrokenRecurringSchedules(dedupeSchedules(state.schedules));
       state.schedules = dedupeSchedules(state.schedules);
       return { deleted, items };
     }
