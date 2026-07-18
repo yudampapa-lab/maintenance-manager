@@ -3621,7 +3621,7 @@
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
-              <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
+              <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">업무일 09:00~18:00 · 장애 복구 전까지 1시간 간격</div></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
               <div class="field"><label>AI 기능</label><select id="aiFeatureEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>Gemini API 키</label><input id="geminiApiKey" type="password" autocomplete="off" placeholder="Google AI Studio API 키"></div>
@@ -5453,8 +5453,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.65";
+    const appVersion = "1.6.66";
     const versionHistory = [
+      {
+        version: "1.6.66",
+        date: "2026-07-19",
+        title: "모바일 할 일 입력과 장애 반복 알림",
+        changes: [
+          "모바일 할 일 등록창에서 키보드가 올라와도 제목 입력란이 보이도록 위치 조정",
+          "주차정산기 장애가 복구될 때까지 업무일 09:00~18:00에 1시간 간격으로 재알림",
+          "토요일·일요일과 캘린더에 반영된 공휴일에는 장애 알림 제외"
+        ]
+      },
       {
         version: "1.6.65",
         date: "2026-07-19",
@@ -6224,7 +6234,7 @@
       }
       const hiddenHeight = Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop);
       const activeInDialog = document.activeElement?.closest?.("dialog");
-      const excluded = activeInDialog && (activeInDialog.id === "orgDialog" || activeInDialog.id === "scheduleDialog");
+      const excluded = activeInDialog && ["orgDialog", "scheduleDialog", "todoMemoDialog"].includes(activeInDialog.id);
       const lift = activeInDialog && !excluded ? Math.min(190, Math.round(hiddenHeight * 0.45)) : 0;
       document.documentElement.style.setProperty("--dialog-lift", `${lift}px`);
     }
@@ -12021,6 +12031,10 @@
       selectTodoMemoColor(defaultScheduleColor({ type: todoMemoType.value }));
     };
     todoMemoVisitReason.onchange = syncTodoMemoVisitReason;
+    todoMemoTitle.addEventListener("focus", () => {
+      const modalBody = todoMemoDialog.querySelector(".modal-body");
+      requestAnimationFrame(() => modalBody?.scrollTo({ top: 0, behavior: "smooth" }));
+    });
     todoMemoColorPicker.querySelectorAll("[data-todo-color]").forEach(button => {
       button.onclick = () => selectTodoMemoColor(button.dataset.todoColor);
     });
