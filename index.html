@@ -1864,6 +1864,31 @@
       font-size: 10px;
       line-height: 1.25;
     }
+    .photo-log-map-toggle {
+      width: 100%;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 10px;
+    }
+    .photo-log-map-wrap {
+      margin-top: 10px;
+    }
+    .photo-log-map-wrap[hidden],
+    .photo-log-map-toggle[hidden] { display: none; }
+    .photo-log-map {
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(90, 200, 250, .12), rgba(52, 199, 89, .10));
+    }
+    .photo-log-map-status {
+      margin: 7px 2px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
     .schedule-action-dialog {
       width: min(360px, calc(100vw - 28px));
     }
@@ -3922,6 +3947,14 @@
         </button>
         <p class="photo-log-status" id="photoLogStatus">이 날짜에 촬영한 사진을 휴대폰에서 확인합니다.</p>
         <div class="photo-log-grid" id="photoLogGrid" hidden></div>
+        <button type="button" class="secondary photo-log-map-toggle" id="photoLogMapToggle" aria-expanded="false" aria-controls="photoLogMapWrap" onclick="toggleAndroidPhotoLogMap()" hidden>
+          <svg viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+          <span id="photoLogMapToggleLabel">지도 보기</span>
+        </button>
+        <div class="photo-log-map-wrap" id="photoLogMapWrap" hidden>
+          <div class="photo-log-map" id="photoLogMap" aria-label="사진 촬영 위치 지도"></div>
+          <p class="photo-log-map-status" id="photoLogMapStatus"></p>
+        </div>
       </section>
       <div class="field full day-note-field">
         <label>특이사항</label>
@@ -5417,8 +5450,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.63";
+    const appVersion = "1.6.64";
     const versionHistory = [
+      {
+        version: "1.6.64",
+        date: "2026-07-19",
+        title: "사진 로그 촬영 위치 지도",
+        changes: [
+          "사진 로그에서 위치정보가 있는 사진을 촬영 장소별 지도 마커로 표시",
+          "지도는 평소 접어두고 지도 보기 버튼을 누를 때만 펼치도록 적용",
+          "가까운 위치의 사진을 한 마커로 묶고 촬영 시간과 사진 수를 표시"
+        ]
+      },
       {
         version: "1.6.63",
         date: "2026-07-18",
@@ -7202,6 +7245,93 @@
         return false;
       }
     }
+    let androidPhotoLogPhotos = [];
+    let androidPhotoLogMap = null;
+    let androidPhotoLogMarkers = [];
+    function photoLogLocatedPhotos() {
+      return androidPhotoLogPhotos.filter(photo =>
+        Number.isFinite(Number(photo?.latitude)) && Number.isFinite(Number(photo?.longitude)));
+    }
+    function distanceBetweenPhotoLocations(a, b) {
+      const radians = value => value * Math.PI / 180;
+      const lat1 = radians(Number(a.latitude));
+      const lat2 = radians(Number(b.latitude));
+      const dLat = lat2 - lat1;
+      const dLng = radians(Number(b.longitude) - Number(a.longitude));
+      const value = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 6371000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+    }
+    function groupPhotoLogLocations(photos, radius = 80) {
+      const groups = [];
+      photos.forEach(photo => {
+        let group = groups.find(item => distanceBetweenPhotoLocations(item, photo) <= radius);
+        if (!group) {
+          group = { latitude: Number(photo.latitude), longitude: Number(photo.longitude), photos: [] };
+          groups.push(group);
+        }
+        group.photos.push(photo);
+        const count = group.photos.length;
+        group.latitude = ((group.latitude * (count - 1)) + Number(photo.latitude)) / count;
+        group.longitude = ((group.longitude * (count - 1)) + Number(photo.longitude)) / count;
+      });
+      return groups;
+    }
+    function photoLogTime(takenAt) {
+      const value = Number(takenAt || 0);
+      return value ? new Date(value).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "";
+    }
+    function photoLogMapPopup(group) {
+      const times = group.photos.map(photo => photoLogTime(photo.takenAt)).filter(Boolean);
+      const timeLabel = times.length > 1 ? `${times[0]}–${times[times.length - 1]}` : (times[0] || "촬영 시간 없음");
+      return `<div>
+        <h3 class="map-popup-title">사진 ${group.photos.length}장</h3>
+        <p class="map-popup-meta">${escapeHTML(timeLabel)}<br>${escapeHTML(group.photos[0]?.name || "촬영 위치")}</p>
+      </div>`;
+    }
+    function ensureAndroidPhotoLogMap() {
+      const el = document.getElementById("photoLogMap");
+      if (!el || !window.L) return null;
+      if (androidPhotoLogMap) return androidPhotoLogMap;
+      androidPhotoLogMap = L.map(el, { zoomControl: false, attributionControl: true }).setView([36.4, 127.9], 7);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(androidPhotoLogMap);
+      L.control.zoom({ position: "bottomright" }).addTo(androidPhotoLogMap);
+      return androidPhotoLogMap;
+    }
+    function clearAndroidPhotoLogMap() {
+      androidPhotoLogMarkers.forEach(marker => marker.remove());
+      androidPhotoLogMarkers = [];
+    }
+    function renderAndroidPhotoLogMap() {
+      const map = ensureAndroidPhotoLogMap();
+      if (!map) {
+        photoLogMapStatus.textContent = "지도를 불러오지 못했습니다.";
+        return;
+      }
+      clearAndroidPhotoLogMap();
+      const groups = groupPhotoLogLocations(photoLogLocatedPhotos());
+      const points = [];
+      groups.forEach(group => {
+        const marker = L.marker([group.latitude, group.longitude], {
+          icon: mapPinIcon(String(group.photos.length))
+        }).addTo(map).bindPopup(photoLogMapPopup(group));
+        androidPhotoLogMarkers.push(marker);
+        points.push([group.latitude, group.longitude]);
+      });
+      map.invalidateSize();
+      if (points.length === 1) map.setView(points[0], 15);
+      else if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 16 });
+      photoLogMapStatus.textContent = `${groups.length}곳 · 위치정보가 있는 사진 ${photoLogLocatedPhotos().length}장`;
+    }
+    window.toggleAndroidPhotoLogMap = () => {
+      const willOpen = photoLogMapWrap.hidden;
+      photoLogMapWrap.hidden = !willOpen;
+      photoLogMapToggle.setAttribute("aria-expanded", String(willOpen));
+      photoLogMapToggleLabel.textContent = willOpen ? "지도 접기" : "지도 보기";
+      if (willOpen) setTimeout(renderAndroidPhotoLogMap, 0);
+    };
     function resetAndroidPhotoLog(date) {
       const available = isAndroidPhotoLogAvailable();
       photoLogSection.hidden = !available;
@@ -7211,6 +7341,13 @@
       photoLogStatus.textContent = "이 날짜에 촬영한 사진을 휴대폰에서 확인합니다.";
       photoLogGrid.hidden = true;
       photoLogGrid.innerHTML = "";
+      androidPhotoLogPhotos = [];
+      clearAndroidPhotoLogMap();
+      photoLogMapToggle.hidden = true;
+      photoLogMapToggle.setAttribute("aria-expanded", "false");
+      photoLogMapToggleLabel.textContent = "지도 보기";
+      photoLogMapWrap.hidden = true;
+      photoLogMapStatus.textContent = "";
     }
     window.loadAndroidPhotoLog = () => {
       const date = state.selectedCalendarDate;
@@ -7220,6 +7357,10 @@
       photoLogStatus.textContent = "휴대폰 사진첩을 확인하고 있습니다.";
       photoLogGrid.hidden = true;
       photoLogGrid.innerHTML = "";
+      androidPhotoLogPhotos = [];
+      clearAndroidPhotoLogMap();
+      photoLogMapToggle.hidden = true;
+      photoLogMapWrap.hidden = true;
       try {
         window.ReportMateAndroid.requestPhotoLog(date);
       } catch {
@@ -7241,6 +7382,7 @@
         return;
       }
       photoLogButtonLabel.textContent = `사진 로그 ${photos.length}장`;
+      androidPhotoLogPhotos = photos;
       if (!photos.length) {
         photoLogStatus.textContent = "이 날짜에 촬영한 사진이 없습니다.";
         return;
@@ -7257,6 +7399,11 @@
         </button>`;
       }).join("");
       photoLogGrid.hidden = false;
+      const locatedCount = photoLogLocatedPhotos().length;
+      photoLogMapToggle.hidden = locatedCount === 0;
+      if (locatedCount) {
+        photoLogStatus.textContent += ` 위치정보가 있는 사진은 ${locatedCount}장입니다.`;
+      }
     };
     window.openAndroidPhotoLogItem = uri => {
       if (!uri) return;
