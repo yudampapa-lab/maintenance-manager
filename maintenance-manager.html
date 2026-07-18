@@ -4049,11 +4049,8 @@
       "경북 울릉군 울릉도", "경북 울릉군 독도", "부산 강서구 가덕도", "부산 영도구 영도", "제주 제주시 제주도", "제주 제주시 우도", "제주 제주시 추자도", "제주 서귀포시 가파도", "제주 서귀포시 마라도"
     ];
 
-    const seedOrgs = [
-      { id: uid(), region: "전남 신안군 흑산도", type: "공공기관", name: "흑산면 행정복지센터", contractor: "섬테크", contractDate: todayISO(-190), cycle: "매월 점검", method: "직접점검", startDate: todayISO(-180), endDate: todayISO(180), nextVisit: todayISO(0), billingDay: 25, solution: "통합유지보수 솔루션 A", address: "전남 신안군 흑산면", note: "선박 시간 확인 후 출발", contacts: [{ name: "김담당", tel: "061-000-1000", mobile: "010-1234-5678", email: "manager@example.com", note: "주 담당" }] },
-      { id: uid(), region: "경남 통영시 욕지도", type: "도서관", name: "욕지도 작은도서관", contractor: "남해정보", contractDate: todayISO(-75), cycle: "분기점검(3,6,9,12)", method: "협력업체점검", startDate: todayISO(-60), endDate: todayISO(300), nextVisit: todayISO(0), billingDay: 10, solution: "도서관리 시스템 B", address: "경남 통영시 욕지면", note: "", contacts: [{ name: "박사서", tel: "055-000-2000", mobile: "010-2222-3333", email: "library@example.com", note: "" }] },
-      { id: uid(), region: "인천 옹진군 백령도", type: "고등학교", name: "백령고등학교", contractor: "서해시스템", contractDate: todayISO(-45), cycle: "반기 점검", method: "원격점검", startDate: todayISO(-30), endDate: todayISO(400), nextVisit: todayISO(1), billingDay: 5, solution: "학사 네트워크 장비", address: "인천 옹진군 백령면", note: "원격 우선", contacts: [{ name: "이정보", tel: "032-000-3000", mobile: "010-4444-5555", email: "school@example.com", note: "" }] }
-    ];
+    const seedOrgs = [];
+    const legacySeedOrgNames = new Set(["흑산면 행정복지센터", "욕지도 작은도서관", "백령고등학교"]);
     const namyangjuPublicLibraries = [
       { sourceId: "nyj-public-jy", name: "정약용도서관", address: "경기도 남양주시 다산중앙로82번안길 138(다산동)", tel: "031-590-2586", closed: "매달 첫째·셋째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
       { sourceId: "nyj-public-wabu", name: "와부도서관", address: "경기도 남양주시 와부읍 월문천로 43(덕소리 117-18)", tel: "031-590-8920", closed: "매달 둘째·넷째 주 금요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" },
@@ -4152,6 +4149,7 @@
     normalizeTeamDirectory();
     normalizeVehicle();
     normalizeAdminLogs();
+    if (removeLegacySeedData()) save({ skipCloud: true });
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
     ensureNationalLibraryBase();
 
@@ -4626,6 +4624,25 @@
           createdAt: new Date().toISOString()
         }));
       localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+    }
+    function removeLegacySeedData() {
+      const legacyOrgs = (state.orgs || []).filter(org => legacySeedOrgNames.has(String(org.name || "").trim()));
+      const legacyOrgIds = new Set(legacyOrgs.map(org => org.id).filter(Boolean));
+      const legacySchedules = (state.schedules || []).filter(schedule =>
+        legacyOrgIds.has(schedule.orgId)
+        || (legacySeedOrgNames.has(String(schedule.title || "").trim()) && Boolean(schedule.orgId))
+      );
+      if (!legacyOrgs.length && !legacySchedules.length) return false;
+      rememberDeletedOrgs(legacyOrgs);
+      rememberDeletedSchedules(legacySchedules);
+      const googleEventIds = legacySchedules.flatMap(schedule => [
+        schedule.googleEventId,
+        ...(Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds : [])
+      ]).filter(Boolean);
+      state.settings.googleDeletedEventIds = [...new Set([...(state.settings.googleDeletedEventIds || []), ...googleEventIds])];
+      state.orgs = (state.orgs || []).filter(org => !legacyOrgs.includes(org));
+      state.schedules = (state.schedules || []).filter(schedule => !legacySchedules.includes(schedule));
+      return true;
     }
     function recurrenceOccurrenceKey(schedule = {}) {
       const rootId = schedule.recurrenceRootId || (schedule.recurrence && schedule.recurrence !== "none" ? schedule.id : "");
@@ -5338,8 +5355,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.61";
+    const appVersion = "1.6.62";
     const versionHistory = [
+      {
+        version: "1.6.62",
+        date: "2026-07-18",
+        title: "신규 설치 예제 일정 제거",
+        changes: [
+          "신규 설치 시 예제 기관 3곳과 자동 일정이 생성되지 않도록 수정",
+          "기존 기기와 클라우드에 남은 예제 기관·일정을 자동 정리"
+        ]
+      },
       {
         version: "1.6.61",
         date: "2026-07-18",
@@ -10241,10 +10267,11 @@
       normalizeTeamDirectory();
       normalizeVehicle();
       normalizeAdminLogs();
+      const removedLegacySeedData = removeLegacySeedData();
       state.settings.cloudLastSync = new Date().toISOString();
       save({ skipCloud: true });
       state.cloudApplying = false;
-      if (incomingScheduleCount && state.schedules.length < incomingScheduleCount) {
+      if (removedLegacySeedData || (incomingScheduleCount && state.schedules.length < incomingScheduleCount)) {
         setTimeout(() => uploadCloudData({ silent: true }), 250);
       }
       render();
