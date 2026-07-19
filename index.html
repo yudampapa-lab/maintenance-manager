@@ -285,6 +285,34 @@
       gap: 14px;
     }
     .parking-status-panel { margin-top: 14px; }
+    .parking-status-panel.is-fault {
+      margin: 0 0 14px;
+      border: 2px solid rgba(195, 75, 82, .72);
+      animation: parking-status-fault-pulse 1.15s ease-in-out infinite;
+    }
+    .parking-status-panel.is-fault.warning-fault {
+      border-color: rgba(213, 148, 36, .78);
+      animation-name: parking-status-warning-pulse;
+    }
+    .parking-status-panel.is-fault .parking-status-indicator {
+      animation: parking-status-indicator-pulse 1.15s ease-in-out infinite;
+    }
+    @keyframes parking-status-fault-pulse {
+      0%, 100% { box-shadow: 0 8px 24px rgba(195, 75, 82, .16); background-color: var(--panel); }
+      50% { box-shadow: 0 8px 32px rgba(195, 75, 82, .48); background-color: rgba(255, 235, 236, .96); }
+    }
+    @keyframes parking-status-warning-pulse {
+      0%, 100% { box-shadow: 0 8px 24px rgba(213, 148, 36, .16); background-color: var(--panel); }
+      50% { box-shadow: 0 8px 32px rgba(213, 148, 36, .48); background-color: rgba(255, 247, 225, .97); }
+    }
+    @keyframes parking-status-indicator-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: .45; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .parking-status-panel.is-fault,
+      .parking-status-panel.is-fault .parking-status-indicator { animation: none; }
+    }
     .parking-status-row {
       display: flex;
       align-items: center;
@@ -5453,8 +5481,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.67";
+    const appVersion = "1.6.68";
     const versionHistory = [
+      {
+        version: "1.6.68",
+        date: "2026-07-19",
+        title: "주차정산기 최초 알림과 장애 상태 강조",
+        changes: [
+          "최초 장애는 주말·공휴일·업무시간과 관계없이 발견 즉시 한 번 알림",
+          "같은 장애의 반복 알림은 업무일 09:00~18:00에 1시간 간격으로 제한",
+          "장애 발생 시 주차정산기 상태를 대시보드 최상단으로 이동하고 점멸 표시"
+        ]
+      },
       {
         version: "1.6.67",
         date: "2026-07-19",
@@ -10733,6 +10771,20 @@
     function currentViewName() {
       return document.querySelector(".view.active")?.id?.replace("view-", "") || "dashboard";
     }
+    function syncParkingDashboardPriority(status) {
+      const dashboard = document.getElementById("view-dashboard");
+      const panel = document.getElementById("parkingStatusPanel");
+      if (!dashboard || !panel) return;
+      const hasFault = status === "offline" || status === "warning";
+      panel.classList.toggle("is-fault", hasFault);
+      panel.classList.toggle("offline-fault", status === "offline");
+      panel.classList.toggle("warning-fault", status === "warning");
+      if (hasFault) {
+        if (dashboard.firstElementChild !== panel) dashboard.prepend(panel);
+      } else if (dashboard.lastElementChild !== panel) {
+        dashboard.append(panel);
+      }
+    }
     function setParkingDashboardStatus(status, title, detail, lastSeenText = "") {
       const indicator = document.getElementById("parkingStatusIndicator");
       const titleElement = document.getElementById("parkingStatusTitle");
@@ -10740,6 +10792,7 @@
       const lastSeenElement = document.getElementById("parkingStatusLastSeen");
       const modeTag = document.getElementById("parkingAlertModeTag");
       if (!indicator || !titleElement || !detailElement || !lastSeenElement || !modeTag) return;
+      syncParkingDashboardPriority(status);
       indicator.className = `parking-status-indicator ${status || ""}`;
       titleElement.textContent = title;
       detailElement.textContent = detail;
