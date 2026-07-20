@@ -5618,8 +5618,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.76";
+    const appVersion = "1.6.77";
     const versionHistory = [
+      {
+        version: "1.6.77",
+        date: "2026-07-20",
+        title: "정산기 상태 조회와 전원 제어 분리",
+        changes: [
+          "사내망·Tailscale 연결이 없으면 Firestore 외부 상태 조회로 자동 전환",
+          "외부에서도 정산기 상태를 확인하되 전원 제어 버튼은 안전하게 비활성화",
+          "사내망·Tailscale 연결 시 실시간 내부 상태와 전원 제어를 우선 사용"
+        ]
+      },
       {
         version: "1.6.76",
         date: "2026-07-20",
@@ -11254,9 +11264,10 @@
       } catch (error) {
         if (!hasAndroidEquipmentBridge() && !equipmentPowerState.desktopBridgeAvailable && probeDesktop) return null;
         equipmentPowerState.bridgeOnline = false;
-        setParkingDashboardStatus("", "상태 조회 실패", "사내망 또는 Tailscale 연결과 주차관리 서버 상태를 확인해주세요.");
+        equipmentPowerState.deviceId = "";
+        if (!silent) setParkingDashboardStatus("", "상태 조회 실패", "사내망 또는 Tailscale 연결과 주차관리 서버 상태를 확인해주세요.");
         if (bridgeStatus) {
-          bridgeStatus.textContent = "주차관리 서버 연결 실패";
+          bridgeStatus.textContent = "외부 상태 조회 · 전원 제어는 사내망/Tailscale 필요";
           bridgeStatus.className = "equipment-bridge-status offline";
         }
         if (!silent || equipmentPowerState.processing) setEquipmentCommandResult(error.message || "상태 조회에 실패했습니다.", "failed");
@@ -11324,10 +11335,7 @@
       button.classList.add("is-loading");
       button.setAttribute("aria-label", "주차정산기 상태 새로고침 중");
       try {
-        await Promise.allSettled([
-          refreshParkingDashboardStatus(),
-          refreshEquipmentPowerStatus({ silent: false })
-        ]);
+        await refreshParkingDashboardStatus();
         toast("주차정산기 상태를 새로 확인했습니다.");
       } finally {
         button.disabled = false;
@@ -11338,7 +11346,15 @@
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
       const nativeResult = await refreshEquipmentPowerStatus({ silent: true, probeDesktop: true });
-      if (nativeResult !== null) return;
+      if (nativeResult === true) return;
+      equipmentPowerState.bridgeOnline = false;
+      equipmentPowerState.deviceId = "";
+      updateEquipmentPowerControls();
+      const bridgeStatus = document.getElementById("equipmentBridgeStatus");
+      if (bridgeStatus) {
+        bridgeStatus.textContent = "외부 상태 조회 · 전원 제어는 사내망/Tailscale 필요";
+        bridgeStatus.className = "equipment-bridge-status offline";
+      }
       const services = initFirebaseServices();
       if (!services?.auth?.currentUser) {
         setParkingDashboardStatus("", "로그인 후 확인", "정산기 상태는 ReportMate 로그인 후 표시됩니다.");
@@ -11361,7 +11377,7 @@
         const processes = Array.isArray(device.processes) ? device.processes : [];
         const stopped = processes.filter(process => process?.required !== false && process?.running !== true);
         const ageMs = Date.now() - lastSeen.getTime();
-        const lastSeenText = `마지막 신호 ${lastSeen.toLocaleString("ko-KR")}`;
+        const lastSeenText = `마지막 신호 ${lastSeen.toLocaleString("ko-KR")} · 외부 상태 조회`;
         const deviceName = String(device.deviceName || "주차 정산기");
         if (ageMs > 5 * 60 * 1000) {
           setParkingDashboardStatus("offline", "연결 끊김", `${deviceName}에서 5분 이상 상태 신호가 없습니다.`, lastSeenText);
