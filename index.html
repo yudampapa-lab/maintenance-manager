@@ -333,6 +333,9 @@
     .parking-status-copy { min-width: 0; display: grid; gap: 3px; }
     .parking-status-copy strong { font-size: 15px; }
     .parking-status-copy span { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .parking-status-head-actions { display: flex; align-items: center; gap: 7px; }
+    .parking-status-refresh.is-loading svg { animation: parking-refresh-spin .8s linear infinite; }
+    @keyframes parking-refresh-spin { to { transform: rotate(360deg); } }
     .equipment-power-control {
       margin-top: 14px;
       padding-top: 14px;
@@ -3580,7 +3583,12 @@
         <section class="panel parking-status-panel" id="parkingStatusPanel">
           <div class="panel-head">
             <div><h2 class="panel-title">주차정산기 상태</h2><p class="panel-sub" id="parkingStatusLastSeen">마지막 신호 확인 중</p></div>
-            <span class="tag" id="parkingAlertModeTag">장애알림 사용</span>
+            <div class="parking-status-head-actions">
+              <span class="tag" id="parkingAlertModeTag">장애알림 사용</span>
+              <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshParkingStatusBtn" title="상태 새로고침" aria-label="주차정산기 상태 새로고침">
+                <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+              </button>
+            </div>
           </div>
           <div class="panel-body">
             <div class="parking-status-row">
@@ -5604,8 +5612,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.70";
+    const appVersion = "1.6.71";
     const versionHistory = [
+      {
+        version: "1.6.71",
+        date: "2026-07-20",
+        title: "주차정산기 상태 새로고침",
+        changes: [
+          "주차정산기 상태 카드 오른쪽 위에 수동 새로고침 버튼 추가",
+          "버튼을 누르면 정산기 신호와 SK 중계기·전원 명령 상태를 동시에 재조회",
+          "조회 중 버튼 잠금과 회전 표시로 중복 실행 방지"
+        ]
+      },
       {
         version: "1.6.70",
         date: "2026-07-20",
@@ -11155,6 +11173,24 @@
     document.getElementById("equipmentPowerOffBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-off"));
     document.getElementById("equipmentPowerOnBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-on"));
     document.getElementById("equipmentPowerCycleBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-cycle"));
+    document.getElementById("refreshParkingStatusBtn")?.addEventListener("click", async () => {
+      const button = document.getElementById("refreshParkingStatusBtn");
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      button.classList.add("is-loading");
+      button.setAttribute("aria-label", "주차정산기 상태 새로고침 중");
+      try {
+        await Promise.allSettled([
+          refreshParkingDashboardStatus(),
+          refreshEquipmentPowerStatus({ silent: false })
+        ]);
+        toast("주차정산기 상태를 새로 확인했습니다.");
+      } finally {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+        button.setAttribute("aria-label", "주차정산기 상태 새로고침");
+      }
+    });
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
       const services = initFirebaseServices();
