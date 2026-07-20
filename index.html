@@ -5618,8 +5618,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.75";
+    const appVersion = "1.6.76";
     const versionHistory = [
+      {
+        version: "1.6.76",
+        date: "2026-07-20",
+        title: "일정 특이사항 입력 성능 개선",
+        changes: [
+          "글자 입력마다 전체 데이터를 정리하고 저장하던 불필요한 작업 제거",
+          "특이사항 로컬 저장을 짧게 묶어 처리하여 모바일·PC 타이핑 지연 개선",
+          "입력을 마치거나 창을 닫을 때 클라우드 동기화가 안전하게 실행되도록 변경"
+        ]
+      },
       {
         version: "1.6.75",
         date: "2026-07-20",
@@ -9946,15 +9956,33 @@
       dayScheduleDialog.close();
       openScheduleDialog({ date, endDate: date });
     };
+    let dayScheduleNotePersistTimer = null;
+    let dayScheduleNoteDirty = false;
+    function persistDayScheduleNotes({ cloud = false } = {}) {
+      if (dayScheduleNotePersistTimer) clearTimeout(dayScheduleNotePersistTimer);
+      dayScheduleNotePersistTimer = null;
+      localStorage.setItem("maint_day_notes", JSON.stringify(state.dayNotes || {}));
+      if (cloud && dayScheduleNoteDirty) {
+        dayScheduleNoteDirty = false;
+        scheduleCloudSave("day-note", 250);
+      }
+    }
+    function queueDayScheduleNotePersist() {
+      if (dayScheduleNotePersistTimer) clearTimeout(dayScheduleNotePersistTimer);
+      dayScheduleNotePersistTimer = setTimeout(() => persistDayScheduleNotes(), 350);
+    }
     dayScheduleNote.oninput = () => {
       const date = state.selectedCalendarDate;
       if (!date) return;
       state.dayNotes = state.dayNotes || {};
-      const value = dayScheduleNote.value.trim();
-      if (value) state.dayNotes[date] = value;
+      const value = dayScheduleNote.value;
+      if (value.trim()) state.dayNotes[date] = value;
       else delete state.dayNotes[date];
-      save();
+      dayScheduleNoteDirty = true;
+      queueDayScheduleNotePersist();
     };
+    dayScheduleNote.addEventListener("blur", () => persistDayScheduleNotes({ cloud: true }));
+    dayScheduleDialog.addEventListener("close", () => persistDayScheduleNotes({ cloud: true }));
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
     closeScheduleActionDialogBtn.onclick = () => scheduleActionDialog.close();
     closeCalendarSearchDialogBtn.onclick = () => calendarSearchDialog.close();
