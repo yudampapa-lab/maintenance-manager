@@ -345,6 +345,7 @@
       display: grid;
       gap: 11px;
     }
+    .equipment-power-control[hidden] { display: none !important; }
     .equipment-power-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .equipment-power-head strong { font-size: 14px; }
     .equipment-bridge-status { color: var(--muted); font-size: 11px; text-align: right; }
@@ -5617,8 +5618,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.73";
+    const appVersion = "1.6.74";
     const versionHistory = [
+      {
+        version: "1.6.74",
+        date: "2026-07-20",
+        title: "정산기 제어 접힘 표시 수정",
+        changes: [
+          "접힘 상태에서 전원 제어 영역이 화면에 남아 있던 표시 오류 수정",
+          "정상 상태에서는 접고 장애·주의 상태에서는 자동으로 펼치는 동작 유지"
+        ]
+      },
       {
         version: "1.6.73",
         date: "2026-07-20",
