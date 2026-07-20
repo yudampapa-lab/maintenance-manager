@@ -771,6 +771,55 @@
       width: 17px;
       height: 17px;
     }
+    button.icon.header-notification {
+      position: relative;
+      width: 34px;
+      min-height: 34px;
+      border-radius: 11px;
+      display: inline-grid !important;
+      color: #344252;
+      background: rgba(118, 118, 128, .1);
+      box-shadow: none;
+    }
+    button.icon.header-notification svg { width: 18px; height: 18px; }
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border: 2px solid #fff;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #e5484d;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .notification-list { display: grid; gap: 9px; margin-top: 12px; }
+    .notification-item {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      display: grid;
+      gap: 5px;
+    }
+    .notification-item.unread {
+      border-color: rgba(0, 122, 255, .34);
+      background: rgba(0, 122, 255, .055);
+      box-shadow: inset 3px 0 0 #007aff;
+    }
+    .notification-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .notification-item-head strong { font-size: 14px; line-height: 1.35; }
+    .notification-item-time { flex: 0 0 auto; color: var(--muted); font-size: 10px; }
+    .notification-item-body { color: #4a5563; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+    .notification-source { color: #0070d8; font-size: 10px; font-weight: 750; }
+    .notification-empty { padding: 28px 12px; text-align: center; color: var(--muted); font-size: 13px; }
     .environment-chip {
       min-width: 0;
       min-height: 48px;
@@ -3380,6 +3429,10 @@
           <div><strong class="brand-title">ReportMate</strong></div>
         </div>
         <div class="top-actions">
+          <button type="button" class="icon header-notification" id="notificationBellBtn" title="알림 내역" aria-label="알림 내역">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+            <span class="notification-badge" id="notificationBadge" aria-live="polite" hidden></span>
+          </button>
           <button type="button" class="icon secondary header-gear" id="dashboardSettingsBtn" title="설정" aria-label="설정">
             <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.66V21a2.1 2.1 0 0 1-4.2 0v-.06a1.8 1.8 0 0 0-1.1-1.66 1.8 1.8 0 0 0-2 .36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.66-1.1H2a2.1 2.1 0 0 1 0-4.2h.06a1.8 1.8 0 0 0 1.66-1.1 1.8 1.8 0 0 0-.36-2l-.04-.04A2.1 2.1 0 0 1 6.29 3.3l.04.04a1.8 1.8 0 0 0 2 .36h.01A1.8 1.8 0 0 0 9.44 2V2a2.1 2.1 0 0 1 4.2 0v.06a1.8 1.8 0 0 0 1.1 1.66 1.8 1.8 0 0 0 2-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.66 1.1H21a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"/></svg>
           </button>
@@ -3840,6 +3893,18 @@
     <div class="modal-actions">
       <button class="secondary" id="addReportFromDialogBtn">사진 추가</button>
       <button id="closeReportDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="notificationHistoryDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">알림 내역</h2>
+      <p class="panel-sub" id="notificationHistorySub">ReportMate 앱에서 받은 알림입니다.</p>
+      <div class="notification-list" id="notificationHistoryList"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="danger" id="clearNotificationHistoryBtn">내역 비우기</button>
+      <button type="button" class="secondary" id="closeNotificationHistoryBtn">닫기</button>
     </div>
   </dialog>
 
@@ -5481,8 +5546,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.68";
+    const appVersion = "1.6.69";
     const versionHistory = [
+      {
+        version: "1.6.69",
+        date: "2026-07-20",
+        title: "앱 알림 내역함",
+        changes: [
+          "대시보드 상단에 알림 내역을 여는 벨 버튼과 읽지 않은 알림 개수 표시 추가",
+          "주차정산기 장애·복구 및 매일 일정 알림을 기기에 최대 100건까지 저장",
+          "알림별 수신 시각과 내용을 확인하고 전체 읽음 또는 내역 비우기 지원"
+        ]
+      },
       {
         version: "1.6.68",
         date: "2026-07-19",
@@ -9846,7 +9921,7 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -12515,6 +12590,93 @@
     }
     function escapeAttr(str = "") { return escapeHTML(str); }
     function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
+    function hasNativeNotificationHistory() {
+      try {
+        return typeof window.ReportMateAndroid?.getNotificationHistory === "function";
+      } catch (_) {
+        return false;
+      }
+    }
+    function nativeNotificationEntries() {
+      if (!hasNativeNotificationHistory()) return [];
+      try {
+        const parsed = JSON.parse(String(window.ReportMateAndroid.getNotificationHistory() || "[]"));
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+    function updateNotificationBell() {
+      const badge = document.getElementById("notificationBadge");
+      if (!badge) return;
+      let unread = 0;
+      try {
+        if (typeof window.ReportMateAndroid?.getUnreadNotificationCount === "function") {
+          unread = Math.max(0, Number(window.ReportMateAndroid.getUnreadNotificationCount()) || 0);
+        }
+      } catch (_) {}
+      badge.textContent = unread > 99 ? "99+" : String(unread);
+      badge.hidden = unread < 1;
+      document.getElementById("notificationBellBtn")?.setAttribute(
+        "aria-label",
+        unread ? `알림 내역, 읽지 않은 알림 ${unread}개` : "알림 내역"
+      );
+    }
+    function notificationSourceLabel(source) {
+      if (source === "parking") return "주차정산기";
+      if (source === "schedule") return "오늘 일정";
+      return "ReportMate";
+    }
+    function renderNotificationHistory(entries = nativeNotificationEntries()) {
+      const list = document.getElementById("notificationHistoryList");
+      const sub = document.getElementById("notificationHistorySub");
+      if (!list || !sub) return;
+      if (!hasNativeNotificationHistory()) {
+        sub.textContent = "Android 앱에서 받은 알림을 확인할 수 있습니다.";
+        list.innerHTML = '<div class="notification-empty">Android 앱 1.5.11 이상에서 알림 내역을 사용할 수 있습니다.</div>';
+        return;
+      }
+      const unread = entries.filter(entry => entry?.read !== true).length;
+      sub.textContent = entries.length ? `전체 ${entries.length}건 · 새 알림 ${unread}건` : "아직 저장된 알림이 없습니다.";
+      list.innerHTML = entries.length ? entries.map(entry => {
+        const createdAt = new Date(Number(entry.createdAt) || Date.now());
+        const time = Number.isNaN(createdAt.getTime()) ? "" : createdAt.toLocaleString("ko-KR");
+        return `<article class="notification-item${entry.read === true ? "" : " unread"}">
+          <div class="notification-item-head"><strong>${escapeHTML(entry.title || "알림")}</strong><span class="notification-item-time">${escapeHTML(time)}</span></div>
+          <div class="notification-source">${escapeHTML(notificationSourceLabel(entry.source))}</div>
+          <div class="notification-item-body">${escapeHTML(entry.body || "")}</div>
+        </article>`;
+      }).join("") : '<div class="notification-empty">새 알림이 도착하면 이곳에 보관됩니다.</div>';
+    }
+    function openNotificationHistory() {
+      renderNotificationHistory();
+      const dialog = document.getElementById("notificationHistoryDialog");
+      if (dialog && !dialog.open) dialog.showModal();
+      try {
+        window.ReportMateAndroid?.markAllNotificationsRead?.();
+      } catch (_) {}
+      updateNotificationBell();
+    }
+    document.getElementById("notificationBellBtn")?.addEventListener("click", openNotificationHistory);
+    document.getElementById("closeNotificationHistoryBtn")?.addEventListener("click", () => notificationHistoryDialog.close());
+    document.getElementById("clearNotificationHistoryBtn")?.addEventListener("click", () => {
+      if (!hasNativeNotificationHistory()) return;
+      if (!confirm("저장된 알림 내역을 모두 비울까요?")) return;
+      try {
+        window.ReportMateAndroid.clearNotificationHistory();
+      } catch (_) {
+        toast("알림 내역을 비우지 못했습니다.");
+        return;
+      }
+      renderNotificationHistory([]);
+      updateNotificationBell();
+      toast("알림 내역을 비웠습니다.");
+    });
+    updateNotificationBell();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) updateNotificationBell();
+    });
+    setInterval(updateNotificationBell, 30 * 1000);
     const savedView = localStorage.getItem("maint_active_view");
     const initialView = savedView === "vehicle" ? "memo" : savedView;
     if (savedView === "vehicle") state.recordTab = "vehicle";
