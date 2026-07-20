@@ -335,6 +335,8 @@
     .parking-status-copy span { color: var(--muted); font-size: 12px; line-height: 1.45; }
     .parking-status-head-actions { display: flex; align-items: center; gap: 7px; }
     .parking-status-refresh.is-loading svg { animation: parking-refresh-spin .8s linear infinite; }
+    .parking-details-toggle svg { transition: transform .18s ease; }
+    .parking-details-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
     @keyframes parking-refresh-spin { to { transform: rotate(360deg); } }
     .equipment-power-control {
       margin-top: 14px;
@@ -3588,6 +3590,9 @@
               <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshParkingStatusBtn" title="상태 새로고침" aria-label="주차정산기 상태 새로고침">
                 <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
               </button>
+              <button type="button" class="icon tiny secondary parking-details-toggle" id="toggleParkingDetailsBtn" title="전원 제어 펼치기" aria-label="전원 제어 펼치기" aria-expanded="false">
+                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
             </div>
           </div>
           <div class="panel-body">
@@ -3595,7 +3600,7 @@
               <span class="parking-status-indicator" id="parkingStatusIndicator" aria-hidden="true"></span>
               <div class="parking-status-copy"><strong id="parkingStatusTitle">상태 확인 중</strong><span id="parkingStatusDetail">정산기 상태 정보를 불러오고 있습니다.</span></div>
             </div>
-            <div class="equipment-power-control" id="equipmentPowerControl">
+            <div class="equipment-power-control" id="equipmentPowerControl" hidden>
               <div class="equipment-power-head">
                 <strong>정산기 전원 제어</strong>
                 <span class="equipment-bridge-status" id="equipmentBridgeStatus">중계 서버 확인 중</span>
@@ -5612,8 +5617,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.72";
+    const appVersion = "1.6.73";
     const versionHistory = [
+      {
+        version: "1.6.73",
+        date: "2026-07-20",
+        title: "정산기 전원 제어 접기와 펼치기",
+        changes: [
+          "정상 상태에서는 전원 제어 영역을 기본으로 접어서 대시보드를 간결하게 표시",
+          "장애 또는 주의 상태가 새로 감지되면 전원 제어 영역을 자동으로 펼침",
+          "상태 카드의 화살표 버튼으로 언제든 직접 접거나 펼칠 수 있도록 지원"
+        ]
+      },
       {
         version: "1.6.72",
         date: "2026-07-20",
@@ -10942,6 +10957,25 @@
     function currentViewName() {
       return document.querySelector(".view.active")?.id?.replace("view-", "") || "dashboard";
     }
+    let parkingDetailsHealth = "";
+    let parkingDetailsExpanded = false;
+    function setParkingDetailsExpanded(expanded) {
+      parkingDetailsExpanded = Boolean(expanded);
+      const control = document.getElementById("equipmentPowerControl");
+      const button = document.getElementById("toggleParkingDetailsBtn");
+      if (control) control.hidden = !parkingDetailsExpanded;
+      if (button) {
+        button.setAttribute("aria-expanded", String(parkingDetailsExpanded));
+        button.setAttribute("aria-label", parkingDetailsExpanded ? "전원 제어 접기" : "전원 제어 펼치기");
+        button.title = parkingDetailsExpanded ? "전원 제어 접기" : "전원 제어 펼치기";
+      }
+    }
+    function syncParkingDetailsDefault(status) {
+      const health = status === "offline" || status === "warning" ? "fault" : "normal";
+      if (parkingDetailsHealth === health) return;
+      parkingDetailsHealth = health;
+      setParkingDetailsExpanded(health === "fault");
+    }
     function syncParkingDashboardPriority(status) {
       const dashboard = document.getElementById("view-dashboard");
       const panel = document.getElementById("parkingStatusPanel");
@@ -10964,6 +10998,7 @@
       const modeTag = document.getElementById("parkingAlertModeTag");
       if (!indicator || !titleElement || !detailElement || !lastSeenElement || !modeTag) return;
       syncParkingDashboardPriority(status);
+      syncParkingDetailsDefault(status);
       indicator.className = `parking-status-indicator ${status || ""}`;
       titleElement.textContent = title;
       detailElement.textContent = detail;
@@ -11209,6 +11244,9 @@
     document.getElementById("equipmentPowerOffBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-off"));
     document.getElementById("equipmentPowerOnBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-on"));
     document.getElementById("equipmentPowerCycleBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-cycle"));
+    document.getElementById("toggleParkingDetailsBtn")?.addEventListener("click", () => {
+      setParkingDetailsExpanded(!parkingDetailsExpanded);
+    });
     document.getElementById("refreshParkingStatusBtn")?.addEventListener("click", async () => {
       const button = document.getElementById("refreshParkingStatusBtn");
       if (!button || button.disabled) return;
