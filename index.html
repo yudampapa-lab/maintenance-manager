@@ -333,6 +333,43 @@
     .parking-status-copy { min-width: 0; display: grid; gap: 3px; }
     .parking-status-copy strong { font-size: 15px; }
     .parking-status-copy span { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .equipment-power-control {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 11px;
+    }
+    .equipment-power-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .equipment-power-head strong { font-size: 14px; }
+    .equipment-bridge-status { color: var(--muted); font-size: 11px; text-align: right; }
+    .equipment-bridge-status.online { color: #087f72; font-weight: 750; }
+    .equipment-bridge-status.offline { color: #b23b43; font-weight: 750; }
+    .equipment-safety-note {
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: rgba(213, 148, 36, .1);
+      color: #78500e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .equipment-power-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .equipment-power-actions button { min-height: 40px; padding: 8px 10px; }
+    .equipment-cycle-box { padding: 10px; border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 9px; }
+    .equipment-cycle-box > span { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .equipment-duration-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .equipment-duration-options button {
+      min-height: 34px;
+      padding: 5px 7px;
+      background: rgba(118, 118, 128, .1);
+      color: #3a4552;
+      box-shadow: none;
+      font-size: 11px;
+    }
+    .equipment-duration-options button.active { background: #007aff; color: #fff; }
+    .equipment-command-result { min-height: 18px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .equipment-command-result.success { color: #087f72; font-weight: 700; }
+    .equipment-command-result.failed { color: #b23b43; font-weight: 700; }
     .record-tabs {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3550,6 +3587,27 @@
               <span class="parking-status-indicator" id="parkingStatusIndicator" aria-hidden="true"></span>
               <div class="parking-status-copy"><strong id="parkingStatusTitle">상태 확인 중</strong><span id="parkingStatusDetail">정산기 상태 정보를 불러오고 있습니다.</span></div>
             </div>
+            <div class="equipment-power-control" id="equipmentPowerControl">
+              <div class="equipment-power-head">
+                <strong>정산기 전원 제어</strong>
+                <span class="equipment-bridge-status" id="equipmentBridgeStatus">중계 서버 확인 중</span>
+              </div>
+              <div class="equipment-safety-note">전원을 끄면 다시 켜기 전까지 정산기를 사용할 수 없습니다. IP Watchdog이 활성화된 경우 약 5분 뒤 자동으로 켜질 수 있습니다.</div>
+              <div class="equipment-power-actions">
+                <button type="button" class="danger" id="equipmentPowerOffBtn" disabled>전원 끄기</button>
+                <button type="button" class="secondary" id="equipmentPowerOnBtn" disabled>전원 켜기</button>
+              </div>
+              <div class="equipment-cycle-box">
+                <span>차단 후 자동 복구 시간</span>
+                <div class="equipment-duration-options" id="equipmentDurationOptions">
+                  <button type="button" class="active" data-equipment-duration="15" disabled>15초 후 복구</button>
+                  <button type="button" data-equipment-duration="60" disabled>1분 후 복구</button>
+                  <button type="button" data-equipment-duration="300" disabled>5분 후 복구</button>
+                </div>
+                <button type="button" id="equipmentPowerCycleBtn" disabled>차단 후 자동 복구</button>
+              </div>
+              <div class="equipment-command-result" id="equipmentCommandResult">사내망 또는 Tailscale 연결 상태에서 사용할 수 있습니다.</div>
+            </div>
           </div>
         </section>
       </section>
@@ -5546,8 +5604,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.69";
+    const appVersion = "1.6.70";
     const versionHistory = [
+      {
+        version: "1.6.70",
+        date: "2026-07-20",
+        title: "정산기 원격 전원 제어",
+        changes: [
+          "정산기 상태 카드에 전원 끄기·켜기와 15초·1분·5분 자동 복구 제어 추가",
+          "SK 서버 중계기가 온라인일 때만 제어를 허용하고 실행 전 확인 팝업 표시",
+          "명령 등록 후 완료 또는 실패까지 주차관리 서버 상태를 주기적으로 추적"
+        ]
+      },
       {
         version: "1.6.69",
         date: "2026-07-20",
@@ -10874,6 +10942,219 @@
       lastSeenElement.textContent = lastSeenText || "마지막 신호 확인 전";
       modeTag.textContent = state.settings.parkingAlertEnabled === "0" ? "장애알림 미사용" : "장애알림 사용";
     }
+    const equipmentPowerState = {
+      deviceId: "",
+      deviceName: "",
+      bridgeOnline: false,
+      processing: false,
+      loading: false,
+      durationSeconds: 15,
+      commandId: "",
+      commandAction: "",
+      pollAttempts: 0,
+      pollTimer: null
+    };
+    const equipmentResponseWaiters = new Map();
+    window.onReportMateEquipmentResponse = (requestId, success, payloadText) => {
+      const waiter = equipmentResponseWaiters.get(String(requestId || ""));
+      if (!waiter) return;
+      equipmentResponseWaiters.delete(String(requestId || ""));
+      clearTimeout(waiter.timeout);
+      let payload = {};
+      try { payload = JSON.parse(String(payloadText || "{}")); } catch (_) {}
+      if (success) waiter.resolve(payload);
+      else waiter.reject(new Error(payload?.message || "주차관리 서버 요청에 실패했습니다."));
+    };
+    function hasEquipmentPowerBridge() {
+      try {
+        return typeof window.ReportMateAndroid?.requestEquipmentStatus === "function"
+          && typeof window.ReportMateAndroid?.sendEquipmentPowerCommand === "function";
+      } catch (_) {
+        return false;
+      }
+    }
+    function requestNativeEquipment(method, args = []) {
+      return new Promise((resolve, reject) => {
+        if (!hasEquipmentPowerBridge()) {
+          reject(new Error("Android 앱 1.5.12 이상에서 전원 제어를 사용할 수 있습니다."));
+          return;
+        }
+        const requestId = `equipment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const timeout = setTimeout(() => {
+          equipmentResponseWaiters.delete(requestId);
+          reject(new Error("주차관리 서버 응답 시간이 초과됐습니다. 사내망 또는 Tailscale 연결을 확인해주세요."));
+        }, 20000);
+        equipmentResponseWaiters.set(requestId, { resolve, reject, timeout });
+        try {
+          if (method === "status") window.ReportMateAndroid.requestEquipmentStatus(requestId);
+          else window.ReportMateAndroid.sendEquipmentPowerCommand(requestId, ...args);
+        } catch (error) {
+          equipmentResponseWaiters.delete(requestId);
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+    }
+    function setEquipmentCommandResult(message, status = "") {
+      const element = document.getElementById("equipmentCommandResult");
+      if (!element) return;
+      element.textContent = message;
+      element.className = `equipment-command-result ${status}`.trim();
+    }
+    function updateEquipmentPowerControls() {
+      const enabled = equipmentPowerState.bridgeOnline
+        && Boolean(equipmentPowerState.deviceId)
+        && !equipmentPowerState.processing;
+      ["equipmentPowerOffBtn", "equipmentPowerOnBtn", "equipmentPowerCycleBtn"].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.disabled = !enabled;
+      });
+      document.querySelectorAll("[data-equipment-duration]").forEach(button => {
+        button.disabled = !enabled;
+        button.classList.toggle("active", Number(button.dataset.equipmentDuration) === equipmentPowerState.durationSeconds);
+      });
+    }
+    function equipmentActionLabel(action) {
+      if (action === "power-off") return "전원 끄기";
+      if (action === "power-on") return "전원 켜기";
+      return "차단 후 자동 복구";
+    }
+    function stopEquipmentCommandPolling() {
+      if (equipmentPowerState.pollTimer) clearInterval(equipmentPowerState.pollTimer);
+      equipmentPowerState.pollTimer = null;
+    }
+    function finishEquipmentCommand(command) {
+      const status = String(command?.status || "").toLowerCase();
+      const actionLabel = equipmentActionLabel(command?.action || equipmentPowerState.commandAction);
+      const message = String(command?.message || "").trim();
+      equipmentPowerState.processing = false;
+      stopEquipmentCommandPolling();
+      updateEquipmentPowerControls();
+      if (status === "completed") {
+        setEquipmentCommandResult(`${actionLabel} 완료${message ? ` · ${message}` : ""}`, "success");
+        toast(`${actionLabel} 명령이 완료됐습니다.`);
+      } else {
+        setEquipmentCommandResult(`${actionLabel} 실패${message ? ` · ${message}` : ""}`, "failed");
+        toast(`${actionLabel} 명령이 실패했습니다.`);
+      }
+    }
+    async function refreshEquipmentPowerStatus({ silent = false } = {}) {
+      if (equipmentPowerState.loading) return;
+      const bridgeStatus = document.getElementById("equipmentBridgeStatus");
+      if (!hasEquipmentPowerBridge()) {
+        equipmentPowerState.bridgeOnline = false;
+        equipmentPowerState.deviceId = "";
+        if (bridgeStatus) {
+          bridgeStatus.textContent = "Android 1.5.12 필요";
+          bridgeStatus.className = "equipment-bridge-status offline";
+        }
+        updateEquipmentPowerControls();
+        if (!silent) setEquipmentCommandResult("Android 앱 1.5.12 이상에서 사용할 수 있습니다.", "failed");
+        return;
+      }
+      if (equipmentPowerState.processing) {
+        equipmentPowerState.pollAttempts++;
+        if (equipmentPowerState.pollAttempts >= 40) {
+          finishEquipmentCommand({ status: "failed", action: equipmentPowerState.commandAction, message: "2분 안에 처리 결과를 확인하지 못했습니다." });
+          return;
+        }
+      }
+      equipmentPowerState.loading = true;
+      try {
+        const response = await requestNativeEquipment("status");
+        const devices = Array.isArray(response?.devices) ? response.devices : [];
+        const device = devices[0] || {};
+        const bridge = response?.controllerBridge || {};
+        equipmentPowerState.deviceId = String(device.deviceId || "");
+        equipmentPowerState.deviceName = String(device.deviceName || "정산기");
+        equipmentPowerState.bridgeOnline = String(bridge.status || "").toLowerCase() === "online";
+        if (bridgeStatus) {
+          const age = Number.isFinite(Number(bridge.ageSeconds)) ? ` · ${Math.max(0, Math.round(Number(bridge.ageSeconds)))}초 전` : "";
+          const name = String(bridge.computerName || "SK 중계 서버");
+          bridgeStatus.textContent = equipmentPowerState.bridgeOnline ? `중계기 온라인 · ${name}${age}` : `중계기 오프라인 · ${name}${age}`;
+          bridgeStatus.className = `equipment-bridge-status ${equipmentPowerState.bridgeOnline ? "online" : "offline"}`;
+        }
+        if (!equipmentPowerState.processing && !silent) {
+          if (!equipmentPowerState.deviceId) setEquipmentCommandResult("상태 응답에 정산기 deviceId가 없습니다.", "failed");
+          else if (!equipmentPowerState.bridgeOnline) setEquipmentCommandResult("SK 서버 중계기가 오프라인이라 전원 제어를 사용할 수 없습니다.", "failed");
+          else setEquipmentCommandResult(`${equipmentPowerState.deviceName} 전원 제어 준비 완료`);
+        }
+        if (equipmentPowerState.processing) {
+          const commands = Array.isArray(response?.commands) ? response.commands : [];
+          let command = equipmentPowerState.commandId
+            ? commands.find(item => String(item?.id || "") === equipmentPowerState.commandId)
+            : null;
+          if (!command) {
+            command = commands.find(item => String(item?.deviceId || "") === equipmentPowerState.deviceId
+              && String(item?.action || "") === equipmentPowerState.commandAction);
+            if (command?.id) equipmentPowerState.commandId = String(command.id);
+          }
+          const commandStatus = String(command?.status || "").toLowerCase();
+          if (commandStatus === "completed" || commandStatus === "failed") finishEquipmentCommand(command);
+          else {
+            setEquipmentCommandResult(`${equipmentActionLabel(equipmentPowerState.commandAction)} 처리 중… (${equipmentPowerState.pollAttempts})`);
+          }
+        }
+      } catch (error) {
+        equipmentPowerState.bridgeOnline = false;
+        if (bridgeStatus) {
+          bridgeStatus.textContent = "주차관리 서버 연결 실패";
+          bridgeStatus.className = "equipment-bridge-status offline";
+        }
+        if (!silent || equipmentPowerState.processing) setEquipmentCommandResult(error.message || "상태 조회에 실패했습니다.", "failed");
+      } finally {
+        equipmentPowerState.loading = false;
+        updateEquipmentPowerControls();
+      }
+    }
+    async function submitEquipmentPowerAction(action) {
+      if (equipmentPowerState.processing || !equipmentPowerState.bridgeOnline || !equipmentPowerState.deviceId) return;
+      const durationSeconds = action === "power-cycle" ? equipmentPowerState.durationSeconds : 15;
+      const durationLabel = durationSeconds === 300 ? "5분" : durationSeconds === 60 ? "1분" : "15초";
+      let confirmation = "";
+      if (action === "power-off") {
+        confirmation = "정산기 전원을 끌까요? 다시 전원을 켜기 전까지 정산기를 사용할 수 없습니다. IP Watchdog이 활성화된 경우 약 5분 뒤 자동으로 켜질 수 있습니다.";
+      } else if (action === "power-on") {
+        confirmation = "정산기 전원을 켤까요? 정산기가 꺼져 있어도 SK 서버 중계기가 온라인이면 실행할 수 있습니다.";
+      } else {
+        confirmation = `정산기 전원을 차단하고 ${durationLabel} 후 자동으로 복구할까요?`;
+      }
+      if (!confirm(confirmation)) return;
+      equipmentPowerState.processing = true;
+      equipmentPowerState.commandId = "";
+      equipmentPowerState.commandAction = action;
+      equipmentPowerState.pollAttempts = 0;
+      updateEquipmentPowerControls();
+      setEquipmentCommandResult(`${equipmentActionLabel(action)} 명령 등록 중…`);
+      try {
+        const response = await requestNativeEquipment("command", [equipmentPowerState.deviceId, action, durationSeconds]);
+        const command = response?.command || response || {};
+        equipmentPowerState.commandId = String(command.id || command.commandId || "");
+        const immediateStatus = String(command.status || "").toLowerCase();
+        if (immediateStatus === "completed" || immediateStatus === "failed") {
+          finishEquipmentCommand({ ...command, action: command.action || action });
+          return;
+        }
+        setEquipmentCommandResult(`${equipmentActionLabel(action)} 명령이 등록됐습니다. 처리 결과 확인 중…`);
+        stopEquipmentCommandPolling();
+        equipmentPowerState.pollTimer = setInterval(() => refreshEquipmentPowerStatus({ silent: true }), 3000);
+        setTimeout(() => refreshEquipmentPowerStatus({ silent: true }), 700);
+      } catch (error) {
+        equipmentPowerState.processing = false;
+        updateEquipmentPowerControls();
+        setEquipmentCommandResult(error.message || "전원 명령 등록에 실패했습니다.", "failed");
+      }
+    }
+    document.querySelectorAll("[data-equipment-duration]").forEach(button => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        equipmentPowerState.durationSeconds = Number(button.dataset.equipmentDuration) || 15;
+        updateEquipmentPowerControls();
+      });
+    });
+    document.getElementById("equipmentPowerOffBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-off"));
+    document.getElementById("equipmentPowerOnBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-on"));
+    document.getElementById("equipmentPowerCycleBtn")?.addEventListener("click", () => submitEquipmentPowerAction("power-cycle"));
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
       const services = initFirebaseServices();
@@ -10925,6 +11206,7 @@
       renderWeeklyReport();
       scheduleTodayDestinationMapRender();
       refreshParkingDashboardStatus();
+      refreshEquipmentPowerStatus({ silent: true });
     }
     function renderMemoView() {
       switchRecordTab(state.recordTab);
@@ -12690,6 +12972,16 @@
     setInterval(() => {
       if (document.getElementById("view-dashboard")?.classList.contains("active")) refreshParkingDashboardStatus();
     }, 60 * 1000);
+    setInterval(() => {
+      if (document.getElementById("view-dashboard")?.classList.contains("active") && !equipmentPowerState.processing) {
+        refreshEquipmentPowerStatus({ silent: true });
+      }
+    }, 15 * 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && document.getElementById("view-dashboard")?.classList.contains("active")) {
+        refreshEquipmentPowerStatus({ silent: true });
+      }
+    });
     window.desktopWindowAction = (action, event) => {
       event?.preventDefault?.();
       event?.stopPropagation?.();
