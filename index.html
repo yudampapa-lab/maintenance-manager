@@ -5612,8 +5612,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.71";
+    const appVersion = "1.6.72";
     const versionHistory = [
+      {
+        version: "1.6.72",
+        date: "2026-07-20",
+        title: "정산기 상태 기준 통합",
+        changes: [
+          "Android 대시보드의 정산기 상태를 새 주차관리 서버 API 기준으로 통일",
+          "실제 장비 신호·프로세스 상태·수신 시각을 이용해 정상·주의·연결 끊김 판정",
+          "오래된 Firestore 신호가 복구된 정산기를 장애로 표시하던 문제 해결"
+        ]
+      },
       {
         version: "1.6.71",
         date: "2026-07-20",
@@ -11056,6 +11066,30 @@
         toast(`${actionLabel} 명령이 실패했습니다.`);
       }
     }
+    function applyEquipmentDeviceToParkingStatus(device) {
+      if (!device || !device.deviceId) {
+        setParkingDashboardStatus("", "정산기 미등록", "주차관리 서버에서 정산기 정보를 찾을 수 없습니다.");
+        return;
+      }
+      const deviceName = String(device.deviceName || "주차 정산기");
+      const ageSeconds = Number(device.ageSeconds);
+      const ageMs = Number.isFinite(ageSeconds) ? Math.max(0, ageSeconds) * 1000 : Number.POSITIVE_INFINITY;
+      const processes = Array.isArray(device.processes) ? device.processes : [];
+      const stopped = processes.filter(process => process?.required !== false && process?.running !== true);
+      const reportedStatus = String(device.status || device.statusMarker || "offline").toLowerCase();
+      const rawLastSeen = device.lastSeenAt ? new Date(device.lastSeenAt) : null;
+      const lastSeenText = rawLastSeen && !Number.isNaN(rawLastSeen.getTime())
+        ? `마지막 신호 ${rawLastSeen.toLocaleString("ko-KR")} · 주차관리 서버 기준`
+        : Number.isFinite(ageSeconds) ? `마지막 신호 ${Math.max(0, Math.round(ageSeconds))}초 전 · 주차관리 서버 기준` : "주차관리 서버 기준";
+      if (reportedStatus === "offline" || ageMs > 5 * 60 * 1000) {
+        setParkingDashboardStatus("offline", "연결 끊김", `${deviceName}에서 5분 이상 상태 신호가 없습니다.`, lastSeenText);
+      } else if (reportedStatus === "warning" || stopped.length) {
+        const names = stopped.map(process => process.name || "정산 프로그램").join(", ") || "정산 프로그램";
+        setParkingDashboardStatus("warning", "확인 필요", `${names}이 실행 중이 아닙니다.`, lastSeenText);
+      } else {
+        setParkingDashboardStatus("online", "정상 작동 중", `${deviceName}와 감시 프로그램이 정상입니다.`, lastSeenText);
+      }
+    }
     async function refreshEquipmentPowerStatus({ silent = false } = {}) {
       if (equipmentPowerState.loading) return;
       const bridgeStatus = document.getElementById("equipmentBridgeStatus");
@@ -11083,6 +11117,7 @@
         const devices = Array.isArray(response?.devices) ? response.devices : [];
         const device = devices[0] || {};
         const bridge = response?.controllerBridge || {};
+        applyEquipmentDeviceToParkingStatus(device);
         equipmentPowerState.deviceId = String(device.deviceId || "");
         equipmentPowerState.deviceName = String(device.deviceName || "정산기");
         equipmentPowerState.bridgeOnline = String(bridge.status || "").toLowerCase() === "online";
@@ -11115,6 +11150,7 @@
         }
       } catch (error) {
         equipmentPowerState.bridgeOnline = false;
+        setParkingDashboardStatus("", "상태 조회 실패", "사내망 또는 Tailscale 연결과 주차관리 서버 상태를 확인해주세요.");
         if (bridgeStatus) {
           bridgeStatus.textContent = "주차관리 서버 연결 실패";
           bridgeStatus.className = "equipment-bridge-status offline";
@@ -11193,6 +11229,10 @@
     });
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
+      if (hasEquipmentPowerBridge()) {
+        await refreshEquipmentPowerStatus({ silent: true });
+        return;
+      }
       const services = initFirebaseServices();
       if (!services?.auth?.currentUser) {
         setParkingDashboardStatus("", "로그인 후 확인", "정산기 상태는 ReportMate 로그인 후 표시됩니다.");
