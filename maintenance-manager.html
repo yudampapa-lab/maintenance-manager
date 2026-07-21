@@ -3777,6 +3777,9 @@
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
               <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">업무일 09:00~18:00 · 장애 복구 전까지 1시간 간격</div></div>
+              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정 및 주차정산기 알림을 표시하지 않습니다.</div></div>
+              <div class="field"><label>미수신 시작 시간</label><input id="notificationQuietHoursStart" type="time" value="22:00"></div>
+              <div class="field"><label>미수신 종료 시간</label><input id="notificationQuietHoursEnd" type="time" value="08:00"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
               <div class="field"><label>AI 기능</label><select id="aiFeatureEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>Gemini API 키</label><input id="geminiApiKey" type="password" autocomplete="off" placeholder="Google AI Studio API 키"></div>
@@ -4343,7 +4346,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", parkingAlertEnabled: "1", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4399,6 +4402,9 @@
     state.settings.dailyNotificationEnabled = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
     state.settings.dailyNotificationTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.dailyNotificationTime || "") ? state.settings.dailyNotificationTime : "09:00";
     state.settings.parkingAlertEnabled = state.settings.parkingAlertEnabled === "0" ? "0" : "1";
+    state.settings.notificationQuietHoursEnabled = state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0";
+    state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
+    state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -5624,8 +5630,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.88";
+    const appVersion = "1.6.89";
     const versionHistory = [
+      {
+        version: "1.6.89",
+        date: "2026-07-21",
+        title: "푸시알림 미수신 시간 설정",
+        changes: [
+          "설정에서 푸시알림 미수신 사용 여부와 시작·종료 시간 지정 지원",
+          "자정을 넘기는 시간 구간에도 오늘 일정 및 주차정산기 알림 자동 차단",
+          "미수신 시간 중 발견된 주차정산기 장애는 미수신 종료 후 상태 확인 시 알림"
+        ]
+      },
       {
         version: "1.6.88",
         date: "2026-07-21",
@@ -10702,6 +10718,10 @@
       dailyNotificationEnabled.value = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
       dailyNotificationTime.value = state.settings.dailyNotificationTime || "09:00";
       parkingAlertEnabled.value = state.settings.parkingAlertEnabled === "0" ? "0" : "1";
+      notificationQuietHoursEnabled.value = state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0";
+      notificationQuietHoursStart.value = state.settings.notificationQuietHoursStart || "22:00";
+      notificationQuietHoursEnd.value = state.settings.notificationQuietHoursEnd || "08:00";
+      updateNotificationQuietHoursFields();
       tmapKey.value = state.settings.tmapKey || "";
       geminiApiKey.value = state.settings.geminiApiKey || "";
       geminiModel.value = state.settings.geminiModel || "gemini-3.5-flash";
@@ -10731,6 +10751,23 @@
         );
       } catch (error) {
         console.warn("Android parking status notification sync failed", error);
+      }
+    }
+    function updateNotificationQuietHoursFields() {
+      const enabled = notificationQuietHoursEnabled.value === "1";
+      notificationQuietHoursStart.disabled = !enabled;
+      notificationQuietHoursEnd.disabled = !enabled;
+    }
+    function syncNotificationQuietHoursToAndroid() {
+      try {
+        if (!window.ReportMateAndroid?.configureNotificationQuietHours) return;
+        window.ReportMateAndroid.configureNotificationQuietHours(
+          state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0",
+          state.settings.notificationQuietHoursStart || "22:00",
+          state.settings.notificationQuietHoursEnd || "08:00"
+        );
+      } catch (error) {
+        console.warn("Android notification quiet hours sync failed", error);
       }
     }
     function renderTodoMemoOrgOptions(keyword = "") {
@@ -13010,6 +13047,9 @@
         dailyNotificationEnabled: dailyNotificationEnabled.value === "0" ? "0" : "1",
         dailyNotificationTime: dailyNotificationTime.value || "09:00",
         parkingAlertEnabled: parkingAlertEnabled.value === "0" ? "0" : "1",
+        notificationQuietHoursEnabled: notificationQuietHoursEnabled.value === "1" ? "1" : "0",
+        notificationQuietHoursStart: notificationQuietHoursStart.value || "22:00",
+        notificationQuietHoursEnd: notificationQuietHoursEnd.value || "08:00",
         tmapKey: tmapKey.value.trim(),
         geminiApiKey: geminiApiKey.value.trim(),
         geminiModel: geminiModel.value.trim() || "gemini-3.5-flash",
@@ -13019,6 +13059,7 @@
       updateAiFeatureVisibility();
       syncDailyNotificationToAndroid();
       syncParkingNotificationToAndroid();
+      syncNotificationQuietHoursToAndroid();
       refreshParkingDashboardStatus();
       logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 주차정산기 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
       save();
@@ -13030,9 +13071,11 @@
       updateAiFeatureVisibility();
       save();
     });
+    notificationQuietHoursEnabled.addEventListener("change", updateNotificationQuietHoursFields);
     testDailyNotificationBtn.onclick = () => {
       if (window.ReportMateAndroid?.showDailyNotificationNow) {
         syncDailyNotificationToAndroid();
+        syncNotificationQuietHoursToAndroid();
         window.ReportMateAndroid.showDailyNotificationNow();
         toast("오늘 일정 알림을 전송했습니다.");
       } else {
