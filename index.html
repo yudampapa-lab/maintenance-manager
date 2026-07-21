@@ -5619,8 +5619,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.80";
+    const appVersion = "1.6.81";
     const versionHistory = [
+      {
+        version: "1.6.81",
+        date: "2026-07-21",
+        title: "앱 첫 실행 기관 검색 입력 수정",
+        changes: [
+          "앱 시작 직후 Firestore 초기 갱신이 진행 중인 한글 입력을 끊지 않도록 수정",
+          "한글 조합 중에는 기관 목록 재렌더링을 미뤄 삼성 키보드 입력 안정화",
+          "Android WebView가 첫 터치부터 키보드 입력 연결을 확실히 확보하도록 보완"
+        ]
+      },
       {
         version: "1.6.80",
         date: "2026-07-21",
@@ -10907,6 +10917,20 @@
         schemaVersion: 2
       };
     }
+    function renderCloudSnapshotWithoutInterruptingInput() {
+      const active = document.activeElement;
+      const isEditing = active?.matches?.("input:not([type='button']):not([type='submit']):not([type='checkbox']):not([type='radio']), textarea, [contenteditable='true']");
+      if (!isEditing) {
+        render();
+        return;
+      }
+      if (active.dataset.cloudRenderPending === "true") return;
+      active.dataset.cloudRenderPending = "true";
+      active.addEventListener("blur", () => {
+        delete active.dataset.cloudRenderPending;
+        requestAnimationFrame(() => render());
+      }, { once: true });
+    }
     function applyCloudSnapshot(data) {
       if (!data) return;
       const incomingScheduleCount = Array.isArray(data.schedules) ? data.schedules.length : 0;
@@ -10949,7 +10973,7 @@
       if (removedLegacySeedData || (incomingScheduleCount && state.schedules.length < incomingScheduleCount)) {
         setTimeout(() => uploadCloudData({ silent: true }), 250);
       }
-      render();
+      renderCloudSnapshotWithoutInterruptingInput();
       updateAiFeatureVisibility();
       updateCloudStatus();
     }
@@ -13085,7 +13109,15 @@
     const debouncedRenderTodoMemos = debounce(renderTodoMemos, 120);
     const debouncedRenderMemos = debounce(renderMemos, 120);
     const debouncedRenderDashboardSearch = debounce(renderDashboardSearch, 120);
-    orgSearch.oninput = debouncedRenderOrgs;
+    let orgSearchComposing = false;
+    orgSearch.addEventListener("compositionstart", () => { orgSearchComposing = true; });
+    orgSearch.addEventListener("compositionend", () => {
+      orgSearchComposing = false;
+      debouncedRenderOrgs();
+    });
+    orgSearch.oninput = () => {
+      if (!orgSearchComposing) debouncedRenderOrgs();
+    };
     todoMemoSearch.oninput = debouncedRenderTodoMemos;
     memoSearch.oninput = debouncedRenderMemos;
     [vehicleSearch, vehicleStartDateSearch, vehicleEndDateSearch].forEach(input => {
