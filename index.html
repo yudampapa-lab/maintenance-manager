@@ -1578,6 +1578,7 @@
       min-height: 44px;
     }
     .search input { border: 0; outline: 0; width: 100%; min-width: 0; background: transparent; }
+    .search > svg { pointer-events: none; }
     .cards {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5618,8 +5619,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.79";
+    const appVersion = "1.6.80";
     const versionHistory = [
+      {
+        version: "1.6.80",
+        date: "2026-07-21",
+        title: "기관 검색 입력 포커스 개선",
+        changes: [
+          "검색창 테두리나 돋보기 영역을 눌러도 실제 입력칸이 즉시 활성화되도록 수정",
+          "기관·일정·할일메모·업무기록의 기관 검색창에 동일한 포커스 안정화 적용",
+          "모바일과 PC에서 첫 입력이 누락되거나 검색창을 다시 눌러야 하던 현상 개선"
+        ]
+      },
       {
         version: "1.6.79",
         date: "2026-07-21",
@@ -6582,6 +6593,23 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
+    function installReliableInstitutionSearchFocus(input) {
+      if (!input) return;
+      const searchBox = input.closest(".search");
+      if (!searchBox) return;
+      searchBox.addEventListener("pointerdown", event => {
+        if (input.disabled || event.target.closest(`button, select, textarea, input:not(#${input.id})`)) return;
+        if (document.activeElement === input) return;
+        try { input.focus({ preventScroll: true }); }
+        catch (_) { input.focus(); }
+      }, true);
+      searchBox.addEventListener("click", event => {
+        if (input.disabled || event.target.closest("button, select, textarea")) return;
+        if (document.activeElement !== input) input.focus();
+      });
+    }
+    [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch]
+      .forEach(installReliableInstitutionSearchFocus);
     openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
     closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
     workLogSearch.addEventListener("input", debounce(() => {
