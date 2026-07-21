@@ -3629,7 +3629,7 @@
 
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
         <div class="toolbar">
-          <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
+          <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
           <button type="button" class="secondary hidden" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
           <button type="button" class="secondary hidden" id="importNationalLibrariesBtn">전국 도서관</button>
           <button id="newOrgBtn">기관 등록</button>
@@ -5623,8 +5623,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.85";
+    const appVersion = "1.6.86";
     const versionHistory = [
+      {
+        version: "1.6.86",
+        date: "2026-07-21",
+        title: "기관 검색 잔류 포커스 초기화",
+        changes: [
+          "앱 진입 시 검색창에 남아 있던 겉보기 포커스를 해제해 첫 터치를 새 입력으로 처리",
+          "다른 화면으로 이동할 때 숨겨지는 입력칸의 포커스를 정리",
+          "정상 입력 중에는 포커스를 건드리지 않고 잔류 포커스 상태에서만 blur 후 재연결"
+        ]
+      },
       {
         version: "1.6.85",
         date: "2026-07-21",
@@ -6647,6 +6657,21 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
+    function installStableInstitutionInputFocus(input) {
+      if (!input) return;
+      let focusedByPointer = false;
+      input.addEventListener("pointerdown", () => {
+        if (document.activeElement === input && !focusedByPointer) input.blur();
+        focusedByPointer = true;
+      }, true);
+      input.addEventListener("blur", () => { focusedByPointer = false; });
+    }
+    const institutionSearchInputs = [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch];
+    institutionSearchInputs.forEach(installStableInstitutionInputFocus);
+    window.addEventListener("pageshow", () => {
+      const active = document.activeElement;
+      if (institutionSearchInputs.includes(active)) active.blur();
+    });
     openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
     closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
     workLogSearch.addEventListener("input", debounce(() => {
@@ -6700,6 +6725,8 @@
         state.recordTab = "vehicle";
         view = "memo";
       }
+      const focusedView = document.activeElement?.closest?.(".view");
+      if (focusedView && focusedView.id !== "view-" + view) document.activeElement.blur();
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
