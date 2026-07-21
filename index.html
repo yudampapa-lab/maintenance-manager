@@ -5623,8 +5623,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.83";
+    const appVersion = "1.6.84";
     const versionHistory = [
+      {
+        version: "1.6.84",
+        date: "2026-07-21",
+        title: "기관 검색 키보드 첫 터치 연결",
+        changes: [
+          "기관 검색창 포커스 시 Android 입력기 연결을 네이티브에서 다시 초기화",
+          "삼성 키보드를 첫 터치에서 직접 표시해 검색칸을 두 번 눌러야 하던 문제 수정",
+          "전체 WebView가 아닌 기관 관련 검색 입력에만 적용해 성능 영향 최소화"
+        ]
+      },
       {
         version: "1.6.83",
         date: "2026-07-21",
@@ -6627,6 +6637,14 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
+    function installNativeInstitutionKeyboard(input) {
+      input?.addEventListener("focus", () => {
+        try { window.ReportMateAndroid?.ensureTextInput?.(); }
+        catch (_) {}
+      });
+    }
+    [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch]
+      .forEach(installNativeInstitutionKeyboard);
     openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
     closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
     workLogSearch.addEventListener("input", debounce(() => {
