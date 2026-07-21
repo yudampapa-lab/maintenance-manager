@@ -5623,8 +5623,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.84";
+    const appVersion = "1.6.85";
     const versionHistory = [
+      {
+        version: "1.6.85",
+        date: "2026-07-21",
+        title: "Android 키보드 강제 호출 긴급 해제",
+        changes: [
+          "키보드가 닫히지 않는 부작용을 만든 네이티브 입력기 강제 호출 비활성화",
+          "검색창 포커스에서 Android 입력기를 재시작하던 연결 제거",
+          "실기기 원격 디버깅 전까지 기존 입력 동작으로 원상 복구"
+        ]
+      },
       {
         version: "1.6.84",
         date: "2026-07-21",
@@ -6637,14 +6647,6 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
-    function installNativeInstitutionKeyboard(input) {
-      input?.addEventListener("focus", () => {
-        try { window.ReportMateAndroid?.ensureTextInput?.(); }
-        catch (_) {}
-      });
-    }
-    [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch]
-      .forEach(installNativeInstitutionKeyboard);
     openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
     closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
     workLogSearch.addEventListener("input", debounce(() => {
