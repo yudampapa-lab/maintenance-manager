@@ -4540,10 +4540,14 @@
       }
     }
     function unlockApp(session) {
+      const alreadyUnlocked = !document.body.classList.contains("auth-pending")
+        && !document.body.classList.contains("auth-locked")
+        && state.loginSession?.email === session?.email;
+      state.loginSession = session;
+      if (alreadyUnlocked) return;
       document.body.classList.remove("auth-pending");
       document.body.classList.remove("auth-locked");
       setLoginMessage("");
-      state.loginSession = session;
       renderSettings();
       startCloudAutoSync({ immediate: true });
       autoRequestTodayMapLocation();
@@ -5619,8 +5623,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.81";
+    const appVersion = "1.6.82";
     const versionHistory = [
+      {
+        version: "1.6.82",
+        date: "2026-07-21",
+        title: "앱 시작 속도와 기관 검색 입력 수정",
+        changes: [
+          "로그인 복구 콜백이 중복으로 실행되어 Firestore 전체 동기화를 반복하던 문제 수정",
+          "동일한 클라우드 스냅샷을 여러 번 정규화·저장·렌더링하지 않도록 중복 차단",
+          "효과 없던 WebView 강제 포커스 처리를 제거해 앱 터치와 화면 반응 속도 복구"
+        ]
+      },
       {
         version: "1.6.81",
         date: "2026-07-21",
@@ -6603,23 +6617,6 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
-    function installReliableInstitutionSearchFocus(input) {
-      if (!input) return;
-      const searchBox = input.closest(".search");
-      if (!searchBox) return;
-      searchBox.addEventListener("pointerdown", event => {
-        if (input.disabled || event.target.closest(`button, select, textarea, input:not(#${input.id})`)) return;
-        if (document.activeElement === input) return;
-        try { input.focus({ preventScroll: true }); }
-        catch (_) { input.focus(); }
-      }, true);
-      searchBox.addEventListener("click", event => {
-        if (input.disabled || event.target.closest("button, select, textarea")) return;
-        if (document.activeElement !== input) input.focus();
-      });
-    }
-    [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch]
-      .forEach(installReliableInstitutionSearchFocus);
     openWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(true);
     closeWorkLogSearchBtn.onclick = () => setWorkLogSearchOpen(false);
     workLogSearch.addEventListener("input", debounce(() => {
@@ -10917,22 +10914,16 @@
         schemaVersion: 2
       };
     }
-    function renderCloudSnapshotWithoutInterruptingInput() {
-      const active = document.activeElement;
-      const isEditing = active?.matches?.("input:not([type='button']):not([type='submit']):not([type='checkbox']):not([type='radio']), textarea, [contenteditable='true']");
-      if (!isEditing) {
-        render();
-        return;
-      }
-      if (active.dataset.cloudRenderPending === "true") return;
-      active.dataset.cloudRenderPending = "true";
-      active.addEventListener("blur", () => {
-        delete active.dataset.cloudRenderPending;
-        requestAnimationFrame(() => render());
-      }, { once: true });
-    }
     function applyCloudSnapshot(data) {
       if (!data) return;
+      const updatedAt = data.updatedAt;
+      const snapshotVersion = typeof updatedAt?.toMillis === "function"
+        ? String(updatedAt.toMillis())
+        : updatedAt?.seconds != null
+          ? `${updatedAt.seconds}:${updatedAt.nanoseconds || 0}`
+          : "";
+      if (snapshotVersion && state.lastAppliedCloudSnapshotVersion === snapshotVersion) return;
+      if (snapshotVersion) state.lastAppliedCloudSnapshotVersion = snapshotVersion;
       const incomingScheduleCount = Array.isArray(data.schedules) ? data.schedules.length : 0;
       state.cloudApplying = true;
       if (Array.isArray(data.googleDeletedEventIds)) {
@@ -10973,7 +10964,7 @@
       if (removedLegacySeedData || (incomingScheduleCount && state.schedules.length < incomingScheduleCount)) {
         setTimeout(() => uploadCloudData({ silent: true }), 250);
       }
-      renderCloudSnapshotWithoutInterruptingInput();
+      render();
       updateAiFeatureVisibility();
       updateCloudStatus();
     }
@@ -11056,14 +11047,21 @@
       state.cloudSaveTimer = setTimeout(() => uploadCloudData({ silent: true }), delay);
     }
     function startCloudAutoSync({ immediate = false } = {}) {
+      const syncUserId = state.firebase?.auth?.currentUser?.uid || "";
+      if (state.cloudUnsubscribe && state.cloudSyncUserId === syncUserId) {
+        updateCloudStatus();
+        return;
+      }
       if (state.cloudUnsubscribe) {
         state.cloudUnsubscribe();
         state.cloudUnsubscribe = null;
       }
       if (!canUseCloudSync()) {
+        state.cloudSyncUserId = "";
         updateCloudStatus();
         return;
       }
+      state.cloudSyncUserId = syncUserId;
       state.cloudUnsubscribe = userStateDoc().onSnapshot(snapshot => {
         if (!snapshot.exists) {
           uploadCloudData({ silent: true });
@@ -11074,7 +11072,6 @@
         console.warn(error);
         updateCloudStatus("Firestore 실시간 동기화 오류: " + (error.message || error));
       });
-      if (immediate) downloadCloudData({ silent: true, uploadIfEmpty: true });
       updateCloudStatus();
     }
     async function refreshCloudDataIfStale(minIntervalMs = 30000) {
