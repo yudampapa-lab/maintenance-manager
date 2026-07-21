@@ -5623,8 +5623,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.82";
+    const appVersion = "1.6.83";
     const versionHistory = [
+      {
+        version: "1.6.83",
+        date: "2026-07-21",
+        title: "첫 검색 입력 차단 원인 제거",
+        changes: [
+          "기관 검색창을 처음 누를 때 window focus 이벤트가 전체 Firestore 다운로드를 실행하던 문제 수정",
+          "입력 포커스와 앱 복귀 동기화를 분리해 키보드 입력이 즉시 전달되도록 변경",
+          "앱 복귀 데이터 갱신은 visibilitychange와 실시간 Firestore 구독으로만 처리"
+        ]
+      },
       {
         version: "1.6.82",
         date: "2026-07-21",
@@ -13088,9 +13098,6 @@
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) refreshCloudDataIfStale();
-    });
-    window.addEventListener("focus", () => {
-      refreshCloudDataIfStale();
     });
     window.addEventListener("resize", () => {
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
