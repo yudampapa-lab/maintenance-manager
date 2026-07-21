@@ -1579,6 +1579,7 @@
     }
     .search input { border: 0; outline: 0; width: 100%; min-width: 0; background: transparent; }
     .search > svg { pointer-events: none; }
+    #orgSearch.native-search-covered { visibility: hidden; }
     .cards {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5623,8 +5624,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.87";
+    const appVersion = "1.6.88";
     const versionHistory = [
+      {
+        version: "1.6.88",
+        date: "2026-07-21",
+        title: "Android 기관 검색 첫 입력 수정",
+        changes: [
+          "Android 앱의 기관 검색 입력을 WebView 키보드 연결과 분리",
+          "첫 터치부터 네이티브 검색 입력칸이 키보드 문자를 정상 수신하도록 변경",
+          "검색 결과와 저장 데이터는 기존 웹 화면과 실시간으로 동기화"
+        ]
+      },
       {
         version: "1.6.87",
         date: "2026-07-21",
@@ -6667,17 +6678,7 @@
       const org = syncWorkLogOrgSelectionFromInput();
       if (!org) renderWorkLogs();
     });
-    function installStableInstitutionInputFocus(input) {
-      if (!input) return;
-      let focusedByPointer = false;
-      input.addEventListener("pointerdown", () => {
-        if (document.activeElement === input && !focusedByPointer) input.blur();
-        focusedByPointer = true;
-      }, true);
-      input.addEventListener("blur", () => { focusedByPointer = false; });
-    }
     const institutionSearchInputs = [orgSearch, scheduleOrgSearch, todoMemoOrgSearch, workLogOrgSearch];
-    institutionSearchInputs.forEach(installStableInstitutionInputFocus);
     window.addEventListener("pageshow", () => {
       const active = document.activeElement;
       if (institutionSearchInputs.includes(active)) active.blur();
@@ -6742,6 +6743,7 @@
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
       dashboardSettingsBtn.style.display = view === "dashboard" ? "inline-grid" : "none";
       document.querySelector(".app-shell")?.classList.toggle("hide-header", view !== "dashboard");
+      syncNativeInstitutionSearch(view === "orgs");
       localStorage.setItem("maint_active_view", view);
       renderActiveView();
       if (view === "dashboard") autoRequestTodayMapLocation();
@@ -8594,6 +8596,7 @@
       aiListenBtn.classList.remove("good");
     }
     function renderOrgs() {
+      syncNativeInstitutionSearch(document.getElementById("view-orgs")?.classList.contains("active"));
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const upcomingScheduleMap = buildUpcomingScheduleLabelMap();
       const workLogCountMap = buildWorkLogCountMap();
@@ -13178,6 +13181,19 @@
     });
     orgSearch.oninput = () => {
       if (!orgSearchComposing) debouncedRenderOrgs();
+    };
+    function syncNativeInstitutionSearch(visible) {
+      const useNativeOrgSearch = typeof window.ReportMateAndroid?.setInstitutionSearchVisible === "function";
+      orgSearch.classList.toggle("native-search-covered", useNativeOrgSearch);
+      if (!useNativeOrgSearch) return;
+      try { window.ReportMateAndroid.setInstitutionSearchVisible(Boolean(visible), orgSearch.value); }
+      catch (_) {}
+    }
+    window.applyNativeInstitutionSearch = value => {
+      const normalized = String(value ?? "");
+      if (orgSearch.value === normalized) return;
+      orgSearch.value = normalized;
+      orgSearch.dispatchEvent(new Event("input", { bubbles: true }));
     };
     todoMemoSearch.oninput = debouncedRenderTodoMemos;
     memoSearch.oninput = debouncedRenderMemos;
