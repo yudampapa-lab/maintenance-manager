@@ -6763,7 +6763,7 @@
       const normalized = ["worklog", "todo", "memo", "vehicle"].includes(tab) ? tab : "worklog";
       state.recordTab = normalized;
       localStorage.setItem("maint_record_tab", normalized);
-      document.querySelectorAll(".record-tab").forEach(button => {
+      document.querySelectorAll("[data-record-tab]").forEach(button => {
         button.classList.toggle("active", button.dataset.recordTab === normalized);
       });
       recordWorkLogPane.hidden = normalized !== "worklog";
