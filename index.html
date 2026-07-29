@@ -5648,8 +5648,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.91";
+    const appVersion = "1.6.92";
     const versionHistory = [
+      {
+        version: "1.6.92",
+        date: "2026-07-29",
+        title: "Android 기관 검색 글자 스크롤 고정 문제 수정",
+        changes: [
+          "기관 목록을 아래로 스크롤했을 때 네이티브 검색 글자만 화면을 따라오던 문제 수정",
+          "검색 영역이 원래 위치에 보일 때만 Android 입력창을 표시하고 스크롤 시 자동으로 숨김"
+        ]
+      },
       {
         version: "1.6.91",
         date: "2026-07-29",
@@ -13296,11 +13305,30 @@
     });
     function syncNativeInstitutionSearch(visible) {
       const useNativeOrgSearch = typeof window.ReportMateAndroid?.setInstitutionSearchVisible === "function";
-      orgSearch.classList.toggle("native-search-covered", useNativeOrgSearch);
+      const searchShell = orgSearch.closest(".search");
+      const searchRect = searchShell?.getBoundingClientRect();
+      const searchIsAligned = Boolean(
+        searchRect
+        && searchRect.bottom > 0
+        && searchRect.top >= 0
+        && searchRect.top <= 32
+      );
+      const showNativeSearch = Boolean(visible && searchIsAligned);
+      orgSearch.classList.toggle("native-search-covered", useNativeOrgSearch && showNativeSearch);
       if (!useNativeOrgSearch) return;
-      try { window.ReportMateAndroid.setInstitutionSearchVisible(Boolean(visible), orgSearch.value); }
+      try { window.ReportMateAndroid.setInstitutionSearchVisible(showNativeSearch, orgSearch.value); }
       catch (_) {}
     }
+    let nativeInstitutionSearchScrollFrame = 0;
+    function handleNativeInstitutionSearchScroll() {
+      if (nativeInstitutionSearchScrollFrame) return;
+      nativeInstitutionSearchScrollFrame = requestAnimationFrame(() => {
+        nativeInstitutionSearchScrollFrame = 0;
+        syncNativeInstitutionSearch(document.getElementById("view-orgs")?.classList.contains("active"));
+      });
+    }
+    window.addEventListener("scroll", handleNativeInstitutionSearchScroll, { passive: true });
+    document.addEventListener("scroll", handleNativeInstitutionSearchScroll, { passive: true, capture: true });
     window.applyNativeInstitutionSearch = value => {
       const normalized = String(value ?? "");
       if (orgSearch.value === normalized) return;
