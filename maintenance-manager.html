@@ -404,6 +404,11 @@
       box-shadow: 0 10px 22px rgba(22, 34, 45, .09);
       transform: translateY(-1px);
     }
+    .org-tabs {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: 420px;
+      margin-bottom: 12px;
+    }
     .record-pane[hidden] {
       display: none;
     }
@@ -3629,6 +3634,10 @@
       </section>
 
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
+        <div class="record-tabs org-tabs" role="tablist" aria-label="기관 구분">
+          <button type="button" class="record-tab active" id="orgAllTab" data-org-list-mode="all">전체기관</button>
+          <button type="button" class="record-tab" id="orgMaintenanceTab" data-org-list-mode="maintenance">유지보수기관</button>
+        </div>
         <div class="toolbar">
           <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
           <button type="button" class="secondary hidden" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
@@ -3776,8 +3785,9 @@
               <div class="field"><label>청구 알림 기준</label><select id="billingNotice"><option value="0">청구일 당일</option><option value="1">1일 전</option><option value="3">3일 전</option><option value="7">7일 전</option></select></div>
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
+              <div class="field"><label>유지보수 재계약 알림</label><input id="maintenanceRenewalNoticeDays" type="number" min="0" max="365" step="1" value="30"><div class="file-hint">유지보수 종료일 기준 · 0일이면 사용 안함 · 오전 9시 알림</div></div>
               <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">업무일 09:00~18:00 · 장애 복구 전까지 1시간 간격</div></div>
-              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정 및 주차정산기 알림을 표시하지 않습니다.</div></div>
+              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 주차정산기 알림을 표시하지 않습니다.</div></div>
               <div class="field"><label>미수신 시작 시간</label><input id="notificationQuietHoursStart" type="time" value="22:00"></div>
               <div class="field"><label>미수신 종료 시간</label><input id="notificationQuietHoursEnd" type="time" value="08:00"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
@@ -4346,7 +4356,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4391,7 +4401,8 @@
       currentPositionAutoTimer: null,
       destinationMapRenderTimer: null,
       destinationMapRenderToken: 0,
-      orgPage: 1
+      orgPage: 1,
+      orgListMode: "all"
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -4401,6 +4412,10 @@
     state.settings.aiVoiceEnabled = state.settings.aiVoiceEnabled === "0" ? "0" : "1";
     state.settings.dailyNotificationEnabled = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
     state.settings.dailyNotificationTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.dailyNotificationTime || "") ? state.settings.dailyNotificationTime : "09:00";
+    {
+      const renewalDays = Number(state.settings.maintenanceRenewalNoticeDays);
+      state.settings.maintenanceRenewalNoticeDays = String(Number.isFinite(renewalDays) ? Math.min(365, Math.max(0, Math.round(renewalDays))) : 30);
+    }
     state.settings.parkingAlertEnabled = state.settings.parkingAlertEnabled === "0" ? "0" : "1";
     state.settings.notificationQuietHoursEnabled = state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0";
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
@@ -5567,6 +5582,9 @@
       if (org.startDate && org.endDate) return `${org.startDate} ~ ${org.endDate}`;
       return org.startDate || org.endDate || "-";
     }
+    function isMaintenanceOrg(org = {}) {
+      return Boolean(String(org.startDate || "").trim());
+    }
     function formatDate(iso) {
       return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso + "T00:00:00"));
     }
@@ -5630,8 +5648,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.89";
+    const appVersion = "1.6.90";
     const versionHistory = [
+      {
+        version: "1.6.90",
+        date: "2026-07-29",
+        title: "유지보수기관 분류와 재계약 알림",
+        changes: [
+          "기관 탭을 전체기관과 유지보수기관으로 분리",
+          "유지보수 시작일이 등록된 계약기관만 빠르게 모아보는 목록 추가",
+          "설정한 일수 전 유지보수 종료 예정 기관의 재계약 알림을 Android 앱에서 오전 9시에 전송"
+        ]
+      },
       {
         version: "1.6.89",
         date: "2026-07-21",
@@ -8616,11 +8644,22 @@
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const upcomingScheduleMap = buildUpcomingScheduleLabelMap();
       const workLogCountMap = buildWorkLogCountMap();
-      const filtered = state.orgs.filter(o => looseOrgSearchMatch(orgSearchBlob(o), q)).sort(orgSearchSort);
+      document.querySelectorAll("[data-org-list-mode]").forEach(button => {
+        const active = button.dataset.orgListMode === state.orgListMode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      const filtered = state.orgs
+        .filter(o => state.orgListMode !== "maintenance" || isMaintenanceOrg(o))
+        .filter(o => looseOrgSearchMatch(orgSearchBlob(o), q))
+        .sort(orgSearchSort);
       const pageCount = Math.max(1, Math.ceil(filtered.length / orgPageSize));
       state.orgPage = Math.min(Math.max(Number(state.orgPage) || 1, 1), pageCount);
       const startIndex = (state.orgPage - 1) * orgPageSize;
       const pageItems = filtered.slice(startIndex, startIndex + orgPageSize);
+      const emptyLabel = state.orgListMode === "maintenance"
+        ? "검색 조건에 맞는 유지보수기관이 없습니다."
+        : "검색 결과가 없습니다.";
       document.getElementById("orgCards").innerHTML = pageItems.length ? pageItems.map(o => `<article class="org-card">
         <div class="org-head">
           <div class="org-head-main"><h3 class="${isContractActive(o) ? "" : "expired-name"}">${escapeHTML(o.name)}</h3><p>${escapeHTML(o.region)} · ${escapeHTML(o.type)}</p></div>
@@ -8639,7 +8678,7 @@
           <button class="icon secondary" title="특이사항 내역" onclick="openIssues('${o.id}')">${icon("note")}</button>
           <button class="icon secondary" title="업무기록 내역" onclick="openWorkLogHistory('${o.id}')">${icon("worklog")}</button>
         </div>
-      </article>`).join("") : '<div class="empty">검색 결과가 없습니다.</div>';
+      </article>`).join("") : `<div class="empty">${emptyLabel}</div>`;
       renderOrgPagination(filtered.length, startIndex, pageItems.length, pageCount);
     }
     function buildWorkLogCountMap() {
@@ -10717,6 +10756,7 @@
       billingNotice.value = state.settings.billingNotice || "3";
       dailyNotificationEnabled.value = state.settings.dailyNotificationEnabled === "0" ? "0" : "1";
       dailyNotificationTime.value = state.settings.dailyNotificationTime || "09:00";
+      maintenanceRenewalNoticeDays.value = state.settings.maintenanceRenewalNoticeDays || "30";
       parkingAlertEnabled.value = state.settings.parkingAlertEnabled === "0" ? "0" : "1";
       notificationQuietHoursEnabled.value = state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0";
       notificationQuietHoursStart.value = state.settings.notificationQuietHoursStart || "22:00";
@@ -10741,6 +10781,17 @@
         );
       } catch (error) {
         console.warn("Android daily notification sync failed", error);
+      }
+    }
+    function syncMaintenanceRenewalNotificationToAndroid() {
+      try {
+        if (!window.ReportMateAndroid?.configureMaintenanceRenewalNotification) return;
+        window.ReportMateAndroid.configureMaintenanceRenewalNotification(
+          state.settings.maintenanceRenewalNoticeDays || "30",
+          JSON.stringify(state.orgs || [])
+        );
+      } catch (error) {
+        console.warn("Android maintenance renewal notification sync failed", error);
       }
     }
     function syncParkingNotificationToAndroid() {
@@ -13046,6 +13097,7 @@
         billingNotice: billingNotice.value,
         dailyNotificationEnabled: dailyNotificationEnabled.value === "0" ? "0" : "1",
         dailyNotificationTime: dailyNotificationTime.value || "09:00",
+        maintenanceRenewalNoticeDays: String(Math.min(365, Math.max(0, Math.round(Number(maintenanceRenewalNoticeDays.value) || 0)))),
         parkingAlertEnabled: parkingAlertEnabled.value === "0" ? "0" : "1",
         notificationQuietHoursEnabled: notificationQuietHoursEnabled.value === "1" ? "1" : "0",
         notificationQuietHoursStart: notificationQuietHoursStart.value || "22:00",
@@ -13058,10 +13110,11 @@
       };
       updateAiFeatureVisibility();
       syncDailyNotificationToAndroid();
+      syncMaintenanceRenewalNotificationToAndroid();
       syncParkingNotificationToAndroid();
       syncNotificationQuietHoursToAndroid();
       refreshParkingDashboardStatus();
-      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 주차정산기 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
+      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 재계약 알림(${state.settings.maintenanceRenewalNoticeDays}일 전), 주차정산기 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
@@ -13225,6 +13278,13 @@
     orgSearch.oninput = () => {
       if (!orgSearchComposing) debouncedRenderOrgs();
     };
+    document.querySelectorAll("[data-org-list-mode]").forEach(button => {
+      button.onclick = () => {
+        state.orgListMode = button.dataset.orgListMode === "maintenance" ? "maintenance" : "all";
+        state.orgPage = 1;
+        renderOrgs();
+      };
+    });
     function syncNativeInstitutionSearch(visible) {
       const useNativeOrgSearch = typeof window.ReportMateAndroid?.setInstitutionSearchVisible === "function";
       orgSearch.classList.toggle("native-search-covered", useNativeOrgSearch);
@@ -13305,6 +13365,7 @@
     function notificationSourceLabel(source) {
       if (source === "parking") return "주차정산기";
       if (source === "schedule") return "오늘 일정";
+      if (source === "renewal") return "재계약";
       return "ReportMate";
     }
     function renderNotificationHistory(entries = nativeNotificationEntries()) {
