@@ -3634,15 +3634,15 @@
       </section>
 
       <section class="view" id="view-orgs" aria-label="기관 검색 등록">
-        <div class="record-tabs org-tabs" role="tablist" aria-label="기관 구분">
-          <button type="button" class="record-tab active" id="orgAllTab" data-org-list-mode="all">전체기관</button>
-          <button type="button" class="record-tab" id="orgMaintenanceTab" data-org-list-mode="maintenance">유지보수기관</button>
-        </div>
         <div class="toolbar">
           <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="orgSearch" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="기관명, 지역명, 솔루션, 담당자 검색"></div>
           <button type="button" class="secondary hidden" id="importNamyangjuLibrariesBtn">남양주시립 도서관</button>
           <button type="button" class="secondary hidden" id="importNationalLibrariesBtn">전국 도서관</button>
           <button id="newOrgBtn">기관 등록</button>
+        </div>
+        <div class="record-tabs org-tabs" role="tablist" aria-label="기관 구분">
+          <button type="button" class="record-tab active" id="orgAllTab" data-org-list-mode="all">전체기관</button>
+          <button type="button" class="record-tab" id="orgMaintenanceTab" data-org-list-mode="maintenance">유지보수기관</button>
         </div>
         <div class="cards" id="orgCards"></div>
         <div class="pagination" id="orgPagination"></div>
@@ -5648,8 +5648,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.90";
+    const appVersion = "1.6.91";
     const versionHistory = [
+      {
+        version: "1.6.91",
+        date: "2026-07-29",
+        title: "Android 기관 검색창 위치 수정",
+        changes: [
+          "기관 구분 탭 추가 후 웹 검색창과 Android 입력창이 서로 다른 위치에 표시되던 문제 수정",
+          "검색창과 기관 등록 버튼을 최상단에 유지하고 전체기관·유지보수기관 탭을 바로 아래에 정렬"
+        ]
+      },
       {
         version: "1.6.90",
         date: "2026-07-29",
