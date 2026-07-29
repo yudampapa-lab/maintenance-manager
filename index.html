@@ -443,6 +443,23 @@
       font: inherit;
       flex: 0 0 auto;
     }
+    .vehicle-date-range {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 5px;
+      flex: 1 1 290px;
+      min-width: 0;
+    }
+    .vehicle-date-range .toolbar-date {
+      width: 100%;
+      min-width: 0;
+    }
+    .vehicle-date-separator {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
     .work-log-shell {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr) auto;
@@ -3161,8 +3178,12 @@
       }
       .toolbar-date {
         min-height: 32px;
-        padding: 0 10px;
+        padding: 0 6px;
         font-size: 11px;
+      }
+      #recordVehiclePane .vehicle-date-range {
+        flex-basis: 100%;
+        width: 100%;
       }
     }
 
@@ -3758,8 +3779,11 @@
             <div class="record-pane" id="recordVehiclePane" hidden>
               <div class="toolbar record-toolbar">
                 <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vehicleSearch" placeholder="내용, 유형, 키로수 검색"></div>
-                <input id="vehicleStartDateSearch" class="toolbar-date" type="date" aria-label="차량 시작일 조회">
-                <input id="vehicleEndDateSearch" class="toolbar-date" type="date" aria-label="차량 종료일 조회">
+                <div class="vehicle-date-range" aria-label="차량 조회 기간">
+                  <input id="vehicleStartDateSearch" class="toolbar-date" type="date" aria-label="차량 시작일 조회">
+                  <span class="vehicle-date-separator" aria-hidden="true">~</span>
+                  <input id="vehicleEndDateSearch" class="toolbar-date" type="date" aria-label="차량 종료일 조회">
+                </div>
                 <button type="button" class="secondary" id="vehicleApplySearchBtn">검색</button>
                 <button class="secondary icon record-add-btn" id="addVehicleRecordBtn" type="button" title="점검/수리 추가" aria-label="점검/수리 추가">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
@@ -5648,8 +5672,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.92";
+    const appVersion = "1.6.93";
     const versionHistory = [
+      {
+        version: "1.6.93",
+        date: "2026-07-29",
+        title: "모바일 차량관리 기간 선택 정렬",
+        changes: [
+          "모바일 차량관리에서 시작일과 종료일 선택기가 서로 다른 줄로 나뉘던 문제 수정",
+          "두 날짜 선택기를 물결표 구분과 함께 한 줄에 고정하고 작은 화면 너비에 맞게 자동 축소"
+        ]
+      },
       {
         version: "1.6.92",
         date: "2026-07-29",
