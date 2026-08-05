@@ -5689,8 +5689,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.95";
+    const appVersion = "1.6.96";
     const versionHistory = [
+      {
+        version: "1.6.96",
+        date: "2026-08-05",
+        title: "사진 Firebase 저장 안정화",
+        changes: [
+          "사진을 Firestore 문서 제한에 여유 있게 맞춰 압축한 뒤 Firebase에 저장",
+          "사진 저장 실패 시 실제 오류 원인을 화면에 표시",
+          "기존 기기 저장 사진을 Firebase로 자동 이전"
+        ]
+      },
       {
         version: "1.6.95",
         date: "2026-08-05",
@@ -11888,6 +11898,8 @@
     }
     function normalizedPhotoRecord(photo = {}, photoKind = "attachment") {
       const dataUrl = String(photo.dataUrl || "");
+      const downloadUrl = String(photo.downloadUrl || "");
+      const storagePath = String(photo.storagePath || "");
       const estimatedBytes = dataUrl ? Math.round((dataUrl.length * 3) / 4) : 0;
       return {
         id: String(photo.id || uid()),
@@ -11900,6 +11912,8 @@
         name: String(photo.name || ""),
         createdAt: photo.createdAt || new Date().toISOString(),
         dataUrl,
+        downloadUrl,
+        storagePath,
         width: Number(photo.width || 0),
         height: Number(photo.height || 0),
         bytes: Number(photo.bytes || estimatedBytes)
@@ -11925,7 +11939,7 @@
         const snapshot = await collection.where("kind", "==", "photo").get();
         state.cloudPhotos = snapshot.docs
           .map(doc => normalizedPhotoRecord(doc.data(), doc.data()?.photoKind))
-          .filter(photo => photo.id && photo.dataUrl);
+          .filter(photo => photo.id && (photo.dataUrl || photo.downloadUrl || photo.storagePath));
         state.cloudPhotosLoadedAt = Date.now();
         return state.cloudPhotos;
       })();
@@ -11939,13 +11953,13 @@
       if (!canUseCloudSync()) return false;
       const normalized = normalizedPhotoRecord(photo, photoKind);
       if (!normalized.dataUrl) throw new Error("사진 데이터가 비어 있습니다.");
-      if (normalized.bytes > 720 * 1024) throw new Error("Firebase에 저장하기에는 사진 용량이 너무 큽니다.");
+      if (normalized.bytes > 360 * 1024) throw new Error("사진 용량을 Firebase 저장 한도까지 줄이지 못했습니다.");
       const collection = cloudPhotoCollection();
       if (!collection) return false;
       await collection.doc(cloudPhotoDocId(normalized.id)).set({
         ...normalized,
         cloudUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      });
       updateCloudPhotoCache(normalized);
       return true;
     }
@@ -11960,7 +11974,7 @@
     function mergePhotos(localItems = [], cloudItems = []) {
       const merged = new Map();
       [...localItems, ...cloudItems].forEach(item => {
-        if (item?.id && item.dataUrl) merged.set(item.id, item);
+        if (item?.id && (item.dataUrl || item.downloadUrl)) merged.set(item.id, item);
       });
       return [...merged.values()].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     }
@@ -11971,6 +11985,7 @@
       try { await saveReportLocal(report); localSaved = true; } catch (error) { lastError = error; console.warn("Local report photo save failed", error); }
       try { cloudSaved = await saveCloudPhoto(report, "report"); } catch (error) { lastError = error; console.warn("Firebase report photo save failed", error); }
       if (!localSaved && !cloudSaved) throw lastError || new Error("사진을 저장하지 못했습니다.");
+      if (!cloudSaved) throw new Error(`Firebase 사진 백업 실패: ${String(lastError?.message || "로그인 또는 네트워크 상태를 확인해주세요.")}`);
     }
     async function getReports(orgId) {
       let localItems = [];
@@ -12001,6 +12016,7 @@
       try { await saveAttachmentLocal(attachment); localSaved = true; } catch (error) { lastError = error; console.warn("Local attachment save failed", error); }
       try { cloudSaved = await saveCloudPhoto(attachment, "attachment"); } catch (error) { lastError = error; console.warn("Firebase attachment save failed", error); }
       if (!localSaved && !cloudSaved) throw lastError || new Error("사진을 저장하지 못했습니다.");
+      if (!cloudSaved) throw new Error(`Firebase 사진 백업 실패: ${String(lastError?.message || "로그인 또는 네트워크 상태를 확인해주세요.")}`);
     }
     async function getAttachments(ownerType, ownerId) {
       let localItems = [];
@@ -12065,7 +12081,7 @@
         reader.onload = () => { img.src = reader.result; };
         reader.onerror = () => reject(reader.error);
         img.onload = () => {
-          const maxSide = 1280;
+          const maxSide = 1080;
           let scale = Math.min(1, maxSide / Math.max(img.width, img.height));
           let quality = .68;
           const canvas = document.createElement("canvas");
@@ -12078,11 +12094,11 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             dataUrl = canvas.toDataURL("image/jpeg", quality);
             bytes = Math.round((dataUrl.length * 3) / 4);
-            if (bytes <= 700 * 1024) break;
+            if (bytes <= 320 * 1024) break;
             scale *= .82;
             quality = Math.max(.45, quality - .05);
           }
-          if (bytes > 720 * 1024) {
+          if (bytes > 360 * 1024) {
             reject(new Error("사진을 Firebase 저장 크기로 압축하지 못했습니다."));
             return;
           }
@@ -12113,7 +12129,9 @@
       const task = state.attachmentQueue.shift();
       runWhenIdle(async () => {
         try {
+          toast("사진을 압축하고 있습니다.");
           const compressed = await compressImage(task.file);
+          toast("Firebase에 사진을 저장하고 있습니다.");
           if (task.kind === "report") {
             await saveReport({ id: uid(), ...task.meta, createdAt: new Date().toISOString(), ...compressed });
           } else {
@@ -12123,7 +12141,8 @@
           toast("사진 저장을 완료했습니다.");
         } catch (error) {
           console.warn(error);
-          showInfo("사진 저장 실패", "기기 저장소와 Firebase에 사진을 저장하지 못했습니다. 네트워크 연결과 로그인 상태를 확인해주세요.");
+          const detail = String(error?.message || error || "알 수 없는 오류");
+          showInfo("사진 저장 실패", `사진을 저장하지 못했습니다.\n\n오류: ${detail}`);
         } finally {
           runImageQueue();
         }
@@ -12173,7 +12192,7 @@
       const report = reports.find(r => r.id === id);
       if (!report) return;
       const a = document.createElement("a");
-      a.href = report.dataUrl;
+      a.href = report.dataUrl || report.downloadUrl;
       a.download = `maintenance-report-${report.createdAt.slice(0, 10)}.jpg`;
       a.click();
     };
@@ -12183,10 +12202,10 @@
       if (!report) return;
       photoPreviewTitle.textContent = report.orgName ? `${report.orgName} 레포트` : "레포트 사진";
       photoPreviewSub.textContent = reportDateLabel(report);
-      photoPreviewImage.src = report.dataUrl;
+      photoPreviewImage.src = report.dataUrl || report.downloadUrl;
       state.currentPhotoPreviewAsset = {
         name: `${report.orgName || "report"}-${(report.createdAt || todayISO()).slice(0, 10)}.jpg`,
-        dataUrl: report.dataUrl,
+        dataUrl: report.dataUrl || report.downloadUrl,
         title: photoPreviewTitle.textContent,
         text: photoPreviewSub.textContent
       };
@@ -12200,10 +12219,10 @@
       }
       photoPreviewTitle.textContent = item.name || (item.ownerType === "vehicle" ? "수리내역서 사진" : "첨부 사진");
       photoPreviewSub.textContent = item.createdAt ? formatDateTimeWithYear(item.createdAt) : "";
-      photoPreviewImage.src = item.dataUrl;
+      photoPreviewImage.src = item.dataUrl || item.downloadUrl;
       state.currentPhotoPreviewAsset = {
         name: item.name || `${item.ownerType || "attachment"}-${(item.createdAt || todayISO()).slice(0, 10)}.jpg`,
-        dataUrl: item.dataUrl,
+        dataUrl: item.dataUrl || item.downloadUrl,
         title: photoPreviewTitle.textContent,
         text: photoPreviewSub.textContent
       };
@@ -12247,7 +12266,7 @@
       const safeName = String(item.name || "attachment.jpg").replace(/[\\/:*?"<>|]+/g, "-");
       const ext = safeName.includes(".") ? "" : ".jpg";
       const a = document.createElement("a");
-      a.href = item.dataUrl;
+      a.href = item.dataUrl || item.downloadUrl;
       a.download = `${item.ownerType || "attachment"}-${(item.createdAt || todayISO()).slice(0, 10)}-${safeName}${ext}`;
       a.click();
     };
