@@ -4424,6 +4424,10 @@
       cloudUnsubscribe: null,
       cloudSyncInProgress: false,
       cloudApplying: false,
+      cloudPhotos: [],
+      cloudPhotosLoadedAt: 0,
+      cloudPhotosPromise: null,
+      photoMigrationStarted: false,
       firebase: null,
       firebaseReady: false,
       scheduleTimeGuardUntil: 0,
@@ -5685,8 +5689,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.94";
+    const appVersion = "1.6.95";
     const versionHistory = [
+      {
+        version: "1.6.95",
+        date: "2026-08-05",
+        title: "사진 Firebase 보관 및 로컬 사진 복구",
+        changes: [
+          "기관 유지보수 사진과 기록탭 첨부사진을 사용자별 Firebase에 저장",
+          "기기 로컬 사진 저장소가 실패해도 Firebase 저장으로 사진 등록 가능",
+          "기존 IndexedDB에 남아 있는 사진은 로그인 후 Firebase로 자동 이전"
+        ]
+      },
       {
         version: "1.6.94",
         date: "2026-07-29",
@@ -11282,6 +11296,7 @@
     function startCloudAutoSync({ immediate = false } = {}) {
       const syncUserId = state.firebase?.auth?.currentUser?.uid || "";
       if (state.cloudUnsubscribe && state.cloudSyncUserId === syncUserId) {
+        migrateLocalPhotosToFirebase();
         updateCloudStatus();
         return;
       }
@@ -11305,6 +11320,7 @@
         console.warn(error);
         updateCloudStatus("Firestore 실시간 동기화 오류: " + (error.message || error));
       });
+      migrateLocalPhotosToFirebase();
       updateCloudStatus();
     }
     async function refreshCloudDataIfStale(minIntervalMs = 30000) {
@@ -11803,7 +11819,7 @@
       const db = await openReportDb();
       return db.transaction("attachments", mode).objectStore("attachments");
     }
-    async function saveReport(report) {
+    async function saveReportLocal(report) {
       const store = await reportStore("readwrite");
       return new Promise((resolve, reject) => {
         const request = store.put(report);
@@ -11811,7 +11827,7 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function getReports(orgId) {
+    async function getLocalReports(orgId) {
       const store = await reportStore();
       const index = store.index("orgId");
       return new Promise((resolve, reject) => {
@@ -11820,7 +11836,7 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function removeReport(id) {
+    async function removeReportLocal(id) {
       const store = await reportStore("readwrite");
       return new Promise((resolve, reject) => {
         const request = store.delete(id);
@@ -11828,7 +11844,7 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function saveAttachment(attachment) {
+    async function saveAttachmentLocal(attachment) {
       const store = await attachmentStore("readwrite");
       return new Promise((resolve, reject) => {
         const request = store.put(attachment);
@@ -11836,7 +11852,7 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function getAttachments(ownerType, ownerId) {
+    async function getLocalAttachments(ownerType, ownerId) {
       const store = await attachmentStore();
       const index = store.index("owner");
       return new Promise((resolve, reject) => {
@@ -11845,7 +11861,7 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function getAttachment(id) {
+    async function getLocalAttachment(id) {
       const store = await attachmentStore();
       return new Promise((resolve, reject) => {
         const request = store.get(id);
@@ -11853,13 +11869,194 @@
         request.onerror = () => reject(request.error);
       });
     }
-    async function removeAttachment(id) {
+    async function removeAttachmentLocal(id) {
       const store = await attachmentStore("readwrite");
       return new Promise((resolve, reject) => {
         const request = store.delete(id);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
+    }
+    function cloudPhotoCollection() {
+      const services = initFirebaseServices();
+      const uid = services?.auth?.currentUser?.uid;
+      if (!services || !uid) return null;
+      return services.db.collection("reportmateUsers").doc(uid).collection("state");
+    }
+    function cloudPhotoDocId(id) {
+      return "photo_" + String(id || uid()).replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+    function normalizedPhotoRecord(photo = {}, photoKind = "attachment") {
+      const dataUrl = String(photo.dataUrl || "");
+      const estimatedBytes = dataUrl ? Math.round((dataUrl.length * 3) / 4) : 0;
+      return {
+        id: String(photo.id || uid()),
+        kind: "photo",
+        photoKind: photoKind === "report" ? "report" : "attachment",
+        orgId: String(photo.orgId || ""),
+        orgName: String(photo.orgName || ""),
+        ownerType: String(photo.ownerType || ""),
+        ownerId: String(photo.ownerId || ""),
+        name: String(photo.name || ""),
+        createdAt: photo.createdAt || new Date().toISOString(),
+        dataUrl,
+        width: Number(photo.width || 0),
+        height: Number(photo.height || 0),
+        bytes: Number(photo.bytes || estimatedBytes)
+      };
+    }
+    function updateCloudPhotoCache(photo) {
+      const normalized = normalizedPhotoRecord(photo, photo.photoKind);
+      const index = state.cloudPhotos.findIndex(item => item.id === normalized.id);
+      if (index >= 0) state.cloudPhotos[index] = normalized;
+      else state.cloudPhotos.push(normalized);
+      state.cloudPhotosLoadedAt = Date.now();
+      return normalized;
+    }
+    async function loadCloudPhotos({ force = false } = {}) {
+      if (!canUseCloudSync()) return state.cloudPhotos || [];
+      if (!force && state.cloudPhotosLoadedAt && Date.now() - state.cloudPhotosLoadedAt < 30000) {
+        return state.cloudPhotos;
+      }
+      if (state.cloudPhotosPromise) return state.cloudPhotosPromise;
+      state.cloudPhotosPromise = (async () => {
+        const collection = cloudPhotoCollection();
+        if (!collection) return state.cloudPhotos || [];
+        const snapshot = await collection.where("kind", "==", "photo").get();
+        state.cloudPhotos = snapshot.docs
+          .map(doc => normalizedPhotoRecord(doc.data(), doc.data()?.photoKind))
+          .filter(photo => photo.id && photo.dataUrl);
+        state.cloudPhotosLoadedAt = Date.now();
+        return state.cloudPhotos;
+      })();
+      try {
+        return await state.cloudPhotosPromise;
+      } finally {
+        state.cloudPhotosPromise = null;
+      }
+    }
+    async function saveCloudPhoto(photo, photoKind) {
+      if (!canUseCloudSync()) return false;
+      const normalized = normalizedPhotoRecord(photo, photoKind);
+      if (!normalized.dataUrl) throw new Error("사진 데이터가 비어 있습니다.");
+      if (normalized.bytes > 720 * 1024) throw new Error("Firebase에 저장하기에는 사진 용량이 너무 큽니다.");
+      const collection = cloudPhotoCollection();
+      if (!collection) return false;
+      await collection.doc(cloudPhotoDocId(normalized.id)).set({
+        ...normalized,
+        cloudUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      updateCloudPhotoCache(normalized);
+      return true;
+    }
+    async function removeCloudPhoto(id) {
+      if (!canUseCloudSync()) return false;
+      const collection = cloudPhotoCollection();
+      if (!collection) return false;
+      await collection.doc(cloudPhotoDocId(id)).delete();
+      state.cloudPhotos = state.cloudPhotos.filter(photo => photo.id !== id);
+      return true;
+    }
+    function mergePhotos(localItems = [], cloudItems = []) {
+      const merged = new Map();
+      [...localItems, ...cloudItems].forEach(item => {
+        if (item?.id && item.dataUrl) merged.set(item.id, item);
+      });
+      return [...merged.values()].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    }
+    async function saveReport(report) {
+      let localSaved = false;
+      let cloudSaved = false;
+      let lastError = null;
+      try { await saveReportLocal(report); localSaved = true; } catch (error) { lastError = error; console.warn("Local report photo save failed", error); }
+      try { cloudSaved = await saveCloudPhoto(report, "report"); } catch (error) { lastError = error; console.warn("Firebase report photo save failed", error); }
+      if (!localSaved && !cloudSaved) throw lastError || new Error("사진을 저장하지 못했습니다.");
+    }
+    async function getReports(orgId) {
+      let localItems = [];
+      let cloudItems = [];
+      const org = state.orgs.find(item => item.id === orgId);
+      const sameOrg = photo => photo.orgId === orgId
+        || Boolean(org?.name && photo.orgName && normalizeOrgKeyword(photo.orgName) === normalizeOrgKeyword(org.name));
+      try {
+        const exactLocalItems = await getLocalReports(orgId);
+        const allLocalItems = org?.name ? await getAllLocalPhotos("reports") : exactLocalItems;
+        localItems = allLocalItems.filter(sameOrg);
+      } catch (error) { console.warn("Local report photo load failed", error); }
+      try {
+        cloudItems = (await loadCloudPhotos()).filter(photo => photo.photoKind === "report" && sameOrg(photo));
+      } catch (error) { console.warn("Firebase report photo load failed", error); }
+      return mergePhotos(localItems, cloudItems);
+    }
+    async function removeReport(id) {
+      const results = await Promise.allSettled([removeReportLocal(id), removeCloudPhoto(id)]);
+      if (!results.some(result => result.status === "fulfilled" && result.value !== false)) {
+        throw results.find(result => result.status === "rejected")?.reason || new Error("사진을 삭제하지 못했습니다.");
+      }
+    }
+    async function saveAttachment(attachment) {
+      let localSaved = false;
+      let cloudSaved = false;
+      let lastError = null;
+      try { await saveAttachmentLocal(attachment); localSaved = true; } catch (error) { lastError = error; console.warn("Local attachment save failed", error); }
+      try { cloudSaved = await saveCloudPhoto(attachment, "attachment"); } catch (error) { lastError = error; console.warn("Firebase attachment save failed", error); }
+      if (!localSaved && !cloudSaved) throw lastError || new Error("사진을 저장하지 못했습니다.");
+    }
+    async function getAttachments(ownerType, ownerId) {
+      let localItems = [];
+      let cloudItems = [];
+      try { localItems = await getLocalAttachments(ownerType, ownerId); } catch (error) { console.warn("Local attachment load failed", error); }
+      try {
+        cloudItems = (await loadCloudPhotos()).filter(photo => photo.photoKind === "attachment" && photo.ownerType === ownerType && photo.ownerId === ownerId);
+      } catch (error) { console.warn("Firebase attachment load failed", error); }
+      return mergePhotos(localItems, cloudItems);
+    }
+    async function getAttachment(id) {
+      try {
+        const local = await getLocalAttachment(id);
+        if (local) return local;
+      } catch (error) { console.warn("Local attachment load failed", error); }
+      try {
+        return (await loadCloudPhotos()).find(photo => photo.id === id) || null;
+      } catch (error) {
+        console.warn("Firebase attachment load failed", error);
+        return null;
+      }
+    }
+    async function removeAttachment(id) {
+      const results = await Promise.allSettled([removeAttachmentLocal(id), removeCloudPhoto(id)]);
+      if (!results.some(result => result.status === "fulfilled" && result.value !== false)) {
+        throw results.find(result => result.status === "rejected")?.reason || new Error("사진을 삭제하지 못했습니다.");
+      }
+    }
+    async function getAllLocalPhotos(storeName) {
+      const db = await openReportDb();
+      return new Promise((resolve, reject) => {
+        const request = db.transaction(storeName, "readonly").objectStore(storeName).getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    async function migrateLocalPhotosToFirebase() {
+      if (!canUseCloudSync() || state.photoMigrationStarted) return;
+      state.photoMigrationStarted = true;
+      try {
+        const [reports, attachments] = await Promise.all([
+          getAllLocalPhotos("reports").catch(() => []),
+          getAllLocalPhotos("attachments").catch(() => [])
+        ]);
+        for (const report of reports) {
+          try { await saveCloudPhoto(report, "report"); } catch (error) { console.warn("Report photo migration skipped", error); }
+        }
+        for (const attachment of attachments) {
+          try { await saveCloudPhoto(attachment, "attachment"); } catch (error) { console.warn("Attachment migration skipped", error); }
+        }
+        state.cloudPhotosLoadedAt = 0;
+        await loadCloudPhotos({ force: true });
+      } catch (error) {
+        console.warn("Local photo migration failed", error);
+        state.photoMigrationStarted = false;
+      }
     }
     function compressImage(file) {
       return new Promise((resolve, reject) => {
@@ -11869,14 +12066,27 @@
         reader.onerror = () => reject(reader.error);
         img.onload = () => {
           const maxSide = 1280;
-          const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          let scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+          let quality = .68;
           const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round(img.width * scale));
-          canvas.height = Math.max(1, Math.round(img.height * scale));
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg", .68);
-          resolve({ dataUrl, width: canvas.width, height: canvas.height, bytes: Math.round((dataUrl.length * 3) / 4) });
+          let dataUrl = "";
+          let bytes = 0;
+          for (let attempt = 0; attempt < 7; attempt += 1) {
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            dataUrl = canvas.toDataURL("image/jpeg", quality);
+            bytes = Math.round((dataUrl.length * 3) / 4);
+            if (bytes <= 700 * 1024) break;
+            scale *= .82;
+            quality = Math.max(.45, quality - .05);
+          }
+          if (bytes > 720 * 1024) {
+            reject(new Error("사진을 Firebase 저장 크기로 압축하지 못했습니다."));
+            return;
+          }
+          resolve({ dataUrl, width: canvas.width, height: canvas.height, bytes });
         };
         img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
         reader.readAsDataURL(file);
@@ -11913,7 +12123,7 @@
           toast("사진 저장을 완료했습니다.");
         } catch (error) {
           console.warn(error);
-          showInfo("사진 저장 실패", "사진을 압축 저장하지 못했습니다. 브라우저 저장공간 권한 또는 남은 용량을 확인해주세요.");
+          showInfo("사진 저장 실패", "기기 저장소와 Firebase에 사진을 저장하지 못했습니다. 네트워크 연결과 로그인 상태를 확인해주세요.");
         } finally {
           runImageQueue();
         }
