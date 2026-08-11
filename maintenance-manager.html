@@ -836,7 +836,8 @@
       width: 17px;
       height: 17px;
     }
-    button.icon.header-notification {
+    button.icon.header-notification,
+    button.icon.header-barcode {
       position: relative;
       width: 34px;
       min-height: 34px;
@@ -846,7 +847,35 @@
       background: rgba(118, 118, 128, .1);
       box-shadow: none;
     }
-    button.icon.header-notification svg { width: 18px; height: 18px; }
+    button.icon.header-notification svg,
+    button.icon.header-barcode svg { width: 18px; height: 18px; }
+    .membership-card {
+      margin-top: 14px;
+      padding: 18px 12px 16px;
+      border: 1px solid rgba(60, 60, 67, .14);
+      border-radius: 18px;
+      background: linear-gradient(145deg, #fff, #f4f8fb);
+      box-shadow: 0 12px 30px rgba(25, 42, 60, .1);
+      text-align: center;
+    }
+    .membership-card-brand { color: #0d334f; font-size: 14px; font-weight: 850; letter-spacing: .02em; }
+    .membership-barcode-wrap {
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px 10px 10px;
+      overflow-x: auto;
+      border-radius: 12px;
+      background: #fff;
+      -webkit-overflow-scrolling: touch;
+    }
+    .membership-barcode-wrap svg { display: block; margin: 0 auto; max-width: none; }
+    .membership-barcode-value {
+      margin-top: 10px;
+      color: #111;
+      font: 800 17px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+    .membership-barcode-error { margin-top: 8px; color: #d70015; font-size: 12px; font-weight: 700; }
     .notification-badge {
       position: absolute;
       top: -5px;
@@ -3513,6 +3542,9 @@
           <div><strong class="brand-title">ReportMate</strong></div>
         </div>
         <div class="top-actions">
+          <button type="button" class="icon header-barcode" id="membershipBarcodeBtn" title="모바일 회원증" aria-label="모바일 회원증">
+            <svg viewBox="0 0 24 24"><path d="M3 5v14M6 5v14M10 5v14M13 5v14M18 5v14M21 5v14"/><path d="M8 5v14M16 5v14" stroke-width="2"/></svg>
+          </button>
           <button type="button" class="icon header-notification" id="notificationBellBtn" title="알림 내역" aria-label="알림 내역">
             <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
             <span class="notification-badge" id="notificationBadge" aria-live="polite" hidden></span>
@@ -4032,6 +4064,28 @@
     </div>
   </dialog>
 
+  <dialog id="membershipBarcodeDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">모바일 회원증</h2>
+      <p class="panel-sub">CODE128 바코드 · 화면 밝기를 높이면 인식이 더 잘됩니다.</p>
+      <div class="membership-card">
+        <div class="membership-card-brand">ReportMate MOBILE MEMBERSHIP</div>
+        <div class="membership-barcode-wrap" id="membershipBarcodeGraphic" aria-label="회원증 바코드"></div>
+        <div class="membership-barcode-value" id="membershipBarcodeValue"></div>
+        <div class="membership-barcode-error" id="membershipBarcodeError" hidden></div>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label for="membershipBarcodeInput">바코드 값</label>
+        <input id="membershipBarcodeInput" type="text" maxlength="80" inputmode="text" autocomplete="off" spellcheck="false" value="12810425006025">
+        <div class="file-hint">영문, 숫자, 공백 및 일반 기호를 사용할 수 있습니다.</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="saveMembershipBarcodeBtn">값 저장</button>
+      <button type="button" id="closeMembershipBarcodeBtn">닫기</button>
+    </div>
+  </dialog>
+
   <dialog id="workLogHistoryDialog">
     <div class="modal-body">
       <h2 class="panel-title" id="workLogHistoryTitle">업무기록 내역</h2>
@@ -4393,7 +4447,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4461,6 +4515,7 @@
     state.settings.notificationQuietHoursEnabled = state.settings.notificationQuietHoursEnabled === "1" ? "1" : "0";
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
     state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
+    state.settings.mobileMembershipBarcode = String(state.settings.mobileMembershipBarcode || "12810425006025").slice(0, 80);
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -5689,8 +5744,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.6.96";
+    const appVersion = "1.6.97";
     const versionHistory = [
+      {
+        version: "1.6.97",
+        date: "2026-08-11",
+        title: "CODE128 모바일 회원증",
+        changes: [
+          "대시보드 상단 알림 버튼 왼쪽에 모바일 회원증 바코드 버튼 추가",
+          "기본 회원번호 12810425006025를 CODE128 바코드로 표시",
+          "영문·숫자·일반 기호 입력 시 바코드를 즉시 다시 생성하고 값 저장 지원"
+        ]
+      },
       {
         version: "1.6.96",
         date: "2026-08-05",
@@ -11166,6 +11231,7 @@
         deletedOrgKeys: [...new Set(state.settings.deletedOrgKeys || [])],
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
+        mobileMembershipBarcode: state.settings.mobileMembershipBarcode || "12810425006025",
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -11203,6 +11269,9 @@
       }
       if (Array.isArray(data.deletedWorkLogIds)) {
         state.settings.deletedWorkLogIds = [...new Set([...(state.settings.deletedWorkLogIds || []), ...data.deletedWorkLogIds])];
+      }
+      if (typeof data.mobileMembershipBarcode === "string" && data.mobileMembershipBarcode.trim()) {
+        state.settings.mobileMembershipBarcode = data.mobileMembershipBarcode.slice(0, 80);
       }
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
@@ -13653,6 +13722,91 @@
     }
     function escapeAttr(str = "") { return escapeHTML(str); }
     function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
+    const code128Patterns = [
+      "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+      "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+      "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+      "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+      "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+      "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+      "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+      "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+      "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+      "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+      "114131","311141","411131","211412","211214","211232","2331112"
+    ];
+    function code128Sequence(rawValue) {
+      const value = String(rawValue || "").trim();
+      if (!value) throw new Error("바코드 값을 입력해주세요.");
+      let codes;
+      if (/^\d+$/.test(value) && value.length % 2 === 0) {
+        codes = [105];
+        for (let index = 0; index < value.length; index += 2) codes.push(Number(value.slice(index, index + 2)));
+      } else {
+        codes = [104];
+        for (const character of value) {
+          const code = character.charCodeAt(0);
+          if (code < 32 || code > 126) throw new Error("CODE128은 영문, 숫자, 공백 및 일반 기호만 사용할 수 있습니다.");
+          codes.push(code - 32);
+        }
+      }
+      let checksum = codes[0];
+      for (let index = 1; index < codes.length; index += 1) checksum += codes[index] * index;
+      codes.push(checksum % 103, 106);
+      return { value, codes };
+    }
+    function renderMembershipBarcode(rawValue) {
+      const graphic = document.getElementById("membershipBarcodeGraphic");
+      const valueLabel = document.getElementById("membershipBarcodeValue");
+      const errorLabel = document.getElementById("membershipBarcodeError");
+      if (!graphic || !valueLabel || !errorLabel) return false;
+      try {
+        const encoded = code128Sequence(rawValue);
+        const quiet = 10;
+        const barHeight = 72;
+        let modules = quiet * 2;
+        encoded.codes.forEach(code => { modules += [...code128Patterns[code]].reduce((sum, width) => sum + Number(width), 0); });
+        let x = quiet;
+        const bars = [];
+        encoded.codes.forEach(code => {
+          [...code128Patterns[code]].forEach((width, index) => {
+            const size = Number(width);
+            if (index % 2 === 0) bars.push(`<rect x="${x}" y="0" width="${size}" height="${barHeight}"/>`);
+            x += size;
+          });
+        });
+        const displayWidth = Math.max(320, Math.round(modules * 2.15));
+        graphic.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CODE128 바코드" viewBox="0 0 ${modules} ${barHeight}" width="${displayWidth}" height="104" preserveAspectRatio="none"><g fill="#000">${bars.join("")}</g></svg>`;
+        valueLabel.textContent = encoded.value;
+        errorLabel.hidden = true;
+        errorLabel.textContent = "";
+        return true;
+      } catch (error) {
+        graphic.innerHTML = "";
+        valueLabel.textContent = String(rawValue || "");
+        errorLabel.textContent = String(error?.message || error);
+        errorLabel.hidden = false;
+        return false;
+      }
+    }
+    function openMembershipBarcode() {
+      const input = document.getElementById("membershipBarcodeInput");
+      const dialog = document.getElementById("membershipBarcodeDialog");
+      if (!input || !dialog) return;
+      input.value = state.settings.mobileMembershipBarcode || "12810425006025";
+      renderMembershipBarcode(input.value);
+      if (!dialog.open) dialog.showModal();
+    }
+    document.getElementById("membershipBarcodeBtn")?.addEventListener("click", openMembershipBarcode);
+    document.getElementById("membershipBarcodeInput")?.addEventListener("input", event => renderMembershipBarcode(event.target.value));
+    document.getElementById("saveMembershipBarcodeBtn")?.addEventListener("click", () => {
+      const input = document.getElementById("membershipBarcodeInput");
+      if (!input || !renderMembershipBarcode(input.value)) return;
+      state.settings.mobileMembershipBarcode = input.value.trim();
+      save();
+      toast("모바일 회원증 바코드 값을 저장했습니다.");
+    });
+    document.getElementById("closeMembershipBarcodeBtn")?.addEventListener("click", () => document.getElementById("membershipBarcodeDialog")?.close());
     function hasNativeNotificationHistory() {
       try {
         return typeof window.ReportMateAndroid?.getNotificationHistory === "function";
