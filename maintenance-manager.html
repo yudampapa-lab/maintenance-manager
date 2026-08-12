@@ -17,7 +17,7 @@
     }
   </script>
   <link rel="stylesheet" href="./desktop-worklog.css?v=5">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <style>
     :root {
       color-scheme: light;
@@ -4511,10 +4511,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="https://unpkg.com/@zxing/browser@0.2.0/umd/zxing-browser.min.js" defer></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="./national-libraries.js"></script>
 
   <script>
     const defaultGoogleClientId = "799426628695-uih32dh5mqqpst3o3tmblaq3n77pvd2r.apps.googleusercontent.com";
@@ -4600,6 +4596,10 @@
       cloudPhotos: [],
       cloudPhotosLoadedAt: 0,
       cloudPhotosPromise: null,
+      nationalLibrariesPromise: null,
+      leafletPromise: null,
+      zxingPromise: null,
+      googleIdentityPromise: null,
       photoMigrationStarted: false,
       firebase: null,
       firebaseReady: false,
@@ -4652,7 +4652,6 @@
     normalizeAdminLogs();
     if (removeLegacySeedData()) save({ skipCloud: true });
     if (!localStorage.getItem("maint_schedules")) seedSchedulesFromOrgs();
-    ensureNationalLibraryBase();
 
     function load(key, fallback) {
       try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
@@ -4785,9 +4784,14 @@
       document.body.classList.remove("auth-pending");
       document.body.classList.remove("auth-locked");
       setLoginMessage("");
-      renderSettings();
-      startCloudAutoSync({ immediate: true });
-      autoRequestTodayMapLocation();
+      renderActiveView();
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (currentViewName() !== "settings") renderSettings();
+          startCloudAutoSync({ immediate: true });
+          autoRequestTodayMapLocation();
+        }, 0);
+      });
     }
     function lockApp(message = "") {
       document.body.classList.remove("auth-pending");
@@ -5863,8 +5867,19 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.0";
+    const appVersion = "1.7.1";
     const versionHistory = [
+      {
+        version: "1.7.1",
+        date: "2026-08-12",
+        title: "전체 초기 실행 속도 개선",
+        changes: [
+          "전국 도서관·바코드 판독기·지도 모듈을 실제 사용할 때만 불러오도록 변경",
+          "로그인 복구 전에 실행되던 숨겨진 첫 화면 중복 렌더링 제거",
+          "사진 이전 작업을 첫 화면 표시 이후 유휴 시간에 처리",
+          "Android 앱의 매 실행 강제 캐시 무효화를 제거해 재실행 속도 개선"
+        ]
+      },
       {
         version: "1.7.0",
         date: "2026-08-11",
@@ -7086,7 +7101,7 @@
       else if (normalized === "memo") renderMemos();
       else renderVehicle();
     }
-    function switchView(view) {
+    function switchView(view, { renderView = true } = {}) {
       if (view === "vehicle") {
         state.recordTab = "vehicle";
         view = "memo";
@@ -7100,8 +7115,8 @@
       document.querySelector(".app-shell")?.classList.toggle("hide-header", view !== "dashboard");
       syncNativeInstitutionSearch(view === "orgs");
       localStorage.setItem("maint_active_view", view);
-      renderActiveView();
-      if (view === "dashboard") autoRequestTodayMapLocation();
+      if (renderView) renderActiveView();
+      if (view === "dashboard" && renderView) autoRequestTodayMapLocation();
     }
 
     function orgForSchedule(schedule) {
@@ -7340,8 +7355,15 @@
       const items = todayDestinationItems();
       sub.textContent = items.length ? `${items.length}곳` : "방문 일정 없음";
       if (!window.L) {
-        setDestinationMapStatus("지도를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
-        return;
+        setDestinationMapStatus("지도를 준비하는 중입니다...");
+        try {
+          await loadLeafletAssets();
+        } catch (error) {
+          console.warn(error);
+          setDestinationMapStatus("지도를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
+          return;
+        }
+        if (token !== state.destinationMapRenderToken) return;
       }
       const map = ensureDestinationMap();
       if (!map) return;
@@ -8081,7 +8103,17 @@
       androidPhotoLogMarkers.forEach(marker => marker.remove());
       androidPhotoLogMarkers = [];
     }
-    function renderAndroidPhotoLogMap() {
+    async function renderAndroidPhotoLogMap() {
+      if (!window.L) {
+        photoLogMapStatus.textContent = "지도를 준비하는 중입니다...";
+        try {
+          await loadLeafletAssets();
+        } catch (error) {
+          console.warn(error);
+          photoLogMapStatus.textContent = "지도를 불러오지 못했습니다.";
+          return;
+        }
+      }
       const map = ensureAndroidPhotoLogMap();
       if (!map) {
         photoLogMapStatus.textContent = "지도를 불러오지 못했습니다.";
@@ -11521,10 +11553,15 @@
       if (state.cloudSaveTimer) clearTimeout(state.cloudSaveTimer);
       state.cloudSaveTimer = setTimeout(() => uploadCloudData({ silent: true }), delay);
     }
+    function schedulePhotoMigration() {
+      const run = () => migrateLocalPhotosToFirebase();
+      if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2500 });
+      else setTimeout(run, 1500);
+    }
     function startCloudAutoSync({ immediate = false } = {}) {
       const syncUserId = state.firebase?.auth?.currentUser?.uid || "";
       if (state.cloudUnsubscribe && state.cloudSyncUserId === syncUserId) {
-        migrateLocalPhotosToFirebase();
+        schedulePhotoMigration();
         updateCloudStatus();
         return;
       }
@@ -11548,7 +11585,7 @@
         console.warn(error);
         updateCloudStatus("Firestore 실시간 동기화 오류: " + (error.message || error));
       });
-      migrateLocalPhotosToFirebase();
+      schedulePhotoMigration();
       updateCloudStatus();
     }
     async function refreshCloudDataIfStale(minIntervalMs = 30000) {
@@ -12802,16 +12839,41 @@
         })
         .filter(library => library.name);
     }
-    window.importNationalLibraries = () => {
+    window.importNationalLibraries = async () => {
       const button = document.getElementById("importNationalLibrariesBtn");
+      const originalText = button?.textContent || "";
+      if (button) {
+        button.disabled = true;
+        button.textContent = "목록 불러오는 중...";
+      }
+      try {
+        await loadNationalLibraryData();
+      } catch (error) {
+        console.warn(error);
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+        showInfo("전국 도서관 데이터 오류", "전국 도서관 목록을 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");
+        return;
+      }
       const libraries = normalizedStaticLibraries();
       if (!libraries.length) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
         showInfo("전국 도서관 데이터 없음", "outputs/national-libraries.js 파일에 전국 도서관 목록이 아직 들어있지 않습니다.\n\nCSV/엑셀 원본을 받으면 이 파일에 변환해 넣어서 API 없이 바로 등록되게 구성해뒀습니다.");
         return;
       }
       const confirmed = confirm(`내장된 전국 도서관 ${libraries.length}개를 중복 없이 기관목록에 추가할까요?`);
-      if (!confirmed) return;
-      const originalText = button?.textContent || "";
+      if (!confirmed) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+        return;
+      }
       if (button) {
         button.disabled = true;
         button.textContent = "등록 중...";
@@ -13702,7 +13764,8 @@
       }
       return true;
     }
-    function requestGoogleAccessToken(prompt = "") {
+    async function requestGoogleAccessToken(prompt = "") {
+      await loadGoogleIdentityLibrary();
       return new Promise((resolve, reject) => {
         if (!prepareGoogleSettings()) {
           reject(new Error("prepare_failed"));
@@ -13871,6 +13934,65 @@
     }
     function escapeAttr(str = "") { return escapeHTML(str); }
     function escapeICS(str = "") { return String(str).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
+    function loadOptionalScript(src, ready, stateKey) {
+      if (ready()) return Promise.resolve(true);
+      if (state[stateKey]) return state[stateKey];
+      state[stateKey] = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[data-reportmate-src="${src}"]`);
+        const script = existing || document.createElement("script");
+        const finish = () => ready() ? resolve(true) : reject(new Error(`${src} failed to initialize`));
+        script.addEventListener("load", finish, { once: true });
+        script.addEventListener("error", () => {
+          script.remove();
+          reject(new Error(`${src} failed to load`));
+        }, { once: true });
+        if (!existing) {
+          script.src = src;
+          script.async = true;
+          script.dataset.reportmateSrc = src;
+          document.head.appendChild(script);
+        }
+      }).catch(error => {
+        state[stateKey] = null;
+        throw error;
+      });
+      return state[stateKey];
+    }
+    function loadLeafletAssets() {
+      if (!document.querySelector('link[data-reportmate-leaflet]')) {
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        stylesheet.dataset.reportmateLeaflet = "1";
+        document.head.appendChild(stylesheet);
+      }
+      return loadOptionalScript(
+        "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+        () => Boolean(window.L?.map),
+        "leafletPromise"
+      );
+    }
+    function loadNationalLibraryData() {
+      return loadOptionalScript(
+        "./national-libraries.js",
+        () => Array.isArray(window.nationalLibraryStaticData),
+        "nationalLibrariesPromise"
+      );
+    }
+    function loadZxingLibrary() {
+      return loadOptionalScript(
+        "https://unpkg.com/@zxing/browser@0.2.0/umd/zxing-browser.min.js",
+        () => Boolean(window.ZXingBrowser?.BrowserMultiFormatReader),
+        "zxingPromise"
+      );
+    }
+    function loadGoogleIdentityLibrary() {
+      return loadOptionalScript(
+        "https://accounts.google.com/gsi/client",
+        () => Boolean(window.google?.accounts?.oauth2),
+        "googleIdentityPromise"
+      );
+    }
     const code128Patterns = [
       "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
       "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
@@ -14042,6 +14164,7 @@
       barcodeReaderFrame = requestAnimationFrame(scan);
     }
     async function startZxingBarcodeReader(video) {
+      await loadZxingLibrary();
       const Reader = window.ZXingBrowser?.BrowserMultiFormatReader;
       if (!Reader) throw new Error("이 기기에서 바코드 판독기를 불러오지 못했습니다.");
       const reader = new Reader();
@@ -14188,9 +14311,7 @@
     if (savedView === "vehicle") state.recordTab = "vehicle";
     updateAiFeatureVisibility();
     if (initialView && document.getElementById("view-" + initialView)) {
-      switchView(initialView);
-    } else {
-      render();
+      switchView(initialView, { renderView: false });
     }
     restoreLoginSession();
     setInterval(() => {
