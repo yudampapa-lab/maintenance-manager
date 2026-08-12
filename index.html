@@ -5867,8 +5867,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.1";
+    const appVersion = "1.7.2";
     const versionHistory = [
+      {
+        version: "1.7.2",
+        date: "2026-08-12",
+        title: "일정 클립보드 제목 간소화",
+        changes: [
+          "오늘·내일 일정 복사 제목에서 유지보수 문구 제거",
+          "복사 완료 안내를 오늘 일정·내일 일정으로 간단히 표시"
+        ]
+      },
       {
         version: "1.7.1",
         date: "2026-08-12",
@@ -7670,7 +7679,7 @@
       if (remoteNames.length) sections.push(`[원격일정]\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
       if (teamNames.length) sections.push(`[팀 일정]\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
       if (personalNames.length) sections.push(`[개인 일정]\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
-      return `[${todayCopyLabel(date)}의 유지보수 일정 - ${messengerDateLabel(date)}]\n\n${sections.join("\n\n")}`;
+      return `[${todayCopyLabel(date)}의 일정 - ${messengerDateLabel(date)}]\n\n${sections.join("\n\n")}`;
     }
     function widgetTodayMessengerText() {
       const schedules = sortedSchedules(todayISO());
@@ -7684,7 +7693,7 @@
       if (remoteNames.length) sections.push(`[원격일정]\n${remoteNames.join(", ")}\n원격점검이 있습니다.`);
       if (teamNames.length) sections.push(`[팀 일정]\n${teamNames.join(", ")}\n팀 일정이 있습니다.`);
       if (personalNames.length) sections.push(`[개인 일정]\n${personalNames.join(", ")}\n개인 일정이 있습니다.`);
-      return sections.length ? `[오늘의 유지보수 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}` : "";
+      return sections.length ? `[오늘의 일정 - ${messengerDateLabel(todayISO())}]\n\n${sections.join("\n\n")}` : "";
     }
     async function copyTextToClipboard(text) {
       if (navigator.clipboard && window.isSecureContext) {
@@ -7709,7 +7718,7 @@
           return false;
         }
         await copyTextToClipboard(text);
-        toast(`${todayCopyLabel()} 유지보수 일정이 복사되었습니다.`);
+        toast(`${todayCopyLabel()} 일정이 복사되었습니다.`);
         return true;
       } catch (error) {
         console.warn(error);
