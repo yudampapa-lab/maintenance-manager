@@ -475,6 +475,57 @@
       gap: 8px;
       align-items: center;
     }
+    .work-log-recent {
+      padding: 9px 10px 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.78);
+    }
+    .work-log-recent-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+    .work-log-recent-head strong { font-size: 12px; }
+    .work-log-recent-head button {
+      min-height: 28px;
+      padding: 4px 9px;
+      font-size: 11px;
+    }
+    .work-log-recent-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px;
+      max-height: 228px;
+      overflow: auto;
+    }
+    button.work-log-recent-item {
+      display: grid;
+      min-width: 0;
+      min-height: 52px;
+      padding: 7px 9px;
+      border: 1px solid rgba(60, 124, 255, .1);
+      border-radius: 11px;
+      background: rgba(239, 246, 252, .86);
+      color: var(--ink);
+      box-shadow: none;
+      text-align: left;
+    }
+    button.work-log-recent-item.active {
+      border-color: rgba(0, 122, 255, .32);
+      background: rgba(0, 122, 255, .1);
+    }
+    .work-log-recent-item strong,
+    .work-log-recent-item span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .work-log-recent-item strong { font-size: 12px; }
+    .work-log-recent-item span { color: var(--muted); font-size: 10px; }
     .work-log-room {
       border: 1px solid var(--line);
       border-radius: 18px;
@@ -875,6 +926,15 @@
     .workout-interval-row input, .workout-interval-row select { min-width: 0; }
     .workout-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .workout-add-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .workout-preset-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .workout-preset-toolbar select { min-width: 0; }
+    .workout-preset-toolbar button { min-height: 40px; padding-inline: 12px; }
+    .workout-preset-name { margin-top: 8px; }
     .membership-dialog-title {
       display: flex;
       align-items: center;
@@ -1181,6 +1241,15 @@
       display: grid;
       gap: 10px;
     }
+    .visit-card.is-completed {
+      border-color: rgba(26, 145, 91, .3);
+      background: linear-gradient(145deg, rgba(232, 249, 240, .78), rgba(255, 255, 255, .96));
+    }
+    .visit-card.is-completed .visit-title-text h3 {
+      color: #567066;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+    }
     .visit-top {
       display: flex;
       justify-content: space-between;
@@ -1188,6 +1257,60 @@
       align-items: start;
     }
     .visit-title-text { min-width: 0; }
+    .visit-statuses {
+      display: grid;
+      flex: 0 0 auto;
+      gap: 6px;
+      justify-items: end;
+    }
+    .schedule-complete-stamp {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 52px;
+      min-height: 29px;
+      padding: 2px 9px;
+      border: 2px solid #db5656;
+      border-radius: 7px;
+      color: #c43f3f;
+      background: rgba(255,255,255,.78);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      line-height: 1;
+      transform: rotate(-5deg);
+      box-shadow: inset 0 0 0 2px rgba(219, 86, 86, .1);
+    }
+    .schedule-complete-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid #cbd8d2;
+      border-radius: 10px;
+      background: #f3f7f5;
+      color: #3d5148;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      user-select: none;
+    }
+    .schedule-complete-control.checked {
+      border-color: rgba(26, 145, 91, .34);
+      background: #e1f5e9;
+      color: #0f7548;
+    }
+    .schedule-complete-control input {
+      appearance: auto;
+      -webkit-appearance: checkbox;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: #168653;
+      box-shadow: none;
+      cursor: pointer;
+    }
     .copy-schedule-list { display: grid; gap: 8px; margin-top: 12px; }
     .copy-schedule-item {
       display: flex;
@@ -3218,6 +3341,9 @@
       .work-log-picker {
         grid-template-columns: 1fr;
       }
+      .work-log-recent-list { grid-template-columns: 1fr; }
+      .workout-preset-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+      .workout-preset-toolbar #deleteWorkoutPresetBtn { grid-column: 2; }
       .work-log-shell {
         height: calc(100dvh - 178px);
         min-height: 340px;
@@ -3881,6 +4007,13 @@
                     </div>
                     <div class="org-suggestions" id="workLogOrgSuggestions"></div>
                   </div>
+                  <section class="work-log-recent" id="workLogRecentSection" aria-label="최근 업무기록 기관">
+                    <div class="work-log-recent-head">
+                      <strong>최근 기록</strong>
+                      <button type="button" class="secondary" id="toggleWorkLogRecentBtn" aria-expanded="false">10개 보기</button>
+                    </div>
+                    <div class="work-log-recent-list" id="workLogRecentList"></div>
+                  </section>
                 </div>
                 <section class="work-log-room" aria-label="업무기록 대화">
                   <div class="work-log-room-head">
@@ -4237,6 +4370,12 @@
     <div class="modal-body">
       <h2 class="panel-title">운동 인터벌 타이머</h2>
       <p class="panel-sub">운동과 휴식 시간을 원하는 순서로 구성하세요. 구간이 바뀌면 소리와 진동으로 알려드립니다.</p>
+      <div class="workout-preset-toolbar">
+        <select id="workoutPresetSelect" aria-label="운동 프리셋 선택"></select>
+        <button type="button" class="secondary" id="addWorkoutPresetBtn">프리셋 추가</button>
+        <button type="button" class="danger" id="deleteWorkoutPresetBtn">삭제</button>
+      </div>
+      <div class="workout-preset-name"><input id="workoutPresetName" maxlength="24" placeholder="프리셋 이름" aria-label="프리셋 이름"></div>
       <div class="workout-clock">
         <div class="workout-phase" id="workoutPhase">준비</div>
         <div class="workout-remaining" id="workoutRemaining">00:30</div>
@@ -4617,7 +4756,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4629,6 +4768,7 @@
       workLogSearchOpen: false,
       workLogSearchMatchIds: [],
       workLogSearchIndex: -1,
+      workLogRecentExpanded: false,
       scheduleContextTimer: null,
       maintenanceOrgDrag: null,
       dayContextTimer: null,
@@ -4699,7 +4839,45 @@
       }));
       return normalized.length ? normalized : defaultWorkoutIntervals.map(item => ({ ...item }));
     }
-    state.settings.workoutIntervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
+    function normalizeWorkoutPresets(value, fallbackIntervals = state.settings.workoutIntervals) {
+      const source = Array.isArray(value) && value.length
+        ? value
+        : [{ id: "preset-1", name: "기본 운동", intervals: fallbackIntervals }];
+      const usedIds = new Set();
+      return source.slice(0, 5).map((preset, index) => {
+        let id = String(preset?.id || `preset-${index + 1}`).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 36) || `preset-${index + 1}`;
+        while (usedIds.has(id)) id = `${id}-${index + 1}`;
+        usedIds.add(id);
+        return {
+          id,
+          name: String(preset?.name || `프리셋 ${index + 1}`).trim().slice(0, 24) || `프리셋 ${index + 1}`,
+          intervals: normalizeWorkoutIntervals(preset?.intervals)
+        };
+      });
+    }
+    function activeWorkoutPreset() {
+      return state.settings.workoutPresets.find(preset => preset.id === state.settings.activeWorkoutPresetId)
+        || state.settings.workoutPresets[0];
+    }
+    function syncActiveWorkoutIntervals() {
+      const preset = activeWorkoutPreset();
+      if (!preset) return;
+      state.settings.activeWorkoutPresetId = preset.id;
+      state.settings.workoutIntervals = normalizeWorkoutIntervals(preset.intervals).map(item => ({ ...item }));
+    }
+    const legacyWorkoutIntervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
+    const hadStoredWorkoutPresets = Array.isArray(state.settings.workoutPresets) && state.settings.workoutPresets.length > 0;
+    state.settings.workoutPresets = normalizeWorkoutPresets(state.settings.workoutPresets, legacyWorkoutIntervals);
+    if (!state.settings.workoutPresets.some(preset => preset.id === state.settings.activeWorkoutPresetId)) {
+      state.settings.activeWorkoutPresetId = state.settings.workoutPresets[0].id;
+    }
+    if (hadStoredWorkoutPresets) {
+      const selectedPreset = activeWorkoutPreset();
+      if (JSON.stringify(normalizeWorkoutIntervals(selectedPreset.intervals)) !== JSON.stringify(legacyWorkoutIntervals)) {
+        selectedPreset.intervals = legacyWorkoutIntervals.map(item => ({ ...item }));
+      }
+    }
+    syncActiveWorkoutIntervals();
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -5304,6 +5482,10 @@
         googleHtmlLink: schedule.googleHtmlLink || "",
         googleSyncedAt: schedule.googleSyncedAt || "",
         googleDirty: Boolean(schedule.googleDirty),
+        completed: Boolean(schedule.completed || schedule.completedAt),
+        completedAt: schedule.completed || schedule.completedAt
+          ? (schedule.completedAt || schedule.updatedAt || schedule.createdAt || "")
+          : "",
         createdAt: schedule.createdAt || new Date().toISOString(),
         updatedAt: schedule.updatedAt || ""
       })).filter(schedule => !isDeletedSchedule(schedule));
@@ -5824,6 +6006,8 @@
             googleHtmlLink: "",
             googleSyncedAt: "",
             googleDirty: true,
+            completed: false,
+            completedAt: "",
             createdAt: template.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
@@ -5932,8 +6116,20 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.4";
+    const appVersion = "1.7.5";
     const versionHistory = [
+      {
+        version: "1.7.5",
+        date: "2026-08-19",
+        title: "최근 기록·방문일 및 운동 프리셋",
+        changes: [
+          "업무기록 기관 검색 아래 최근 작성 기관 3개를 표시하고 최대 10개까지 펼쳐보기 추가",
+          "대시보드 오늘 할일 기관 옆과 기관탭 카드에 최근 방문일 표시",
+          "운동 인터벌을 이름과 함께 최대 5개 프리셋으로 저장·선택하도록 개선",
+          "운동 프리셋 전체를 갤럭시 워치에 동기화하고 워치에서 프리셋 전환 지원",
+          "대시보드 오늘 할일 완료 체크·완료 도장과 완료 항목 맨 아래 자동 정렬 추가"
+        ]
+      },
       {
         version: "1.7.4",
         date: "2026-08-19",
@@ -8074,7 +8270,12 @@
       const wrap = document.getElementById(elId);
       const items = sortedSchedules(date);
       const hideGoogleButton = elId === "todayVisits" || elId === "tomorrowVisits";
-      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
+      const showRecentVisit = elId === "todayVisits";
+      const showCompletion = elId === "todayVisits";
+      if (showCompletion) {
+        items.sort((a, b) => Number(Boolean(a.completed || a.completedAt)) - Number(Boolean(b.completed || b.completedAt)));
+      }
+      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
     }
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
@@ -8362,19 +8563,42 @@
       const schedule = state.schedules.find(item => item.id === id);
       if (schedule) goToCalendarDate(schedule.date);
     };
+    function isVisitScheduleForRecentDate(schedule = {}) {
+      return Boolean(schedule.orgId) && ["visit", "org", "team"].includes(schedule.type || "visit");
+    }
+    function buildRecentVisitDateMap(beforeDateExclusive = addDaysISO(todayISO(), 1)) {
+      const result = new Map();
+      for (const schedule of (state.schedules || [])) {
+        if (!isVisitScheduleForRecentDate(schedule) || !schedule.date || schedule.date >= beforeDateExclusive) continue;
+        const current = result.get(schedule.orgId) || "";
+        if (schedule.date > current) result.set(schedule.orgId, schedule.date);
+      }
+      return result;
+    }
+    function recentVisitText(date = "") {
+      return date ? formatDateWithYear(date) : "없음";
+    }
     function scheduleCard(schedule, options = {}) {
       const o = orgForSchedule(schedule);
+      const completed = Boolean(schedule.completed || schedule.completedAt);
+      const completedClass = options.showCompletion && completed ? " is-completed" : "";
+      const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
+      const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
+        <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}')" aria-label="${escapeAttr(schedule.title)} 완료">
+        <span>완료</span>
+      </label>` : "";
       const teamLine = schedule.type === "team" && schedule.teamMembers ? `<div class="visit-meta">팀원: ${escapeHTML(formatTeamMembersWithRoles(schedule.teamMembers))}</div>` : "";
       const reasonLine = scheduleVisitReasonLabel(schedule) ? `<div class="visit-meta">방문사유: ${escapeHTML(scheduleVisitReasonLabel(schedule))}</div>` : "";
       if (!o) {
-        return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
+        return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
-            <span class="tag gray">개인</span>
+            <div class="visit-statuses"><span class="tag gray">개인</span>${completedStamp}</div>
           </div>
           ${reasonLine}
           ${teamLine}
           <div class="visit-actions">
+            ${completionControl}
             <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
             <button class="icon danger" title="일정 삭제" onclick="deleteSchedule('${schedule.id}')">${icon("trash")}</button>
           </div>
@@ -8384,10 +8608,17 @@
       const solution = escapeHTML(o.solution || "제품 미기입");
       const closed = o.closedDay || extractClosedDayFromNote(o.note);
       const nameClass = isContractActive(o) ? "" : "expired-name";
-      return `<article class="visit-card schedule-accent" ${scheduleColorStyleAttr(schedule)}>
+      const previousVisit = options.showRecentVisit
+        ? buildRecentVisitDateMap(schedule.date).get(o.id) || ""
+        : "";
+      const recentVisitMeta = options.showRecentVisit ? ` · 최근 방문 ${recentVisitText(previousVisit)}` : "";
+      return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
-          <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
-          ${o.cycle && normalizedMaintenanceCycle(o.cycle) !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${cycleLabelHTML(o.cycle)}</span>` : ""}
+          <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)}${escapeHTML(recentVisitMeta)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
+          <div class="visit-statuses">
+            ${o.cycle && normalizedMaintenanceCycle(o.cycle) !== "해당없음" ? `<span class="tag ${o.method === "원격점검" ? "blue" : "amber"}">${cycleLabelHTML(o.cycle)}</span>` : ""}
+            ${completedStamp}
+          </div>
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
         ${reasonLine}
@@ -8395,6 +8626,7 @@
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
         <div class="visit-meta">주요 담당자: ${escapeHTML(contact.name || "미등록")} · 특이사항 ${(o.issues || []).length}건</div>
         <div class="visit-actions">
+          ${completionControl}
           <button class="icon good" title="담당자 전화" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap 길찾기" onclick="openTmap('${o.id}')">${icon("map")}</button>
           <button class="icon secondary" title="레포트 사진 추가" onclick="captureReport('${o.id}')">${icon("image")}</button>
@@ -8404,6 +8636,21 @@
         </div>
       </article>`;
     }
+    window.toggleTodayScheduleCompleted = id => {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return;
+      const completed = !Boolean(schedule.completed || schedule.completedAt);
+      const now = new Date().toISOString();
+      schedule.completed = completed;
+      schedule.completedAt = completed ? now : "";
+      schedule.updatedAt = now;
+      markGoogleDirty(schedule);
+      logAdminAction("일정", completed ? "할일 완료" : "할일 완료 취소", `${schedule.title} · ${formatDateWithYear(schedule.date)}`);
+      save();
+      renderVisits("todayVisits", todayISO());
+      scheduleGoogleAutoSync("schedule-completion");
+      toast(completed ? "오늘 할일을 완료했습니다." : "완료를 취소했습니다.");
+    };
     function dashboardSearchText(value) {
       return normalizeOrgKeyword(typeof value === "string" ? value : JSON.stringify(value || ""));
     }
@@ -9089,6 +9336,7 @@
       const q = document.getElementById("orgSearch").value.trim().toLowerCase();
       const upcomingScheduleMap = buildUpcomingScheduleLabelMap();
       const workLogCountMap = buildWorkLogCountMap();
+      const recentVisitDateMap = buildRecentVisitDateMap();
       document.querySelectorAll("[data-org-list-mode]").forEach(button => {
         const active = button.dataset.orgListMode === state.orgListMode;
         button.classList.toggle("active", active);
@@ -9115,7 +9363,7 @@
         </div>
         <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${escapeHTML(o.solution || "솔루션 미기입")}</strong></div></div>
         ${orgStatusTags(o)}
-        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${(() => { const schedule = upcomingScheduleMap.get(o.id); return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-"; })()} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건 · 업무기록 ${workLogCountMap.get(o.id) || 0}건</p>
+        <p>계약일 ${o.contractDate || "-"}<br>기간 ${maintenancePeriodLabel(o)}<br>최근 방문 ${escapeHTML(recentVisitText(recentVisitDateMap.get(o.id) || ""))}<br>휴관일 ${escapeHTML(o.closedDay || extractClosedDayFromNote(o.note) || "-")}<br>캘린더 일정 ${(() => { const schedule = upcomingScheduleMap.get(o.id); return schedule ? `${schedule.date} ${scheduleTimeLabel(schedule)}` : "-"; })()} · 청구 매월 ${o.billingDay || "-"}일<br>특이사항 ${(o.issues || []).length}건 · 업무기록 ${workLogCountMap.get(o.id) || 0}건</p>
         <div class="org-actions">
           <button class="icon good" title="연락" onclick="openCall('${o.id}')">${icon("phone")}</button>
           <button class="icon warn" title="Tmap" onclick="openTmap('${o.id}')">${icon("map")}</button>
@@ -10729,6 +10977,35 @@
         .sort(scheduleOrgSort)
         .slice(0, limit);
     }
+    function recentWorkLogOrgEntries() {
+      const orgById = new Map(state.orgs.map(org => [org.id, org]));
+      const latestByOrg = new Map();
+      [...(state.workLogs || [])]
+        .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")))
+        .forEach(log => {
+          const org = orgById.get(log.orgId);
+          if (org && !latestByOrg.has(org.id)) latestByOrg.set(org.id, { org, log });
+        });
+      return [...latestByOrg.values()];
+    }
+    function renderRecentWorkLogOrgs() {
+      const list = document.getElementById("workLogRecentList");
+      const toggleButton = document.getElementById("toggleWorkLogRecentBtn");
+      if (!list || !toggleButton) return;
+      const entries = recentWorkLogOrgEntries();
+      const visible = entries.slice(0, state.workLogRecentExpanded ? 10 : 3);
+      list.innerHTML = visible.length ? visible.map(({ org, log }) => {
+        const snippet = String(log.body || "").replace(/\s+/g, " ").trim();
+        return `<button type="button" class="work-log-recent-item${state.selectedWorkLogOrgId === org.id ? " active" : ""}" onclick="selectWorkLogOrg('${escapeAttr(org.id)}')">
+          <strong>${escapeHTML(org.name)}</strong>
+          <span>${escapeHTML(formatDateTimeShort(log.at))} · ${escapeHTML(snippet || "내용 없음")}</span>
+        </button>`;
+      }).join("") : '<div class="empty">아직 작성된 업무기록이 없습니다.</div>';
+      const canExpand = entries.length > 3;
+      toggleButton.hidden = !canExpand;
+      toggleButton.textContent = state.workLogRecentExpanded ? "접기" : "10개 보기";
+      toggleButton.setAttribute("aria-expanded", state.workLogRecentExpanded ? "true" : "false");
+    }
     function renderWorkLogOrgSuggestions(show = true) {
       if (!show) {
         workLogOrgSuggestions.classList.remove("show");
@@ -10849,6 +11126,7 @@
     }
     function renderWorkLogs({ scrollBottom = false, preferLatest = false } = {}) {
       normalizeWorkLogs();
+      renderRecentWorkLogOrgs();
       const org = selectedWorkLogOrg();
       const typedOrgText = workLogOrgSearch.value.trim();
       const isSelectedLabel = org && (!typedOrgText || workLogOrgId.value === org.id);
@@ -10888,6 +11166,10 @@
       if (scrollBottom) requestAnimationFrame(() => { workLogMessages.scrollTop = workLogMessages.scrollHeight; });
     }
     window.selectWorkLogOrg = selectWorkLogOrg;
+    document.getElementById("toggleWorkLogRecentBtn").onclick = () => {
+      state.workLogRecentExpanded = !state.workLogRecentExpanded;
+      renderRecentWorkLogOrgs();
+    };
     window.editWorkLogMessage = id => {
       const item = state.workLogs.find(log => log.id === id);
       if (!item) {
@@ -11496,6 +11778,7 @@
     }
     function cloudSnapshotPayload() {
       const uploadableOrgs = (state.orgs || []).filter(shouldUploadOrgToCloud);
+      syncActiveWorkoutIntervals();
       return {
         orgs: uploadableOrgs,
         schedules: state.schedules,
@@ -11515,10 +11798,12 @@
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
         mobileMembershipBarcode: state.settings.mobileMembershipBarcode || "12810425006025",
+        workoutPresets: normalizeWorkoutPresets(state.settings.workoutPresets),
+        activeWorkoutPresetId: state.settings.activeWorkoutPresetId,
         workoutIntervals: normalizeWorkoutIntervals(state.settings.workoutIntervals),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
-        schemaVersion: 2
+        schemaVersion: 3
       };
     }
     function applyCloudSnapshot(data) {
@@ -11557,7 +11842,29 @@
       if (typeof data.mobileMembershipBarcode === "string" && data.mobileMembershipBarcode.trim()) {
         state.settings.mobileMembershipBarcode = data.mobileMembershipBarcode.slice(0, 80);
       }
-      if (Array.isArray(data.workoutIntervals)) state.settings.workoutIntervals = normalizeWorkoutIntervals(data.workoutIntervals);
+      const incomingWorkoutIntervals = Array.isArray(data.workoutIntervals)
+        ? normalizeWorkoutIntervals(data.workoutIntervals)
+        : null;
+      if (Array.isArray(data.workoutPresets) && data.workoutPresets.length) {
+        state.settings.workoutPresets = normalizeWorkoutPresets(data.workoutPresets, incomingWorkoutIntervals || state.settings.workoutIntervals);
+        if (typeof data.activeWorkoutPresetId === "string" && state.settings.workoutPresets.some(preset => preset.id === data.activeWorkoutPresetId)) {
+          state.settings.activeWorkoutPresetId = data.activeWorkoutPresetId;
+        } else if (!state.settings.workoutPresets.some(preset => preset.id === state.settings.activeWorkoutPresetId)) {
+          state.settings.activeWorkoutPresetId = state.settings.workoutPresets[0].id;
+        }
+        if (incomingWorkoutIntervals) {
+          const selectedPreset = activeWorkoutPreset();
+          if (JSON.stringify(normalizeWorkoutIntervals(selectedPreset.intervals)) !== JSON.stringify(incomingWorkoutIntervals)) {
+            selectedPreset.intervals = incomingWorkoutIntervals.map(item => ({ ...item }));
+          }
+        }
+        syncActiveWorkoutIntervals();
+      } else if (incomingWorkoutIntervals) {
+        const selectedPreset = activeWorkoutPreset();
+        selectedPreset.intervals = incomingWorkoutIntervals.map(item => ({ ...item }));
+        syncActiveWorkoutIntervals();
+      }
+      state.workoutConfigChanged = true;
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
       });
@@ -13153,7 +13460,9 @@
             maintenanceManagerOrgId: schedule.orgId || "",
             maintenanceManagerTeamMembers: schedule.teamMembers || "",
             maintenanceManagerVisitReason: schedule.visitReason || "",
-            maintenanceManagerColor: defaultScheduleColor(schedule)
+            maintenanceManagerColor: defaultScheduleColor(schedule),
+            maintenanceManagerCompleted: schedule.completed || schedule.completedAt ? "1" : "0",
+            maintenanceManagerCompletedAt: schedule.completedAt || ""
           }
         }
       };
@@ -13268,6 +13577,12 @@
       const date = googleDateToLocalISO(startRaw);
       const endDate = isAllDay ? addDaysISO(googleDateToLocalISO(endRaw), -1) : googleDateToLocalISO(endRaw);
       const safeEndDate = endDate < date ? date : endDate;
+      const completionFromGoogle = Object.prototype.hasOwnProperty.call(privateProps, "maintenanceManagerCompleted")
+        ? {
+            completed: privateProps.maintenanceManagerCompleted === "1",
+            completedAt: privateProps.maintenanceManagerCompleted === "1" ? (privateProps.maintenanceManagerCompletedAt || "") : ""
+          }
+        : {};
       return {
         id: privateProps.maintenanceManagerId || `google-${event.id}`,
         type: privateType || (org ? "visit" : "personal"),
@@ -13280,6 +13595,7 @@
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
         endTime: isAllDay ? "" : googleTimeToLocal(endRaw),
         color: scheduleColors[privateProps.maintenanceManagerColor] ? privateProps.maintenanceManagerColor : googleEventColorToScheduleColor(event.colorId),
+        ...completionFromGoogle,
         googleEventId: event.id,
         googleDuplicateEventIds: [],
         googleUpdated: event.updated || "",
@@ -14109,18 +14425,55 @@
       const value = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
       return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
     }
+    function workoutPresetSyncPayload() {
+      syncActiveWorkoutIntervals();
+      return {
+        presets: normalizeWorkoutPresets(state.settings.workoutPresets),
+        activePresetId: state.settings.activeWorkoutPresetId,
+        intervals: normalizeWorkoutIntervals(state.settings.workoutIntervals)
+      };
+    }
     function syncWorkoutPlanToAndroid() {
-      try { window.ReportMateAndroid?.updateWorkoutPlan?.(JSON.stringify(normalizeWorkoutIntervals(state.settings.workoutIntervals))); }
-      catch (_) {}
+      try {
+        const payload = workoutPresetSyncPayload();
+        if (window.ReportMateAndroid?.updateWorkoutPresets) {
+          window.ReportMateAndroid.updateWorkoutPresets(JSON.stringify(payload));
+        } else {
+          window.ReportMateAndroid?.updateWorkoutPlan?.(JSON.stringify(payload.intervals));
+        }
+      } catch (_) {}
     }
     function persistWorkoutPlan() {
       state.settings.workoutIntervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
+      const preset = activeWorkoutPreset();
+      preset.intervals = state.settings.workoutIntervals.map(item => ({ ...item }));
+      state.settings.workoutPresets = normalizeWorkoutPresets(state.settings.workoutPresets);
+      syncActiveWorkoutIntervals();
       save();
       syncWorkoutPlanToAndroid();
+      renderWorkoutPresetControls();
+    }
+    function renderWorkoutPresetControls() {
+      const select = document.getElementById("workoutPresetSelect");
+      const nameInput = document.getElementById("workoutPresetName");
+      const addButton = document.getElementById("addWorkoutPresetBtn");
+      const deleteButton = document.getElementById("deleteWorkoutPresetBtn");
+      if (!select || !nameInput || !addButton || !deleteButton) return;
+      const presets = normalizeWorkoutPresets(state.settings.workoutPresets);
+      state.settings.workoutPresets = presets;
+      const active = activeWorkoutPreset();
+      select.innerHTML = presets.map((preset, index) => `<option value="${escapeAttr(preset.id)}"${preset.id === active.id ? " selected" : ""}>${index + 1}. ${escapeHTML(preset.name)}</option>`).join("");
+      nameInput.value = active.name;
+      select.disabled = workoutTimerRunning;
+      nameInput.disabled = workoutTimerRunning;
+      addButton.disabled = workoutTimerRunning || presets.length >= 5;
+      deleteButton.disabled = workoutTimerRunning || presets.length <= 1;
+      addButton.title = presets.length >= 5 ? "프리셋은 최대 5개까지 저장할 수 있습니다." : "현재 설정을 복사해 새 프리셋 추가";
     }
     function renderWorkoutIntervals() {
       const list = document.getElementById("workoutIntervalList");
       if (!list) return;
+      renderWorkoutPresetControls();
       const intervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
       list.innerHTML = intervals.map((item, index) => `<div class="workout-interval-row">
         <select data-workout-type="${index}" aria-label="${index + 1}번 구간 종류" ${workoutTimerRunning ? "disabled" : ""}>
@@ -14257,11 +14610,12 @@
       workoutTimerPlan = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
       workoutTimerIndex = 0;
       workoutTimerRemainingMs = workoutTimerPlan[0]?.seconds * 1000 || 0;
+      state.workoutConfigChanged = false;
       renderWorkoutIntervals();
       renderWorkoutClock();
     }
     function openWorkoutTimer() {
-      if (!workoutTimerPlan.length) resetWorkoutTimer();
+      if (!workoutTimerPlan.length || state.workoutConfigChanged) resetWorkoutTimer();
       else {
         renderWorkoutIntervals();
         renderWorkoutClock();
@@ -14273,6 +14627,48 @@
     document.getElementById("pauseWorkoutTimerBtn")?.addEventListener("click", pauseWorkoutTimer);
     document.getElementById("resetWorkoutTimerBtn")?.addEventListener("click", resetWorkoutTimer);
     document.getElementById("closeWorkoutTimerBtn")?.addEventListener("click", () => workoutTimerDialog.close());
+    document.getElementById("workoutPresetSelect")?.addEventListener("change", event => {
+      if (workoutTimerRunning) return;
+      const id = String(event.currentTarget.value || "");
+      if (!state.settings.workoutPresets.some(preset => preset.id === id)) return;
+      state.settings.activeWorkoutPresetId = id;
+      syncActiveWorkoutIntervals();
+      resetWorkoutTimer();
+      persistWorkoutPlan();
+    });
+    document.getElementById("workoutPresetName")?.addEventListener("change", event => {
+      if (workoutTimerRunning) return;
+      const preset = activeWorkoutPreset();
+      preset.name = String(event.currentTarget.value || "").trim().slice(0, 24) || "이름 없는 프리셋";
+      persistWorkoutPlan();
+    });
+    document.getElementById("addWorkoutPresetBtn")?.addEventListener("click", () => {
+      if (workoutTimerRunning) return;
+      if (state.settings.workoutPresets.length >= 5) {
+        toast("프리셋은 최대 5개까지 저장할 수 있습니다.");
+        return;
+      }
+      const id = `preset-${Date.now().toString(36)}`;
+      const intervals = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
+      state.settings.workoutPresets.push({ id, name: `프리셋 ${state.settings.workoutPresets.length + 1}`, intervals });
+      state.settings.activeWorkoutPresetId = id;
+      syncActiveWorkoutIntervals();
+      resetWorkoutTimer();
+      persistWorkoutPlan();
+      toast("새 운동 프리셋을 추가했습니다.");
+    });
+    document.getElementById("deleteWorkoutPresetBtn")?.addEventListener("click", () => {
+      if (workoutTimerRunning || state.settings.workoutPresets.length <= 1) return;
+      const preset = activeWorkoutPreset();
+      if (!confirm(`\"${preset.name}\" 프리셋을 삭제할까요?`)) return;
+      const index = state.settings.workoutPresets.findIndex(item => item.id === preset.id);
+      state.settings.workoutPresets.splice(index, 1);
+      state.settings.activeWorkoutPresetId = state.settings.workoutPresets[Math.max(0, index - 1)]?.id || state.settings.workoutPresets[0].id;
+      syncActiveWorkoutIntervals();
+      resetWorkoutTimer();
+      persistWorkoutPlan();
+      toast("운동 프리셋을 삭제했습니다.");
+    });
     document.getElementById("addWorkoutIntervalBtn")?.addEventListener("click", () => {
       state.settings.workoutIntervals.push({ type: "work", seconds: 30 });
       resetWorkoutTimer(); persistWorkoutPlan();
