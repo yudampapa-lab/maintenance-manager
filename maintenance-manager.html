@@ -1240,10 +1240,40 @@
       background: white;
       display: grid;
       gap: 10px;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
     }
     .visit-card.is-completed {
       border-color: rgba(26, 145, 91, .3);
       background: linear-gradient(145deg, rgba(232, 249, 240, .78), rgba(255, 255, 255, .96));
+    }
+    .visit-card.is-completed::before {
+      content: "완료";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(78%, 330px);
+      height: clamp(90px, 58%, 150px);
+      border: clamp(5px, 1.4vw, 9px) double currentColor;
+      border-radius: 18px;
+      color: #d33939;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(56px, 12vw, 96px);
+      font-weight: 1000;
+      letter-spacing: .16em;
+      line-height: 1;
+      opacity: .13;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+    }
+    .visit-card.is-completed > * {
+      position: relative;
+      z-index: 1;
     }
     .visit-card.is-completed .visit-title-text h3 {
       color: #567066;
@@ -1264,22 +1294,15 @@
       justify-items: end;
     }
     .schedule-complete-stamp {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 52px;
-      min-height: 29px;
-      padding: 2px 9px;
-      border: 2px solid #db5656;
-      border-radius: 7px;
-      color: #c43f3f;
-      background: rgba(255,255,255,.78);
-      font-size: 14px;
-      font-weight: 900;
-      letter-spacing: .12em;
-      line-height: 1;
-      transform: rotate(-5deg);
-      box-shadow: inset 0 0 0 2px rgba(219, 86, 86, .1);
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
     .schedule-complete-control {
       display: inline-flex;
@@ -2560,6 +2583,17 @@
       gap: 6px;
     }
     body.calendar-dragging .bottom-nav {
+      pointer-events: none;
+    }
+    html.calendar-dragging-root {
+      scroll-behavior: auto !important;
+      overscroll-behavior-y: contain;
+    }
+    body.calendar-dragging {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body.calendar-dragging .ai-command-fab {
       pointer-events: none;
     }
     .nav-btn {
@@ -4756,7 +4790,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", cloudPendingScheduleSyncToken: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4787,6 +4821,10 @@
       cloudSaveTimer: null,
       cloudUnsubscribe: null,
       cloudSyncInProgress: false,
+      cloudUploadPending: false,
+      cloudPendingRetryCount: 0,
+      cloudHasServerSnapshot: false,
+      cloudReconnectTimer: null,
       cloudApplying: false,
       cloudPhotos: [],
       cloudPhotosLoadedAt: 0,
@@ -6116,8 +6154,20 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.5";
+    const appVersion = "1.7.6";
     const versionHistory = [
+      {
+        version: "1.7.6",
+        date: "2026-08-20",
+        title: "캘린더 드래그 자동 스크롤",
+        changes: [
+          "일정을 화면 위·아래 가장자리로 드래그하면 캘린더가 자동으로 따라 스크롤되도록 개선",
+          "자동 스크롤 중 손가락 아래의 날짜 칸을 계속 다시 계산해 정확한 위치에 놓도록 보강",
+          "모바일 드래그 취소 시 엉뚱한 날짜로 일정이 이동하지 않도록 수정",
+          "오늘 할일 완료 체크를 Firestore 서버에 즉시 동기화하고 실패 시 자동 재시도",
+          "완료된 오늘 할일 카드 전체에 45도 기울어진 큰 완료 도장 배경 표시"
+        ]
+      },
       {
         version: "1.7.5",
         date: "2026-08-19",
@@ -8636,7 +8686,7 @@
         </div>
       </article>`;
     }
-    window.toggleTodayScheduleCompleted = id => {
+    window.toggleTodayScheduleCompleted = async id => {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
       const completed = !Boolean(schedule.completed || schedule.completedAt);
@@ -8644,12 +8694,15 @@
       schedule.completed = completed;
       schedule.completedAt = completed ? now : "";
       schedule.updatedAt = now;
+      state.settings.cloudPendingScheduleSyncToken = `${now}:${uid()}`;
       markGoogleDirty(schedule);
       logAdminAction("일정", completed ? "할일 완료" : "할일 완료 취소", `${schedule.title} · ${formatDateWithYear(schedule.date)}`);
       save();
       renderVisits("todayVisits", todayISO());
       scheduleGoogleAutoSync("schedule-completion");
       toast(completed ? "오늘 할일을 완료했습니다." : "완료를 취소했습니다.");
+      const cloudSaved = await persistSchedulesNow("schedule-completion");
+      if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
     function dashboardSearchText(value) {
       return normalizeOrgKeyword(typeof value === "string" ? value : JSON.stringify(value || ""));
@@ -10006,6 +10059,7 @@
     }
     function setCalendarDragging(active) {
       document.body.classList.toggle("calendar-dragging", Boolean(active));
+      document.documentElement.classList.toggle("calendar-dragging-root", Boolean(active));
     }
     function clearRangeSelection() {
       document.querySelectorAll(".day-cell.range-select").forEach(cell => cell.classList.remove("range-select"));
@@ -10071,16 +10125,134 @@
     function cleanupCalendarDragGhost() {
       document.querySelectorAll(".calendar-drag-ghost").forEach(ghost => ghost.remove());
     }
+    function attachScheduleDragTouchBlocker(drag) {
+      if (!drag || drag.pointerType !== "touch" || drag.touchMoveBlocker) return;
+      drag.touchMoveBlocker = touchEvent => {
+        if (state.calendarDrag === drag && drag.armed && !drag.cancelled && touchEvent.cancelable) touchEvent.preventDefault();
+      };
+      document.addEventListener("touchmove", drag.touchMoveBlocker, { capture: true, passive: false });
+    }
+    function detachScheduleDragTouchBlocker(drag) {
+      if (!drag?.touchMoveBlocker) return;
+      document.removeEventListener("touchmove", drag.touchMoveBlocker, true);
+      drag.touchMoveBlocker = null;
+    }
+    function stopScheduleDragAutoScroll(drag) {
+      if (!drag) return;
+      if (drag.autoScrollFrame) cancelAnimationFrame(drag.autoScrollFrame);
+      drag.autoScrollFrame = 0;
+      drag.autoScrollLastTime = 0;
+    }
+    function scheduleDragViewportBounds() {
+      const viewport = window.visualViewport;
+      const layoutHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const viewportHeight = Number(viewport?.height) || layoutHeight;
+      let top = 0;
+      let bottom = Math.min(layoutHeight || viewportHeight, viewportHeight);
+      const header = document.querySelector(".app-shell > header");
+      if (header) {
+        const rect = header.getBoundingClientRect();
+        if (rect.bottom > 0 && rect.top < bottom) top = Math.max(top, rect.bottom + 8);
+      }
+      const nav = document.querySelector(".bottom-nav");
+      if (nav && getComputedStyle(nav).display !== "none") {
+        const rect = nav.getBoundingClientRect();
+        if (rect.height > 0 && rect.top < bottom && rect.bottom > 0) bottom = Math.min(bottom, rect.top - 8);
+      }
+      if (bottom < top + 96) {
+        top = 0;
+        bottom = Math.min(layoutHeight || viewportHeight, viewportHeight);
+      }
+      return { top, bottom };
+    }
+    function scheduleDragAutoScrollVelocity(drag) {
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (!grid || !Number.isFinite(drag?.lastX) || !Number.isFinite(drag?.lastY)) return 0;
+      const gridRect = grid.getBoundingClientRect();
+      if (drag.lastX < gridRect.left - 20 || drag.lastX > gridRect.right + 20) return 0;
+      const bounds = scheduleDragViewportBounds();
+      const usableHeight = Math.max(1, bounds.bottom - bounds.top);
+      const isTouch = drag.pointerType === "touch" || drag.pointerType === "pen";
+      const topZone = Math.min(isTouch ? 88 : 64, usableHeight * .36);
+      const bottomZone = Math.min(isTouch ? 112 : 80, usableHeight * .4);
+      const maxSpeed = isTouch ? 820 : 1050;
+      let direction = 0;
+      let intensity = 0;
+      if (drag.lastY < bounds.top + topZone) {
+        direction = -1;
+        intensity = (bounds.top + topZone - drag.lastY) / topZone;
+      } else if (drag.lastY > bounds.bottom - bottomZone) {
+        direction = 1;
+        intensity = (drag.lastY - (bounds.bottom - bottomZone)) / bottomZone;
+      }
+      intensity = Math.max(0, Math.min(1, intensity));
+      return direction ? direction * (90 + (maxSpeed - 90) * intensity * intensity) : 0;
+    }
+    function refreshScheduleDragTarget(drag, id = drag?.id) {
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
+      dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
+      if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
+        monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
+      }
+    }
+    function scheduleDragAutoScrollStep(timestamp, drag, id) {
+      drag.autoScrollFrame = 0;
+      if (state.calendarDrag !== drag || !drag.armed || !drag.moved || drag.cancelled) {
+        stopScheduleDragAutoScroll(drag);
+        return;
+      }
+      const velocity = scheduleDragAutoScrollVelocity(drag);
+      if (!velocity) {
+        drag.autoScrollLastTime = 0;
+        return;
+      }
+      const scroller = document.scrollingElement || document.documentElement;
+      const previousTime = drag.autoScrollLastTime || timestamp - 16.7;
+      const elapsed = Math.min(34, Math.max(8, timestamp - previousTime)) / 1000;
+      drag.autoScrollLastTime = timestamp;
+      const before = scroller.scrollTop;
+      const maximum = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      let delta = velocity * elapsed;
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (grid) {
+        const weeks = grid.querySelectorAll(".calendar-week");
+        const firstRect = weeks[0]?.getBoundingClientRect() || grid.getBoundingClientRect();
+        const lastRect = weeks[weeks.length - 1]?.getBoundingClientRect() || grid.getBoundingClientRect();
+        if (delta < 0) delta = Math.max(delta, -Math.max(0, drag.lastY - firstRect.top - 12));
+        if (delta > 0) delta = Math.min(delta, Math.max(0, lastRect.bottom - drag.lastY - 12));
+      }
+      scroller.scrollTop = Math.max(0, Math.min(maximum, before + delta));
+      if (Math.abs(scroller.scrollTop - before) < .5) {
+        drag.autoScrollLastTime = 0;
+        return;
+      }
+      refreshScheduleDragTarget(drag, id);
+      drag.autoScrollFrame = requestAnimationFrame(nextTime => scheduleDragAutoScrollStep(nextTime, drag, id));
+    }
+    function startScheduleDragAutoScroll(drag, id) {
+      if (!drag || drag.autoScrollFrame || !scheduleDragAutoScrollVelocity(drag)) return;
+      drag.autoScrollLastTime = 0;
+      drag.autoScrollFrame = requestAnimationFrame(timestamp => scheduleDragAutoScrollStep(timestamp, drag, id));
+    }
     function resetCalendarDragElement(drag) {
-      if (!drag?.el) return;
-      if (drag.ghost) {
+      stopScheduleDragAutoScroll(drag);
+      detachScheduleDragTouchBlocker(drag);
+      if (drag?.lostPointerCaptureHandler && drag.el) {
+        drag.el.removeEventListener("lostpointercapture", drag.lostPointerCaptureHandler);
+        drag.lostPointerCaptureHandler = null;
+      }
+      if (drag?.ghost) {
         drag.ghost.remove();
         drag.ghost = null;
       }
-      drag.el.style.visibility = "";
-      drag.el.classList.remove("drag-ready");
-      drag.el.classList.remove("dragging");
-      drag.el.style.transform = "";
+      if (drag?.el) {
+        drag.el.style.visibility = "";
+        drag.el.classList.remove("drag-ready");
+        drag.el.classList.remove("dragging");
+        drag.el.style.transform = "";
+      }
       setCalendarDragging(false);
     }
     function createCalendarDragGhost(drag, event) {
@@ -10100,15 +10272,25 @@
     }
     window.schedulePointerStart = (event, id) => {
       event.stopPropagation();
+      if (state.calendarDrag) cancelActiveScheduleDrag();
       const el = event.currentTarget;
       const rect = el.getBoundingClientRect();
-      const drag = { id, el, startX: event.clientX, startY: event.clientY, grabX: event.clientX - rect.left, grabY: event.clientY - rect.top, moved: false, armed: false, cancelled: false, lastX: event.clientX, lastY: event.clientY };
+      const drag = { id, el, pointerId: event.pointerId, pointerType: event.pointerType || "mouse", startX: event.clientX, startY: event.clientY, grabX: event.clientX - rect.left, grabY: event.clientY - rect.top, moved: false, armed: false, cancelled: false, lastX: event.clientX, lastY: event.clientY, autoScrollFrame: 0, autoScrollLastTime: 0 };
+      try { el.setPointerCapture?.(event.pointerId); } catch (_) {}
+      drag.lostPointerCaptureHandler = () => {
+        setTimeout(() => {
+          if (state.calendarDrag === drag) cancelActiveScheduleDrag();
+        }, 0);
+      };
+      el.addEventListener("lostpointercapture", drag.lostPointerCaptureHandler, { once: true });
       drag.longPressTimer = setTimeout(() => {
         if (state.calendarDrag !== drag || drag.cancelled) return;
         drag.armed = true;
         drag.startX = event.clientX;
         drag.startY = event.clientY;
-        el.setPointerCapture?.(event.pointerId);
+        try {
+          if (!el.hasPointerCapture?.(event.pointerId)) el.setPointerCapture?.(event.pointerId);
+        } catch (_) {}
         el.classList.add("drag-ready");
         hapticTap(18);
       }, 520);
@@ -10116,12 +10298,15 @@
         if (state.calendarDrag !== drag || drag.cancelled || drag.moved) return;
         drag.cancelled = true;
         clearTimeout(drag.longPressTimer);
-        el.classList.remove("drag-ready");
+        resetCalendarDragElement(drag);
+        clearDropTarget();
+        clearMaintenanceDropTarget();
         state.calendarDrag = null;
         hapticTap(20);
         openScheduleActionForSchedule(id);
       }, 1120);
       state.calendarDrag = drag;
+      attachScheduleDragTouchBlocker(drag);
     };
     window.schedulePointerMove = (event, id) => {
       const drag = state.calendarDrag;
@@ -10151,12 +10336,8 @@
       setCalendarDragging(true);
       drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
       drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      clearDropTarget();
-      clearMaintenanceDropTarget();
-      dateCellFromPoint(event.clientX, event.clientY, drag.ghost)?.classList.add("drop-target");
-      if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
-        monthlyMaintenancePanelFromPoint(event.clientX, event.clientY, drag.ghost)?.classList.add("drop-target");
-      }
+      refreshScheduleDragTarget(drag, id);
+      startScheduleDragAutoScroll(drag, id);
     };
     function applyScheduleDragDrop(drag, id) {
       if (!drag?.moved) return false;
@@ -10186,6 +10367,11 @@
       if (!drag || drag.id !== id) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
+        drag.lastX = event.clientX;
+        drag.lastY = event.clientY;
+      }
+      stopScheduleDragAutoScroll(drag);
       const shouldHandle = drag.armed || !drag.cancelled;
       if (shouldHandle) {
         event.preventDefault();
@@ -10206,7 +10392,10 @@
         state.calendarDrag = null;
         return;
       }
-      if (drag.moved) applyScheduleDragDrop(drag, id);
+      if (drag.moved) {
+        refreshScheduleDragTarget(drag, id);
+        applyScheduleDragDrop(drag, id);
+      }
       resetCalendarDragElement(drag);
       clearDropTarget();
       clearMaintenanceDropTarget();
@@ -10217,12 +10406,28 @@
       if (!drag || drag.id !== id) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
-      if (drag.armed && drag.moved) applyScheduleDragDrop(drag, id);
+      drag.cancelled = true;
       resetCalendarDragElement(drag);
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.calendarDrag = null;
     };
+    function cancelActiveScheduleDrag() {
+      const drag = state.calendarDrag;
+      if (!drag) return;
+      clearTimeout(drag.longPressTimer);
+      clearTimeout(drag.contextTimer);
+      drag.cancelled = true;
+      resetCalendarDragElement(drag);
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      state.calendarDrag = null;
+    }
+    window.addEventListener("blur", cancelActiveScheduleDrag);
+    window.addEventListener("pagehide", cancelActiveScheduleDrag);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) cancelActiveScheduleDrag();
+    });
     window.calendarRangeStart = (event, date) => {
       if (isSchedulePillTarget(event)) return;
       clearCalendarLongPress();
@@ -11809,10 +12014,10 @@
     function applyCloudSnapshot(data) {
       if (!data) return;
       const updatedAt = data.updatedAt;
-      const snapshotVersion = typeof updatedAt?.toMillis === "function"
-        ? String(updatedAt.toMillis())
-        : updatedAt?.seconds != null
-          ? `${updatedAt.seconds}:${updatedAt.nanoseconds || 0}`
+      const snapshotVersion = updatedAt?.seconds != null
+        ? `${updatedAt.seconds}:${updatedAt.nanoseconds || 0}`
+        : typeof updatedAt?.toMillis === "function"
+          ? String(updatedAt.toMillis())
           : "";
       if (snapshotVersion && state.lastAppliedCloudSnapshotVersion === snapshotVersion) return;
       if (snapshotVersion) state.lastAppliedCloudSnapshotVersion = snapshotVersion;
@@ -11886,38 +12091,52 @@
       updateAiFeatureVisibility();
       updateCloudStatus();
     }
-    async function persistScheduleDeletionNow() {
+    async function persistCloudStateNow(reason = "cloud-update") {
       if (!canUseCloudSync()) return null;
-      try {
-        await userStateDoc().set({
-          schedules: state.schedules,
-          googleDeletedEventIds: [...new Set(state.settings.googleDeletedEventIds || [])],
-          deletedScheduleIds: [...new Set(state.settings.deletedScheduleIds || [])],
-          restoredScheduleIds: [...new Set(state.settings.restoredScheduleIds || [])],
-          scheduleDeletionState: normalizedScheduleDeletionState(state.settings.scheduleDeletionState),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail
-        }, { merge: true });
-        state.settings.cloudLastSync = new Date().toISOString();
-        save({ skipCloud: true });
-        updateCloudStatus();
-        return true;
-      } catch (error) {
-        console.warn("Schedule deletion cloud commit failed", error);
-        scheduleCloudSave("schedule-delete-retry", 1200);
-        return false;
+      if (state.cloudSaveTimer) {
+        clearTimeout(state.cloudSaveTimer);
+        state.cloudSaveTimer = null;
       }
+      if (state.settings.cloudPendingScheduleSyncToken && (!navigator.onLine || !state.cloudHasServerSnapshot)) return null;
+      const saved = await uploadCloudData({ silent: true });
+      if (saved === false) scheduleCloudSave(`${reason}-retry`, 1200);
+      return saved;
+    }
+    function persistScheduleDeletionNow() {
+      return persistCloudStateNow("schedule-delete");
+    }
+    function persistSchedulesNow(reason = "schedule-update") {
+      return persistCloudStateNow(reason);
+    }
+    function flushPendingCloudUpload() {
+      if (!state.cloudUploadPending || state.cloudSyncInProgress) return;
+      state.cloudUploadPending = false;
+      setTimeout(async () => {
+        const saved = await uploadCloudData({ silent: true });
+        if (saved === false) scheduleCloudSave("cloud-pending-retry", 1500);
+      }, 0);
     }
     async function uploadCloudData({ silent = false } = {}) {
       if (!canUseCloudSync()) {
-        if (!silent) showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("not ready")));
+        if (!silent) {
+          showInfo("클라우드 동기화 확인", cloudErrorMessage(new Error("not ready")));
+        }
         return false;
       }
-      if (state.cloudSyncInProgress) return false;
+      if (state.settings.cloudPendingScheduleSyncToken && (!navigator.onLine || !state.cloudHasServerSnapshot)) return null;
+      if (state.cloudSyncInProgress) {
+        state.cloudUploadPending = true;
+        return null;
+      }
       state.cloudSyncInProgress = true;
       try {
         if (!silent) toast("클라우드에 업로드 중입니다.");
+        const pendingScheduleSyncToken = String(state.settings.cloudPendingScheduleSyncToken || "");
         await userStateDoc().set(cloudSnapshotPayload(), { merge: true });
+        if (pendingScheduleSyncToken && state.settings.cloudPendingScheduleSyncToken === pendingScheduleSyncToken) {
+          state.settings.cloudPendingScheduleSyncToken = "";
+        }
+        state.cloudPendingRetryCount = 0;
         state.settings.cloudLastSync = new Date().toISOString();
         save({ skipCloud: true });
         updateCloudStatus();
@@ -11925,10 +12144,21 @@
         return true;
       } catch (error) {
         console.warn(error);
+        if (state.settings.cloudPendingScheduleSyncToken) {
+          const errorCode = String(error?.code || "").toLowerCase();
+          const needsFreshServerSnapshot = !navigator.onLine || errorCode.includes("unavailable") || errorCode.includes("network-request-failed");
+          if (needsFreshServerSnapshot) state.cloudHasServerSnapshot = false;
+          if (!errorCode.includes("permission-denied")) {
+            state.cloudPendingRetryCount = Math.min(9, (state.cloudPendingRetryCount || 0) + 1);
+            const retryDelay = Math.min(5 * 60 * 1000, 1500 * (2 ** Math.max(0, state.cloudPendingRetryCount - 1)));
+            scheduleCloudSave("pending-schedule-retry", retryDelay);
+          }
+        }
         if (!silent) showInfo("클라우드 업로드 실패", cloudErrorMessage(error));
         return false;
       } finally {
         state.cloudSyncInProgress = false;
+        flushPendingCloudUpload();
       }
     }
     async function downloadCloudData({ silent = false, uploadIfEmpty = false } = {}) {
@@ -11957,12 +12187,18 @@
         return false;
       } finally {
         state.cloudSyncInProgress = false;
+        flushPendingCloudUpload();
       }
     }
     function scheduleCloudSave(reason = "change", delay = 900) {
       if (!canUseCloudSync()) return;
       if (state.cloudSaveTimer) clearTimeout(state.cloudSaveTimer);
-      state.cloudSaveTimer = setTimeout(() => uploadCloudData({ silent: true }), delay);
+      state.cloudSaveTimer = setTimeout(() => {
+        state.cloudSaveTimer = null;
+        if (reason.startsWith("pending-schedule") && !state.settings.cloudPendingScheduleSyncToken) return;
+        if (state.settings.cloudPendingScheduleSyncToken && (!navigator.onLine || !state.cloudHasServerSnapshot)) return;
+        uploadCloudData({ silent: true });
+      }, delay);
     }
     function schedulePhotoMigration() {
       const run = () => migrateLocalPhotosToFirebase();
@@ -11970,6 +12206,10 @@
       else setTimeout(run, 1500);
     }
     function startCloudAutoSync({ immediate = false } = {}) {
+      if (state.cloudReconnectTimer) {
+        clearTimeout(state.cloudReconnectTimer);
+        state.cloudReconnectTimer = null;
+      }
       const syncUserId = state.firebase?.auth?.currentUser?.uid || "";
       if (state.cloudUnsubscribe && state.cloudSyncUserId === syncUserId) {
         schedulePhotoMigration();
@@ -11982,23 +12222,57 @@
       }
       if (!canUseCloudSync()) {
         state.cloudSyncUserId = "";
+        state.cloudHasServerSnapshot = false;
         updateCloudStatus();
         return;
       }
       state.cloudSyncUserId = syncUserId;
-      state.cloudUnsubscribe = userStateDoc().onSnapshot(snapshot => {
+      state.cloudHasServerSnapshot = false;
+      let cloudListener = null;
+      cloudListener = userStateDoc().onSnapshot({ includeMetadataChanges: true }, snapshot => {
+        if (state.cloudUnsubscribe !== cloudListener) return;
+        const serverConfirmed = snapshot.metadata?.fromCache !== true && snapshot.metadata?.hasPendingWrites !== true;
+        if (serverConfirmed) state.cloudHasServerSnapshot = true;
         if (!snapshot.exists) {
-          uploadCloudData({ silent: true });
+          if (serverConfirmed) uploadCloudData({ silent: true });
           return;
         }
         applyCloudSnapshot(snapshot.data());
+        if (serverConfirmed && state.settings.cloudPendingScheduleSyncToken) {
+          scheduleCloudSave("pending-schedule-snapshot", 0);
+        }
       }, error => {
         console.warn(error);
+        try { cloudListener?.(); } catch (_) {}
+        if (state.cloudUnsubscribe !== cloudListener) return;
+        state.cloudUnsubscribe = null;
+        state.cloudHasServerSnapshot = false;
         updateCloudStatus("Firestore 실시간 동기화 오류: " + (error.message || error));
+        const errorCode = String(error?.code || "").toLowerCase();
+        if (state.settings.cloudPendingScheduleSyncToken && !errorCode.includes("permission-denied")) {
+          state.cloudPendingRetryCount = Math.min(6, (state.cloudPendingRetryCount || 0) + 1);
+          const retryDelay = Math.min(60 * 1000, 3000 * (2 ** Math.max(0, state.cloudPendingRetryCount - 1)));
+          state.cloudReconnectTimer = setTimeout(() => startCloudAutoSync({ immediate: true }), retryDelay);
+        }
       });
+      state.cloudUnsubscribe = cloudListener;
       schedulePhotoMigration();
       updateCloudStatus();
     }
+    window.addEventListener("offline", () => {
+      state.cloudHasServerSnapshot = false;
+    });
+    window.addEventListener("online", () => {
+      if (state.settings.cloudPendingScheduleSyncToken) {
+        state.cloudHasServerSnapshot = false;
+        state.cloudPendingRetryCount = 0;
+        if (state.cloudUnsubscribe) {
+          try { state.cloudUnsubscribe(); } catch (_) {}
+          state.cloudUnsubscribe = null;
+        }
+        startCloudAutoSync({ immediate: true });
+      }
+    });
     async function refreshCloudDataIfStale(minIntervalMs = 30000) {
       if (!canUseCloudSync()) return;
       const now = Date.now();
