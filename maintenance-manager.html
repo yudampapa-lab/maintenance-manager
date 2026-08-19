@@ -836,6 +836,7 @@
       width: 17px;
       height: 17px;
     }
+    button.icon.header-workout,
     button.icon.header-notification,
     button.icon.header-barcode {
       position: relative;
@@ -847,8 +848,33 @@
       background: rgba(118, 118, 128, .1);
       box-shadow: none;
     }
+    button.icon.header-workout svg,
     button.icon.header-notification svg,
     button.icon.header-barcode svg { width: 18px; height: 18px; }
+    button.icon.header-workout.running {
+      color: #e56b13;
+      background: rgba(255, 149, 0, .14);
+      animation: workoutHeaderPulse 1s ease-in-out infinite;
+    }
+    @keyframes workoutHeaderPulse { 50% { transform: scale(1.08); } }
+    #workoutTimerDialog { width: min(520px, calc(100vw - 16px)); }
+    .workout-clock {
+      margin-top: 14px;
+      padding: 18px;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #18242c, #0e151a);
+      color: #fff;
+      text-align: center;
+    }
+    .workout-phase { color: #72e5d2; font-size: 15px; font-weight: 800; }
+    .workout-remaining { margin-top: 4px; font-size: clamp(52px, 14vw, 76px); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+    .workout-next { min-height: 20px; margin-top: 9px; color: #bac6cd; font-size: 12px; }
+    .workout-progress { margin-top: 12px; color: #87959e; font-size: 11px; }
+    .workout-interval-list { display: grid; gap: 8px; margin-top: 14px; }
+    .workout-interval-row { display: grid; grid-template-columns: minmax(100px, 1fr) 92px 38px; gap: 8px; align-items: center; }
+    .workout-interval-row input, .workout-interval-row select { min-width: 0; }
+    .workout-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .workout-add-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .membership-dialog-title {
       display: flex;
       align-items: center;
@@ -3640,6 +3666,9 @@
           <div><strong class="brand-title">ReportMate</strong></div>
         </div>
         <div class="top-actions">
+          <button type="button" class="icon header-workout" id="workoutTimerBtn" title="운동 타이머" aria-label="운동 타이머">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/><path d="M9 5.5 12 3l3 2.5M12 3v5"/></svg>
+          </button>
           <button type="button" class="icon header-barcode" id="membershipBarcodeBtn" title="모바일 회원증" aria-label="모바일 회원증">
             <svg viewBox="0 0 24 24"><path d="M3 5v14M6 5v14M10 5v14M13 5v14M18 5v14M21 5v14"/><path d="M8 5v14M16 5v14" stroke-width="2"/></svg>
           </button>
@@ -4204,6 +4233,32 @@
     </div>
   </dialog>
 
+  <dialog id="workoutTimerDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">운동 인터벌 타이머</h2>
+      <p class="panel-sub">운동과 휴식 시간을 원하는 순서로 구성하세요. 구간이 바뀌면 소리와 진동으로 알려드립니다.</p>
+      <div class="workout-clock">
+        <div class="workout-phase" id="workoutPhase">준비</div>
+        <div class="workout-remaining" id="workoutRemaining">00:30</div>
+        <div class="workout-next" id="workoutNext"></div>
+        <div class="workout-progress" id="workoutProgress">1 / 6</div>
+      </div>
+      <div class="workout-controls">
+        <button type="button" id="startWorkoutTimerBtn">시작</button>
+        <button type="button" class="secondary" id="pauseWorkoutTimerBtn" disabled>일시정지</button>
+        <button type="button" class="secondary" id="resetWorkoutTimerBtn">초기화</button>
+      </div>
+      <div class="workout-interval-list" id="workoutIntervalList"></div>
+      <div class="workout-add-actions">
+        <button type="button" class="secondary" id="addWorkoutIntervalBtn">운동 추가</button>
+        <button type="button" class="secondary" id="addRestIntervalBtn">휴식 추가</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="closeWorkoutTimerBtn">닫기</button>
+    </div>
+  </dialog>
+
   <dialog id="workLogHistoryDialog">
     <div class="modal-body">
       <h2 class="panel-title" id="workLogHistoryTitle">업무기록 내역</h2>
@@ -4562,7 +4617,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -4635,6 +4690,16 @@
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
     state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
     state.settings.mobileMembershipBarcode = String(state.settings.mobileMembershipBarcode || "12810425006025").slice(0, 80);
+    const defaultWorkoutIntervals = [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }];
+    function normalizeWorkoutIntervals(value) {
+      const source = Array.isArray(value) ? value : defaultWorkoutIntervals;
+      const normalized = source.slice(0, 30).map(item => ({
+        type: item?.type === "rest" ? "rest" : "work",
+        seconds: Math.min(3600, Math.max(1, Math.round(Number(item?.seconds) || 1)))
+      }));
+      return normalized.length ? normalized : defaultWorkoutIntervals.map(item => ({ ...item }));
+    }
+    state.settings.workoutIntervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
     state.settings.googleDeletedEventIds = state.settings.googleDeletedEventIds || [];
     state.settings.deletedScheduleIds = state.settings.deletedScheduleIds || [];
     state.settings.restoredScheduleIds = state.settings.restoredScheduleIds || [];
@@ -5867,8 +5932,20 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.2";
+    const appVersion = "1.7.3";
     const versionHistory = [
+      {
+        version: "1.7.3",
+        date: "2026-08-19",
+        title: "일정 클립보드·운동 타이머 개선",
+        changes: [
+          "방문사유가 있으면 기관명과 방문사유를 함께 표시",
+          "방문사유가 없으면 기관명 대신 일정 제목을 표시",
+          "대시보드에 운동·휴식 구간을 자유롭게 구성하는 타이머 추가",
+          "구간 전환 시 소리와 진동으로 알리고 설정 시간을 워치 앱과 동기화",
+          "워치 일정 화면에서 좌우 스와이프로 날짜를 이동하고 오늘 버튼으로 복귀"
+        ]
+      },
       {
         version: "1.7.2",
         date: "2026-08-12",
@@ -7470,6 +7547,12 @@
       const org = orgForSchedule(schedule);
       return org ? org.name : schedule.title;
     }
+    function clipboardScheduleCopyName(schedule) {
+      const org = orgForSchedule(schedule);
+      const reason = scheduleVisitReasonLabel(schedule);
+      if (reason && org?.name) return org.name;
+      return String(schedule.title || org?.name || "일정").trim() || "일정";
+    }
     function scheduleTextForClipboard(schedule) {
       if (schedule.type === "team" && schedule.teamMembers) return `${schedule.title || ""} (${formatTeamMembersWithRoles(schedule.teamMembers)})`;
       return schedule.title || "";
@@ -7616,7 +7699,7 @@
       return parts.length ? `${name} (${parts.join(" / ")})` : name;
     }
     function clipboardAffiliationGroupLabel(schedule) {
-      const name = baseScheduleCopyName(schedule);
+      const name = clipboardScheduleCopyName(schedule);
       const match = String(name || "").match(/^(.+?교육청).+도서관$/);
       return match ? `${match[1]} 소속 도서관` : "";
     }
@@ -7650,7 +7733,7 @@
       });
       return schedules.map((schedule, index) => {
         if (groupedByIndex.has(index)) return groupedByIndex.get(index);
-        const name = baseScheduleCopyName(schedule);
+        const name = clipboardScheduleCopyName(schedule);
         return clipboardNameWithParts(name, clipboardSuffixParts(schedule, { includeTeam }));
       }).filter(Boolean);
     }
@@ -10624,7 +10707,7 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -11422,6 +11505,7 @@
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
         mobileMembershipBarcode: state.settings.mobileMembershipBarcode || "12810425006025",
+        workoutIntervals: normalizeWorkoutIntervals(state.settings.workoutIntervals),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
         schemaVersion: 2
@@ -11463,6 +11547,7 @@
       if (typeof data.mobileMembershipBarcode === "string" && data.mobileMembershipBarcode.trim()) {
         state.settings.mobileMembershipBarcode = data.mobileMembershipBarcode.slice(0, 80);
       }
+      if (Array.isArray(data.workoutIntervals)) state.settings.workoutIntervals = normalizeWorkoutIntervals(data.workoutIntervals);
       cloudDataKeys.forEach(key => {
         if (Object.prototype.hasOwnProperty.call(data, key)) applyCloudValue(key, data[key]);
       });
@@ -14002,6 +14087,183 @@
         "googleIdentityPromise"
       );
     }
+    let workoutTimerHandle = 0;
+    let workoutTimerRunning = false;
+    let workoutTimerIndex = 0;
+    let workoutTimerRemainingMs = 0;
+    let workoutTimerDeadline = 0;
+    let workoutTimerPlan = [];
+    let workoutAudioContext = null;
+    function workoutPhaseLabel(type) { return type === "rest" ? "휴식" : "운동"; }
+    function workoutTimeText(totalSeconds) {
+      const value = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+      return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+    }
+    function syncWorkoutPlanToAndroid() {
+      try { window.ReportMateAndroid?.updateWorkoutPlan?.(JSON.stringify(normalizeWorkoutIntervals(state.settings.workoutIntervals))); }
+      catch (_) {}
+    }
+    function persistWorkoutPlan() {
+      state.settings.workoutIntervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
+      save();
+      syncWorkoutPlanToAndroid();
+    }
+    function renderWorkoutIntervals() {
+      const list = document.getElementById("workoutIntervalList");
+      if (!list) return;
+      const intervals = normalizeWorkoutIntervals(state.settings.workoutIntervals);
+      list.innerHTML = intervals.map((item, index) => `<div class="workout-interval-row">
+        <select data-workout-type="${index}" aria-label="${index + 1}번 구간 종류" ${workoutTimerRunning ? "disabled" : ""}>
+          <option value="work"${item.type === "work" ? " selected" : ""}>운동</option>
+          <option value="rest"${item.type === "rest" ? " selected" : ""}>휴식</option>
+        </select>
+        <input data-workout-seconds="${index}" type="number" min="1" max="3600" step="1" value="${item.seconds}" aria-label="${index + 1}번 구간 초" ${workoutTimerRunning ? "disabled" : ""}>
+        <button type="button" class="icon tiny danger" data-remove-workout="${index}" title="구간 삭제" aria-label="${index + 1}번 구간 삭제" ${workoutTimerRunning || intervals.length <= 1 ? "disabled" : ""}>${icon("trash")}</button>
+      </div>`).join("");
+      list.querySelectorAll("[data-workout-type]").forEach(input => input.addEventListener("change", event => {
+        const index = Number(event.currentTarget.dataset.workoutType);
+        state.settings.workoutIntervals[index].type = event.currentTarget.value === "rest" ? "rest" : "work";
+        resetWorkoutTimer();
+        persistWorkoutPlan();
+      }));
+      list.querySelectorAll("[data-workout-seconds]").forEach(input => input.addEventListener("change", event => {
+        const index = Number(event.currentTarget.dataset.workoutSeconds);
+        state.settings.workoutIntervals[index].seconds = Math.min(3600, Math.max(1, Math.round(Number(event.currentTarget.value) || 1)));
+        resetWorkoutTimer();
+        persistWorkoutPlan();
+      }));
+      list.querySelectorAll("[data-remove-workout]").forEach(button => button.addEventListener("click", event => {
+        if (state.settings.workoutIntervals.length <= 1) return;
+        state.settings.workoutIntervals.splice(Number(event.currentTarget.dataset.removeWorkout), 1);
+        resetWorkoutTimer();
+        persistWorkoutPlan();
+        renderWorkoutIntervals();
+      }));
+    }
+    function renderWorkoutClock() {
+      const plan = workoutTimerPlan.length ? workoutTimerPlan : normalizeWorkoutIntervals(state.settings.workoutIntervals);
+      const item = plan[Math.min(workoutTimerIndex, plan.length - 1)] || { type: "work", seconds: 0 };
+      const remainingSeconds = workoutTimerRemainingMs > 0 ? workoutTimerRemainingMs / 1000 : item.seconds;
+      document.getElementById("workoutPhase").textContent = workoutTimerIndex >= plan.length ? "완료" : workoutPhaseLabel(item.type);
+      document.getElementById("workoutRemaining").textContent = workoutTimerIndex >= plan.length ? "00:00" : workoutTimeText(remainingSeconds);
+      const next = plan[workoutTimerIndex + 1];
+      document.getElementById("workoutNext").textContent = workoutTimerIndex >= plan.length ? "운동을 마쳤습니다." : next ? `다음: ${workoutPhaseLabel(next.type)} ${next.seconds}초` : "마지막 구간";
+      document.getElementById("workoutProgress").textContent = `${Math.min(workoutTimerIndex + 1, plan.length)} / ${plan.length}`;
+      document.getElementById("startWorkoutTimerBtn").textContent = workoutTimerRunning ? "진행 중" : workoutTimerRemainingMs > 0 ? "계속" : workoutTimerIndex >= plan.length ? "다시 시작" : "시작";
+      document.getElementById("startWorkoutTimerBtn").disabled = workoutTimerRunning;
+      document.getElementById("pauseWorkoutTimerBtn").disabled = !workoutTimerRunning;
+      document.getElementById("workoutTimerBtn")?.classList.toggle("running", workoutTimerRunning);
+    }
+    function playWorkoutAlert(type = "work", complete = false) {
+      try {
+        workoutAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+        const context = workoutAudioContext;
+        const now = context.currentTime;
+        const frequencies = complete ? [880, 1040, 1320] : type === "rest" ? [520, 420] : [760, 980];
+        frequencies.forEach((frequency, index) => {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(.0001, now + index * .16);
+          gain.gain.exponentialRampToValueAtTime(.24, now + index * .16 + .01);
+          gain.gain.exponentialRampToValueAtTime(.0001, now + index * .16 + .13);
+          oscillator.connect(gain).connect(context.destination);
+          oscillator.start(now + index * .16);
+          oscillator.stop(now + index * .16 + .14);
+        });
+      } catch (_) {}
+      try { navigator.vibrate?.(complete ? [250, 100, 250, 100, 400] : [220, 100, 220]); } catch (_) {}
+    }
+    function stopWorkoutTick() {
+      if (workoutTimerHandle) clearInterval(workoutTimerHandle);
+      workoutTimerHandle = 0;
+    }
+    function setWorkoutWakeLock(running) {
+      try { window.ReportMateAndroid?.setWorkoutTimerRunning?.(Boolean(running)); } catch (_) {}
+    }
+    function workoutTick() {
+      if (!workoutTimerRunning) return;
+      workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
+      if (workoutTimerRemainingMs > 0) {
+        renderWorkoutClock();
+        return;
+      }
+      workoutTimerIndex++;
+      if (workoutTimerIndex >= workoutTimerPlan.length) {
+        workoutTimerRunning = false;
+        setWorkoutWakeLock(false);
+        stopWorkoutTick();
+        playWorkoutAlert("work", true);
+        renderWorkoutIntervals();
+        renderWorkoutClock();
+        return;
+      }
+      const next = workoutTimerPlan[workoutTimerIndex];
+      workoutTimerRemainingMs = next.seconds * 1000;
+      workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
+      playWorkoutAlert(next.type, false);
+      renderWorkoutClock();
+    }
+    function startWorkoutTimer() {
+      if (workoutTimerRunning) return;
+      workoutAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      workoutAudioContext.resume?.();
+      if (!workoutTimerPlan.length || workoutTimerIndex >= workoutTimerPlan.length) {
+        workoutTimerPlan = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
+        workoutTimerIndex = 0;
+        workoutTimerRemainingMs = workoutTimerPlan[0].seconds * 1000;
+      } else if (workoutTimerRemainingMs <= 0) {
+        workoutTimerRemainingMs = workoutTimerPlan[workoutTimerIndex].seconds * 1000;
+      }
+      workoutTimerRunning = true;
+      setWorkoutWakeLock(true);
+      workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
+      stopWorkoutTick();
+      workoutTimerHandle = setInterval(workoutTick, 100);
+      renderWorkoutIntervals();
+      renderWorkoutClock();
+    }
+    function pauseWorkoutTimer() {
+      if (!workoutTimerRunning) return;
+      workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
+      workoutTimerRunning = false;
+      setWorkoutWakeLock(false);
+      stopWorkoutTick();
+      renderWorkoutIntervals();
+      renderWorkoutClock();
+    }
+    function resetWorkoutTimer() {
+      workoutTimerRunning = false;
+      setWorkoutWakeLock(false);
+      stopWorkoutTick();
+      workoutTimerPlan = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
+      workoutTimerIndex = 0;
+      workoutTimerRemainingMs = workoutTimerPlan[0]?.seconds * 1000 || 0;
+      renderWorkoutIntervals();
+      renderWorkoutClock();
+    }
+    function openWorkoutTimer() {
+      if (!workoutTimerPlan.length) resetWorkoutTimer();
+      else {
+        renderWorkoutIntervals();
+        renderWorkoutClock();
+      }
+      if (!workoutTimerDialog.open) workoutTimerDialog.showModal();
+    }
+    document.getElementById("workoutTimerBtn")?.addEventListener("click", openWorkoutTimer);
+    document.getElementById("startWorkoutTimerBtn")?.addEventListener("click", startWorkoutTimer);
+    document.getElementById("pauseWorkoutTimerBtn")?.addEventListener("click", pauseWorkoutTimer);
+    document.getElementById("resetWorkoutTimerBtn")?.addEventListener("click", resetWorkoutTimer);
+    document.getElementById("closeWorkoutTimerBtn")?.addEventListener("click", () => workoutTimerDialog.close());
+    document.getElementById("addWorkoutIntervalBtn")?.addEventListener("click", () => {
+      state.settings.workoutIntervals.push({ type: "work", seconds: 30 });
+      resetWorkoutTimer(); persistWorkoutPlan();
+    });
+    document.getElementById("addRestIntervalBtn")?.addEventListener("click", () => {
+      state.settings.workoutIntervals.push({ type: "rest", seconds: 10 });
+      resetWorkoutTimer(); persistWorkoutPlan();
+    });
+    resetWorkoutTimer();
     const code128Patterns = [
       "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
       "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
