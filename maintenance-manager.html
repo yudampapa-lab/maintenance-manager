@@ -5932,8 +5932,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.3";
+    const appVersion = "1.7.4";
     const versionHistory = [
+      {
+        version: "1.7.4",
+        date: "2026-08-19",
+        title: "운동 타이머 진동 강화",
+        changes: [
+          "운동·휴식 전환 진동을 더 강하고 길게 조정",
+          "운동 완료 진동은 전환 진동보다 더 길게 구분",
+          "Android 앱과 갤럭시 워치에서 최대 진동 세기 적용"
+        ]
+      },
       {
         version: "1.7.3",
         date: "2026-08-19",
@@ -14172,7 +14182,15 @@
           oscillator.stop(now + index * .16 + .14);
         });
       } catch (_) {}
-      try { navigator.vibrate?.(complete ? [250, 100, 250, 100, 400] : [220, 100, 220]); } catch (_) {}
+      try {
+        if (window.ReportMateAndroid?.playWorkoutVibration) {
+          window.ReportMateAndroid.playWorkoutVibration(Boolean(complete));
+        } else {
+          navigator.vibrate?.(complete
+            ? [800, 160, 800, 160, 1200]
+            : [600, 140, 600, 140, 850]);
+        }
+      } catch (_) {}
     }
     function stopWorkoutTick() {
       if (workoutTimerHandle) clearInterval(workoutTimerHandle);
