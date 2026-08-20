@@ -5840,23 +5840,20 @@
       return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleDuplicateEventIds: duplicateIds.filter(id => id !== (base.googleEventId || next.googleEventId)), googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
     }
     function dedupeSchedules(schedules = []) {
-      const byGoogle = new Map();
-      const byContent = new Map();
+      const deduped = [];
       schedules.forEach(schedule => {
-        const googleKey = schedule.googleEventId ? "google:" + schedule.googleEventId : "";
-        const contentKey = "content:" + scheduleContentKey(schedule);
-        const existing = (googleKey && byGoogle.get(googleKey)) || byContent.get(contentKey);
-        const merged = betterSchedule(existing, schedule);
-        if (existing) {
-          const existingGoogleKey = existing.googleEventId ? "google:" + existing.googleEventId : "";
-          const existingContentKey = "content:" + scheduleContentKey(existing);
-          if (existingGoogleKey) byGoogle.delete(existingGoogleKey);
-          byContent.delete(existingContentKey);
+        const existingIndex = deduped.findIndex(existing =>
+          (schedule.id && existing.id === schedule.id) ||
+          (schedule.googleEventId && existing.googleEventId === schedule.googleEventId) ||
+          scheduleContentKey(existing) === scheduleContentKey(schedule)
+        );
+        if (existingIndex < 0) {
+          deduped.push(schedule);
+          return;
         }
-        if (merged.googleEventId) byGoogle.set("google:" + merged.googleEventId, merged);
-        byContent.set("content:" + scheduleContentKey(merged), merged);
+        deduped[existingIndex] = betterSchedule(deduped[existingIndex], schedule);
       });
-      return [...new Set([...byContent.values(), ...byGoogle.values()])]
+      return deduped
         .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "").localeCompare(b.startTime || "") || (a.title || "").localeCompare(b.title || ""))
         .map(schedule => ({ ...schedule }));
     }
@@ -6490,8 +6487,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.14";
+    const appVersion = "1.7.15";
     const versionHistory = [
+      {
+        version: "1.7.15",
+        date: "2026-08-20",
+        title: "일정 이름 변경 동기화 안정화",
+        changes: [
+          "모바일에서 일정 이름을 바꾼 뒤 PC에 변경 전·후 일정이 함께 보이던 동기화 오류 수정",
+          "같은 일정 ID는 제목이 달라도 최신 수정본 하나로 병합",
+          "Google 캘린더 서버 동기화에도 동일한 ID 우선 병합 규칙 적용"
+        ]
+      },
       {
         version: "1.7.14",
         date: "2026-08-20",
