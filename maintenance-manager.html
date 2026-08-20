@@ -1249,24 +1249,52 @@
       background: linear-gradient(145deg, rgba(232, 249, 240, .78), rgba(255, 255, 255, .96));
     }
     .visit-card.is-completed::before {
-      content: "완료";
+      content: "";
       position: absolute;
       left: 50%;
       top: 50%;
-      width: min(78%, 330px);
-      height: clamp(90px, 58%, 150px);
-      border: clamp(5px, 1.4vw, 9px) double currentColor;
-      border-radius: 18px;
-      color: #d33939;
+      width: clamp(180px, 58%, 260px);
+      aspect-ratio: 1;
+      border: clamp(5px, 1.2vw, 8px) double currentColor;
+      border-radius: 50%;
+      color: #c92525;
+      box-shadow:
+        inset 0 0 0 5px rgba(201, 37, 37, .12),
+        inset 0 0 0 8px currentColor,
+        1px 1px 0 rgba(201, 37, 37, .45),
+        -1px 0 0 rgba(201, 37, 37, .25);
+      opacity: .16;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      filter: saturate(1.25) contrast(1.08);
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+    }
+    .visit-card.is-completed::after {
+      content: "완 료";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: clamp(150px, 49%, 220px);
+      min-height: clamp(58px, 17vw, 78px);
+      border-top: clamp(4px, 1vw, 7px) solid currentColor;
+      border-bottom: clamp(4px, 1vw, 7px) solid currentColor;
+      color: #c92525;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: clamp(56px, 12vw, 96px);
+      font-family: "Arial Black", "Noto Sans KR", sans-serif;
+      font-size: clamp(42px, 10vw, 66px);
       font-weight: 1000;
-      letter-spacing: .16em;
+      letter-spacing: .1em;
       line-height: 1;
-      opacity: .13;
+      text-shadow:
+        1px 0 currentColor,
+        -1px 1px rgba(201, 37, 37, .7),
+        2px 1px rgba(201, 37, 37, .22);
+      opacity: .19;
       transform: translate(-50%, -50%) rotate(-45deg);
+      filter: saturate(1.3) contrast(1.12);
       pointer-events: none;
       user-select: none;
       z-index: 0;
@@ -6154,8 +6182,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.7";
+    const appVersion = "1.7.8";
     const versionHistory = [
+      {
+        version: "1.7.8",
+        date: "2026-08-20",
+        title: "완료 도장 디자인 개선",
+        changes: [
+          "완료된 오늘 할일 카드에 원형 이중 테두리와 굵은 중앙 글자가 있는 고무도장 형태 적용",
+          "45도 기울기와 잉크 번짐 느낌을 유지하면서 카드 내용과 버튼 가독성 보존"
+        ]
+      },
       {
         version: "1.7.7",
         date: "2026-08-20",
