@@ -922,7 +922,7 @@
     .workout-next { min-height: 20px; margin-top: 9px; color: #bac6cd; font-size: 12px; }
     .workout-progress { margin-top: 12px; color: #87959e; font-size: 11px; }
     .workout-interval-list { display: grid; gap: 8px; margin-top: 14px; }
-    .workout-interval-row { display: grid; grid-template-columns: minmax(100px, 1fr) 92px 38px; gap: 8px; align-items: center; }
+    .workout-interval-row { display: grid; grid-template-columns: 74px minmax(80px, 1fr) 68px 36px; gap: 6px; align-items: center; }
     .workout-interval-row input, .workout-interval-row select { min-width: 0; }
     .workout-controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .workout-add-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -5120,13 +5120,17 @@
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
     state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
     state.settings.mobileMembershipBarcode = String(state.settings.mobileMembershipBarcode || "12810425006025").slice(0, 80);
-    const defaultWorkoutIntervals = [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }];
+    const defaultWorkoutIntervals = [{ type: "work", label: "운동", seconds: 30 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 40 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 50 }, { type: "rest", label: "휴식", seconds: 10 }];
     function normalizeWorkoutIntervals(value) {
       const source = Array.isArray(value) ? value : defaultWorkoutIntervals;
-      const normalized = source.slice(0, 30).map(item => ({
-        type: item?.type === "rest" ? "rest" : "work",
-        seconds: Math.min(3600, Math.max(1, Math.round(Number(item?.seconds) || 1)))
-      }));
+      const normalized = source.slice(0, 30).map(item => {
+        const type = item?.type === "rest" ? "rest" : "work";
+        return {
+          type,
+          label: String(item?.label || "").trim().slice(0, 30) || (type === "rest" ? "휴식" : "운동"),
+          seconds: Math.min(3600, Math.max(1, Math.round(Number(item?.seconds) || 1)))
+        };
+      });
       return normalized.length ? normalized : defaultWorkoutIntervals.map(item => ({ ...item }));
     }
     function normalizeWorkoutPresets(value, fallbackIntervals = state.settings.workoutIntervals) {
@@ -6486,8 +6490,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.13";
+    const appVersion = "1.7.14";
     const versionHistory = [
+      {
+        version: "1.7.14",
+        date: "2026-08-20",
+        title: "인터벌 구간 이름 설정",
+        changes: [
+          "인터벌 타이머의 각 운동·휴식 구간에 푸시업, 스쿼트 등 원하는 이름 입력 가능",
+          "설정한 구간 이름을 휴대폰 플로팅 타이머와 워치 타이머에도 동일하게 표시",
+          "기존 구간은 운동·휴식 기본 이름으로 자동 호환"
+        ]
+      },
       {
         version: "1.7.13",
         date: "2026-08-20",
@@ -15309,7 +15323,10 @@
     let workoutTimerPlan = [];
     let workoutAudioContext = null;
     let applyingNativeWorkoutState = false;
-    function workoutPhaseLabel(type) { return type === "rest" ? "휴식" : "운동"; }
+    function workoutPhaseLabel(item) {
+      if (typeof item === "string") return item === "rest" ? "휴식" : "운동";
+      return String(item?.label || "").trim() || (item?.type === "rest" ? "휴식" : "운동");
+    }
     function workoutTimeText(totalSeconds) {
       const value = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
       return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
@@ -15369,12 +15386,26 @@
           <option value="work"${item.type === "work" ? " selected" : ""}>운동</option>
           <option value="rest"${item.type === "rest" ? " selected" : ""}>휴식</option>
         </select>
+        <input data-workout-label="${index}" type="text" maxlength="30" value="${escapeAttr(item.label)}" placeholder="구간 이름" aria-label="${index + 1}번 구간 이름" ${workoutTimerRunning ? "disabled" : ""}>
         <input data-workout-seconds="${index}" type="number" min="1" max="3600" step="1" value="${item.seconds}" aria-label="${index + 1}번 구간 초" ${workoutTimerRunning ? "disabled" : ""}>
         <button type="button" class="icon tiny danger" data-remove-workout="${index}" title="구간 삭제" aria-label="${index + 1}번 구간 삭제" ${workoutTimerRunning || intervals.length <= 1 ? "disabled" : ""}>${icon("trash")}</button>
       </div>`).join("");
       list.querySelectorAll("[data-workout-type]").forEach(input => input.addEventListener("change", event => {
         const index = Number(event.currentTarget.dataset.workoutType);
-        state.settings.workoutIntervals[index].type = event.currentTarget.value === "rest" ? "rest" : "work";
+        const interval = state.settings.workoutIntervals[index];
+        const oldDefault = interval.type === "rest" ? "휴식" : "운동";
+        interval.type = event.currentTarget.value === "rest" ? "rest" : "work";
+        if (!String(interval.label || "").trim() || interval.label === oldDefault) {
+          interval.label = interval.type === "rest" ? "휴식" : "운동";
+        }
+        resetWorkoutTimer();
+        persistWorkoutPlan();
+      }));
+      list.querySelectorAll("[data-workout-label]").forEach(input => input.addEventListener("change", event => {
+        const index = Number(event.currentTarget.dataset.workoutLabel);
+        const interval = state.settings.workoutIntervals[index];
+        interval.label = String(event.currentTarget.value || "").trim().slice(0, 30)
+          || (interval.type === "rest" ? "휴식" : "운동");
         resetWorkoutTimer();
         persistWorkoutPlan();
       }));
@@ -15396,10 +15427,10 @@
       const plan = workoutTimerPlan.length ? workoutTimerPlan : normalizeWorkoutIntervals(state.settings.workoutIntervals);
       const item = plan[Math.min(workoutTimerIndex, plan.length - 1)] || { type: "work", seconds: 0 };
       const remainingSeconds = workoutTimerRemainingMs > 0 ? workoutTimerRemainingMs / 1000 : item.seconds;
-      document.getElementById("workoutPhase").textContent = workoutTimerIndex >= plan.length ? "완료" : workoutPhaseLabel(item.type);
+      document.getElementById("workoutPhase").textContent = workoutTimerIndex >= plan.length ? "완료" : workoutPhaseLabel(item);
       document.getElementById("workoutRemaining").textContent = workoutTimerIndex >= plan.length ? "00:00" : workoutTimeText(remainingSeconds);
       const next = plan[workoutTimerIndex + 1];
-      document.getElementById("workoutNext").textContent = workoutTimerIndex >= plan.length ? "운동을 마쳤습니다." : next ? `다음: ${workoutPhaseLabel(next.type)} ${next.seconds}초` : "마지막 구간";
+      document.getElementById("workoutNext").textContent = workoutTimerIndex >= plan.length ? "운동을 마쳤습니다." : next ? `다음: ${workoutPhaseLabel(next)} ${next.seconds}초` : "마지막 구간";
       document.getElementById("workoutProgress").textContent = `${Math.min(workoutTimerIndex + 1, plan.length)} / ${plan.length}`;
       document.getElementById("startWorkoutTimerBtn").textContent = workoutTimerRunning ? "진행 중" : workoutTimerRemainingMs > 0 ? "계속" : workoutTimerIndex >= plan.length ? "다시 시작" : "시작";
       document.getElementById("startWorkoutTimerBtn").disabled = workoutTimerRunning;
@@ -15601,11 +15632,11 @@
       toast("운동 프리셋을 삭제했습니다.");
     });
     document.getElementById("addWorkoutIntervalBtn")?.addEventListener("click", () => {
-      state.settings.workoutIntervals.push({ type: "work", seconds: 30 });
+      state.settings.workoutIntervals.push({ type: "work", label: "운동", seconds: 30 });
       resetWorkoutTimer(); persistWorkoutPlan();
     });
     document.getElementById("addRestIntervalBtn")?.addEventListener("click", () => {
-      state.settings.workoutIntervals.push({ type: "rest", seconds: 10 });
+      state.settings.workoutIntervals.push({ type: "rest", label: "휴식", seconds: 10 });
       resetWorkoutTimer(); persistWorkoutPlan();
     });
     resetWorkoutTimer();
