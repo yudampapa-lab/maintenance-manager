@@ -6486,8 +6486,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.11";
+    const appVersion = "1.7.12";
     const versionHistory = [
+      {
+        version: "1.7.12",
+        date: "2026-08-20",
+        title: "다른 앱 위 인터벌 타이머",
+        changes: [
+          "안드로이드에서 인터벌 타이머 실행 후 유튜브 등 다른 앱 위에 운동·휴식과 남은 시간을 플로팅 창으로 표시",
+          "플로팅 타이머를 화면에서 드래그해 옮기고 일시정지·계속·종료 가능",
+          "백그라운드에서도 안드로이드가 시간을 직접 계산해 단계 알림의 지연을 방지"
+        ]
+      },
       {
         version: "1.7.11",
         date: "2026-08-20",
@@ -15289,6 +15299,7 @@
     let workoutTimerDeadline = 0;
     let workoutTimerPlan = [];
     let workoutAudioContext = null;
+    let applyingNativeWorkoutState = false;
     function workoutPhaseLabel(type) { return type === "rest" ? "휴식" : "운동"; }
     function workoutTimeText(totalSeconds) {
       const value = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
@@ -15388,6 +15399,9 @@
     }
     function playWorkoutAlert(type = "work", complete = false) {
       try {
+        if (window.ReportMateAndroid?.isWorkoutOverlayTimerActive?.()) return;
+      } catch (_) {}
+      try {
         workoutAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
         const context = workoutAudioContext;
         const now = context.currentTime;
@@ -15421,6 +15435,40 @@
     function setWorkoutWakeLock(running) {
       try { window.ReportMateAndroid?.setWorkoutTimerRunning?.(Boolean(running)); } catch (_) {}
     }
+    function startNativeWorkoutOverlay() {
+      try {
+        window.ReportMateAndroid?.startWorkoutOverlay?.(JSON.stringify({
+          plan: workoutTimerPlan,
+          index: workoutTimerIndex,
+          remainingMs: workoutTimerRemainingMs,
+          running: true
+        }));
+      } catch (_) {}
+    }
+    window.applyNativeWorkoutTimerState = raw => {
+      try {
+        const snapshot = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (!snapshot || !Array.isArray(snapshot.plan)) return;
+        applyingNativeWorkoutState = true;
+        if (snapshot.cancelled) {
+          resetWorkoutTimer();
+          return;
+        }
+        workoutTimerPlan = normalizeWorkoutIntervals(snapshot.plan).map(item => ({ ...item }));
+        workoutTimerIndex = Math.max(0, Math.min(Number(snapshot.index) || 0, workoutTimerPlan.length));
+        workoutTimerRemainingMs = Math.max(0, Number(snapshot.remainingMs) || 0);
+        workoutTimerRunning = Boolean(snapshot.running) && workoutTimerIndex < workoutTimerPlan.length;
+        workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
+        stopWorkoutTick();
+        if (workoutTimerRunning) workoutTimerHandle = setInterval(workoutTick, 100);
+        setWorkoutWakeLock(workoutTimerRunning);
+        renderWorkoutIntervals();
+        renderWorkoutClock();
+      } catch (_) {
+      } finally {
+        applyingNativeWorkoutState = false;
+      }
+    };
     function workoutTick() {
       if (!workoutTimerRunning) return;
       workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
@@ -15460,6 +15508,7 @@
       workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
       stopWorkoutTick();
       workoutTimerHandle = setInterval(workoutTick, 100);
+      startNativeWorkoutOverlay();
       renderWorkoutIntervals();
       renderWorkoutClock();
     }
@@ -15468,6 +15517,7 @@
       workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
       workoutTimerRunning = false;
       setWorkoutWakeLock(false);
+      try { window.ReportMateAndroid?.pauseWorkoutOverlay?.(); } catch (_) {}
       stopWorkoutTick();
       renderWorkoutIntervals();
       renderWorkoutClock();
@@ -15475,6 +15525,9 @@
     function resetWorkoutTimer() {
       workoutTimerRunning = false;
       setWorkoutWakeLock(false);
+      if (!applyingNativeWorkoutState) {
+        try { window.ReportMateAndroid?.stopWorkoutOverlay?.(); } catch (_) {}
+      }
       stopWorkoutTick();
       workoutTimerPlan = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
       workoutTimerIndex = 0;
