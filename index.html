@@ -6154,8 +6154,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.6";
+    const appVersion = "1.7.7";
     const versionHistory = [
+      {
+        version: "1.7.7",
+        date: "2026-08-20",
+        title: "일정미정 드래그 자동 스크롤",
+        changes: [
+          "일정미정 기관·할일메모를 날짜 칸으로 끌어올 때 화면 위·아래 가장자리에서 자동 스크롤되도록 개선",
+          "자동 스크롤 중 손가락 아래 날짜 칸 강조와 모바일 드래그 제스처 처리를 보강"
+        ]
+      },
       {
         version: "1.7.6",
         date: "2026-08-20",
@@ -9887,13 +9896,17 @@
     window.maintenanceOrgPointerStart = (event, itemToken) => {
       cleanupMaintenanceDragGhosts();
       const el = event.currentTarget;
-      el.setPointerCapture?.(event.pointerId);
+      try { el.setPointerCapture?.(event.pointerId); } catch {}
       const rect = el.getBoundingClientRect();
       const drag = {
         itemToken,
         el,
+        pointerId: event.pointerId,
+        pointerType: event.pointerType || "mouse",
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
         grabX: event.clientX - rect.left,
         grabY: event.clientY - rect.top,
         moved: false,
@@ -9905,7 +9918,7 @@
         drag.armed = true;
         drag.startX = event.clientX;
         drag.startY = event.clientY;
-        el.setPointerCapture?.(event.pointerId);
+        try { el.setPointerCapture?.(event.pointerId); } catch {}
         el.classList.add("drag-ready");
         hapticTap(18);
       }, 520);
@@ -9913,16 +9926,21 @@
         if (state.maintenanceOrgDrag !== drag || drag.cancelled || drag.moved) return;
         drag.cancelled = true;
         clearTimeout(drag.longPressTimer);
+        stopScheduleDragAutoScroll(drag);
+        detachScheduleDragTouchBlocker(drag);
         resetMaintenanceDragElement(el);
         state.maintenanceOrgDrag = null;
         hapticTap(20);
         openMaintenanceOrgAction(itemToken);
       }, 1120);
       state.maintenanceOrgDrag = drag;
+      attachScheduleDragTouchBlocker(drag);
     };
     window.maintenanceOrgPointerMove = (event, itemToken) => {
       const drag = state.maintenanceOrgDrag;
       if (!drag || drag.itemToken !== itemToken) return;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
       if (!drag.armed) {
@@ -9945,18 +9963,18 @@
       drag.el.classList.remove("drag-ready");
       drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
       drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      clearDropTarget();
-      clearMaintenanceDropTarget();
-      const targetCell = dateCellFromPoint(event.clientX, event.clientY, drag.ghost);
-      if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
-        targetCell.classList.add("drop-target");
-      }
+      refreshMaintenanceDragTarget(drag);
+      startScheduleDragAutoScroll(drag, itemToken, true);
     };
     window.maintenanceOrgPointerEnd = (event, itemToken) => {
       const drag = state.maintenanceOrgDrag;
       if (!drag || drag.itemToken !== itemToken) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      stopScheduleDragAutoScroll(drag);
+      detachScheduleDragTouchBlocker(drag);
       const shouldHandle = drag.armed || (!drag.cancelled && !drag.moved);
       if (shouldHandle) {
         event.preventDefault();
@@ -9982,6 +10000,8 @@
       if (!drag || drag.itemToken !== itemToken) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      stopScheduleDragAutoScroll(drag);
+      detachScheduleDragTouchBlocker(drag);
       resetMaintenanceDragElement(drag.el);
       setCalendarDragging(false);
       clearDropTarget();
@@ -10128,7 +10148,8 @@
     function attachScheduleDragTouchBlocker(drag) {
       if (!drag || drag.pointerType !== "touch" || drag.touchMoveBlocker) return;
       drag.touchMoveBlocker = touchEvent => {
-        if (state.calendarDrag === drag && drag.armed && !drag.cancelled && touchEvent.cancelable) touchEvent.preventDefault();
+        const active = state.calendarDrag === drag || state.maintenanceOrgDrag === drag;
+        if (active && drag.armed && !drag.cancelled && touchEvent.cancelable) touchEvent.preventDefault();
       };
       document.addEventListener("touchmove", drag.touchMoveBlocker, { capture: true, passive: false });
     }
@@ -10197,9 +10218,19 @@
         monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
       }
     }
-    function scheduleDragAutoScrollStep(timestamp, drag, id) {
+    function refreshMaintenanceDragTarget(drag) {
+      clearDropTarget();
+      clearMaintenanceDropTarget();
+      if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
+      const targetCell = dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el);
+      if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
+        targetCell.classList.add("drop-target");
+      }
+    }
+    function scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag = false) {
       drag.autoScrollFrame = 0;
-      if (state.calendarDrag !== drag || !drag.armed || !drag.moved || drag.cancelled) {
+      const isActive = maintenanceDrag ? state.maintenanceOrgDrag === drag : state.calendarDrag === drag;
+      if (!isActive || !drag.armed || !drag.moved || drag.cancelled) {
         stopScheduleDragAutoScroll(drag);
         return;
       }
@@ -10228,13 +10259,14 @@
         drag.autoScrollLastTime = 0;
         return;
       }
-      refreshScheduleDragTarget(drag, id);
-      drag.autoScrollFrame = requestAnimationFrame(nextTime => scheduleDragAutoScrollStep(nextTime, drag, id));
+      if (maintenanceDrag) refreshMaintenanceDragTarget(drag);
+      else refreshScheduleDragTarget(drag, id);
+      drag.autoScrollFrame = requestAnimationFrame(nextTime => scheduleDragAutoScrollStep(nextTime, drag, id, maintenanceDrag));
     }
-    function startScheduleDragAutoScroll(drag, id) {
+    function startScheduleDragAutoScroll(drag, id, maintenanceDrag = false) {
       if (!drag || drag.autoScrollFrame || !scheduleDragAutoScrollVelocity(drag)) return;
       drag.autoScrollLastTime = 0;
-      drag.autoScrollFrame = requestAnimationFrame(timestamp => scheduleDragAutoScrollStep(timestamp, drag, id));
+      drag.autoScrollFrame = requestAnimationFrame(timestamp => scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag));
     }
     function resetCalendarDragElement(drag) {
       stopScheduleDragAutoScroll(drag);
