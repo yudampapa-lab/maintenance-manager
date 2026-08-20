@@ -2628,6 +2628,55 @@
     body.calendar-dragging .ai-command-fab {
       pointer-events: none;
     }
+    .calendar-drag-cancel-zone {
+      position: fixed;
+      left: 50%;
+      bottom: calc(90px + env(safe-area-inset-bottom));
+      z-index: 320;
+      min-width: 158px;
+      min-height: 62px;
+      padding: 8px 17px;
+      border: 2px dashed rgba(255, 59, 48, .62);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, .9);
+      color: #d92929;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, 14px) scale(.92);
+      box-shadow: 0 12px 34px rgba(90, 20, 20, .16);
+      backdrop-filter: blur(16px) saturate(150%);
+      -webkit-backdrop-filter: blur(16px) saturate(150%);
+      pointer-events: none;
+      user-select: none;
+      transition: opacity .16s ease, transform .18s ease, visibility 0s linear .18s, background .14s ease, color .14s ease;
+    }
+    .calendar-drag-cancel-zone span {
+      font-size: 30px;
+      font-weight: 500;
+      line-height: 1;
+    }
+    .calendar-drag-cancel-zone strong {
+      font-size: 13px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    body.calendar-dragging .calendar-drag-cancel-zone {
+      opacity: .96;
+      visibility: visible;
+      transform: translate(-50%, 0) scale(1);
+      transition-delay: 0s;
+    }
+    body.calendar-dragging .calendar-drag-cancel-zone.active {
+      border-style: solid;
+      background: rgba(255, 59, 48, .96);
+      color: #fff;
+      transform: translate(-50%, 0) scale(1.08);
+      box-shadow: 0 14px 38px rgba(255, 59, 48, .34);
+    }
     .nav-btn {
       background: transparent;
       color: var(--muted);
@@ -2820,6 +2869,14 @@
       button { min-height: 40px; }
     }
     @media (max-width: 540px) {
+      html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      body.maintenance-drawer-open {
+        overflow: hidden;
+      }
       .calendar-layout { grid-template-columns: 1fr; }
       .monthly-maintenance-backdrop {
         display: block;
@@ -2874,42 +2931,45 @@
         top: 47%;
         right: 0;
         z-index: 230;
-        width: 42px;
-        min-height: 64px;
+        width: 30px;
+        min-height: 54px;
         padding: 0;
-        border: 1px solid rgba(0, 122, 255, .2);
+        border: 1px solid rgba(0, 122, 255, .13);
         border-right: 0;
-        border-radius: 15px 0 0 15px;
-        background: rgba(255, 255, 255, .96);
-        color: var(--blue);
+        border-radius: 12px 0 0 12px;
+        background: rgba(255, 255, 255, .58);
+        color: rgba(0, 122, 255, .72);
         align-items: center;
         justify-content: center;
-        box-shadow: -7px 5px 20px rgba(15, 23, 42, .14);
+        box-shadow: -4px 3px 14px rgba(15, 23, 42, .08);
+        backdrop-filter: blur(12px) saturate(135%);
+        -webkit-backdrop-filter: blur(12px) saturate(135%);
         transition: right .24s cubic-bezier(.22, .8, .24, 1), opacity .18s ease;
       }
       .monthly-maintenance-toggle svg {
-        width: 23px;
-        height: 23px;
+        width: 18px;
+        height: 18px;
         fill: none;
         stroke: currentColor;
-        stroke-width: 2.4;
+        stroke-width: 1.8;
         stroke-linecap: round;
         stroke-linejoin: round;
         transition: transform .2s ease;
       }
       .monthly-maintenance-toggle-count {
         position: absolute;
-        top: 5px;
-        right: 4px;
-        min-width: 17px;
-        height: 17px;
+        top: -5px;
+        left: -5px;
+        right: auto;
+        min-width: 16px;
+        height: 16px;
         padding: 0 4px;
         border-radius: 999px;
         background: #ff3b30;
         color: white;
         font-size: 9px;
         font-weight: 850;
-        line-height: 17px;
+        line-height: 16px;
         text-align: center;
       }
       .monthly-maintenance-toggle.mobile-open {
@@ -2921,6 +2981,11 @@
       body.maintenance-drawer-dragging .monthly-maintenance-toggle {
         opacity: 0;
         pointer-events: none;
+      }
+      .calendar-drag-cancel-zone {
+        bottom: calc(94px + env(safe-area-inset-bottom));
+        min-width: 148px;
+        min-height: 58px;
       }
     }
 
@@ -4150,6 +4215,9 @@
                 </div>
                 <div class="monthly-maintenance-list" id="monthlyMaintenanceList"></div>
               </aside>
+              <div class="calendar-drag-cancel-zone" id="calendarDragCancelZone" aria-hidden="true">
+                <span aria-hidden="true">×</span><strong>여기에 놓아 취소</strong>
+              </div>
             </div>
           </div>
         </section>
@@ -6291,8 +6359,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.9";
+    const appVersion = "1.7.10";
     const versionHistory = [
+      {
+        version: "1.7.10",
+        date: "2026-08-20",
+        title: "모바일 일정미정 UI 및 드래그 취소",
+        changes: [
+          "일정미정 슬라이드 패널이 모바일 화면 폭과 하단 메뉴 정렬에 영향을 주지 않도록 수정",
+          "우측 화살표 손잡이를 더 얇고 반투명하게 조정",
+          "일정 드래그 중 화면 하단 X 취소 영역에 놓으면 이동·등록을 취소하도록 추가"
+        ]
+      },
       {
         version: "1.7.9",
         date: "2026-08-20",
@@ -9860,6 +9938,13 @@
       backdrop.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
       document.body.classList.toggle("maintenance-drawer-open", shouldOpen);
       document.body.classList.toggle("maintenance-drawer-dragging", Boolean(dragging));
+      if (isNarrowMonthlyMaintenanceDrawer()) {
+        requestAnimationFrame(() => {
+          const scroller = document.scrollingElement || document.documentElement;
+          if (scroller) scroller.scrollLeft = 0;
+          document.body.scrollLeft = 0;
+        });
+      }
     }
     window.toggleMonthlyMaintenanceDrawer = event => {
       event?.preventDefault?.();
@@ -10170,7 +10255,8 @@
         event.preventDefault();
         event.stopPropagation();
       }
-      const targetCell = drag.moved ? dateCellFromPoint(event.clientX, event.clientY, drag.ghost || drag.el) : null;
+      const cancelledByZone = drag.moved && isPointInCalendarDragCancelZone(event.clientX, event.clientY);
+      const targetCell = drag.moved && !cancelledByZone ? dateCellFromPoint(event.clientX, event.clientY, drag.ghost || drag.el) : null;
       resetMaintenanceDragElement(drag.el);
       setCalendarDragging(false);
       clearDropTarget();
@@ -10178,6 +10264,10 @@
       state.maintenanceOrgDrag = null;
       if (!drag.armed || drag.cancelled) return;
       if (drag.armed && !drag.moved) return;
+      if (cancelledByZone) {
+        toast("일정 이동을 취소했습니다.");
+        return;
+      }
       const targetDate = targetCell?.dataset.date;
       if (targetDate && isDateInCurrentCalendarMonth(targetDate)) {
         createInspectionScheduleFromMaintenanceToken(itemToken, targetDate);
@@ -10268,9 +10358,30 @@
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
     }
+    function isPointInCalendarDragCancelZone(x, y) {
+      const zone = document.getElementById("calendarDragCancelZone");
+      if (!zone || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+      const rect = zone.getBoundingClientRect();
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }
+    function refreshCalendarDragCancelZone(drag) {
+      const zone = document.getElementById("calendarDragCancelZone");
+      if (!zone) return false;
+      const active = Boolean(drag?.moved) && isPointInCalendarDragCancelZone(drag.lastX, drag.lastY);
+      if (active && !zone.classList.contains("active")) hapticTap(18);
+      zone.classList.toggle("active", active);
+      zone.setAttribute("aria-hidden", document.body.classList.contains("calendar-dragging") ? "false" : "true");
+      return active;
+    }
+    function clearCalendarDragCancelZone() {
+      const zone = document.getElementById("calendarDragCancelZone");
+      zone?.classList.remove("active");
+      zone?.setAttribute("aria-hidden", "true");
+    }
     function setCalendarDragging(active) {
       document.body.classList.toggle("calendar-dragging", Boolean(active));
       document.documentElement.classList.toggle("calendar-dragging-root", Boolean(active));
+      if (!active) clearCalendarDragCancelZone();
     }
     function clearRangeSelection() {
       document.querySelectorAll(".day-cell.range-select").forEach(cell => cell.classList.remove("range-select"));
@@ -10383,6 +10494,7 @@
     function scheduleDragAutoScrollVelocity(drag) {
       const grid = document.querySelector("#mainCalendar .calendar-grid");
       if (!grid || !Number.isFinite(drag?.lastX) || !Number.isFinite(drag?.lastY)) return 0;
+      if (isPointInCalendarDragCancelZone(drag.lastX, drag.lastY)) return 0;
       const gridRect = grid.getBoundingClientRect();
       if (drag.lastX < gridRect.left - 20 || drag.lastX > gridRect.right + 20) return 0;
       const bounds = scheduleDragViewportBounds();
@@ -10407,6 +10519,7 @@
       clearDropTarget();
       clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
+      if (refreshCalendarDragCancelZone(drag)) return;
       dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
       if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
         monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
@@ -10416,6 +10529,7 @@
       clearDropTarget();
       clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
+      if (refreshCalendarDragCancelZone(drag)) return;
       const targetCell = dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el);
       if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
         targetCell.classList.add("drop-target");
@@ -10569,6 +10683,10 @@
       if (!drag?.moved) return false;
       const dropX = drag.lastX ?? drag.startX;
       const dropY = drag.lastY ?? drag.startY;
+      if (isPointInCalendarDragCancelZone(dropX, dropY)) {
+        toast("일정 이동을 취소했습니다.");
+        return true;
+      }
       const targetCell = dateCellFromPoint(dropX, dropY, drag.ghost || drag.el);
       const targetPanel = monthlyMaintenancePanelFromPoint(dropX, dropY, drag.ghost || drag.el);
       if (targetPanel && moveScheduleToUnscheduled(id)) return true;
