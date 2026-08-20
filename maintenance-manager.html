@@ -1684,6 +1684,10 @@
       top: 92px;
       min-height: 100%;
     }
+    .monthly-maintenance-toggle,
+    .monthly-maintenance-backdrop {
+      display: none;
+    }
     .monthly-maintenance-head {
       padding: 12px;
       border-bottom: 1px solid var(--line);
@@ -2817,7 +2821,107 @@
     }
     @media (max-width: 540px) {
       .calendar-layout { grid-template-columns: 1fr; }
-      .monthly-maintenance-panel { display: none; }
+      .monthly-maintenance-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 210;
+        background: rgba(17, 24, 39, .34);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        touch-action: none;
+        transition: opacity .2s ease, visibility 0s linear .2s;
+      }
+      .monthly-maintenance-backdrop.mobile-open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition-delay: 0s;
+      }
+      .monthly-maintenance-panel {
+        display: flex;
+        position: fixed;
+        top: max(58px, env(safe-area-inset-top));
+        right: 0;
+        bottom: calc(76px + env(safe-area-inset-bottom));
+        z-index: 220;
+        width: min(82vw, 340px);
+        min-height: 0;
+        height: auto !important;
+        border-radius: 16px 0 0 16px;
+        background: rgba(255, 255, 255, .98);
+        box-shadow: -14px 0 36px rgba(15, 23, 42, .2);
+        transform: translateX(calc(100% + 20px));
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform .24s cubic-bezier(.22, .8, .24, 1), visibility 0s linear .24s;
+      }
+      .monthly-maintenance-panel.mobile-open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+        transition-delay: 0s;
+      }
+      body.maintenance-drawer-dragging .monthly-maintenance-panel {
+        visibility: visible;
+        pointer-events: auto;
+        transition-delay: 0s;
+      }
+      .monthly-maintenance-toggle {
+        display: inline-flex;
+        position: fixed;
+        top: 47%;
+        right: 0;
+        z-index: 230;
+        width: 42px;
+        min-height: 64px;
+        padding: 0;
+        border: 1px solid rgba(0, 122, 255, .2);
+        border-right: 0;
+        border-radius: 15px 0 0 15px;
+        background: rgba(255, 255, 255, .96);
+        color: var(--blue);
+        align-items: center;
+        justify-content: center;
+        box-shadow: -7px 5px 20px rgba(15, 23, 42, .14);
+        transition: right .24s cubic-bezier(.22, .8, .24, 1), opacity .18s ease;
+      }
+      .monthly-maintenance-toggle svg {
+        width: 23px;
+        height: 23px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform .2s ease;
+      }
+      .monthly-maintenance-toggle-count {
+        position: absolute;
+        top: 5px;
+        right: 4px;
+        min-width: 17px;
+        height: 17px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: #ff3b30;
+        color: white;
+        font-size: 9px;
+        font-weight: 850;
+        line-height: 17px;
+        text-align: center;
+      }
+      .monthly-maintenance-toggle.mobile-open {
+        right: min(82vw, 340px);
+      }
+      .monthly-maintenance-toggle.mobile-open svg {
+        transform: rotate(180deg);
+      }
+      body.maintenance-drawer-dragging .monthly-maintenance-toggle {
+        opacity: 0;
+        pointer-events: none;
+      }
     }
 
     /* Apple-inspired polish layer */
@@ -4034,6 +4138,11 @@
           <div class="panel-body">
             <div class="calendar-layout">
               <div id="mainCalendar" class="calendar-wrap"></div>
+              <button type="button" class="monthly-maintenance-toggle" id="monthlyMaintenanceToggle" aria-label="일정미정 펼치기" aria-controls="monthlyMaintenancePanel" aria-expanded="false" onclick="toggleMonthlyMaintenanceDrawer(event)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                <span class="monthly-maintenance-toggle-count" id="monthlyMaintenanceToggleCount" hidden>0</span>
+              </button>
+              <div class="monthly-maintenance-backdrop" id="monthlyMaintenanceBackdrop" aria-hidden="true" onclick="closeMonthlyMaintenanceDrawer()"></div>
               <aside class="monthly-maintenance-panel" id="monthlyMaintenancePanel" aria-label="일정미정">
                 <div class="monthly-maintenance-head">
                   <h3>일정미정</h3>
@@ -6182,8 +6291,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.8";
+    const appVersion = "1.7.9";
     const versionHistory = [
+      {
+        version: "1.7.9",
+        date: "2026-08-20",
+        title: "모바일 일정미정 슬라이드 패널",
+        changes: [
+          "가로 폭이 좁은 기기에서 우측 화살표로 일정미정 목록을 펼치고 바깥을 누르면 다시 접히도록 추가",
+          "일정미정 항목을 캘린더로 드래그하기 시작하면 패널이 자동으로 접히고 드래그는 계속 유지되도록 개선"
+        ]
+      },
       {
         version: "1.7.8",
         date: "2026-08-20",
@@ -7496,6 +7614,7 @@
       }
       const focusedView = document.activeElement?.closest?.(".view");
       if (focusedView && focusedView.id !== "view-" + view) document.activeElement.blur();
+      if (view !== "calendar") closeMonthlyMaintenanceDrawer();
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -9724,15 +9843,45 @@
         return "";
       }
     }
+    function isNarrowMonthlyMaintenanceDrawer() {
+      return window.matchMedia("(max-width: 540px)").matches;
+    }
+    function setMonthlyMaintenanceDrawerOpen(open, { dragging = false } = {}) {
+      const panel = document.getElementById("monthlyMaintenancePanel");
+      const toggle = document.getElementById("monthlyMaintenanceToggle");
+      const backdrop = document.getElementById("monthlyMaintenanceBackdrop");
+      if (!panel || !toggle || !backdrop) return;
+      const shouldOpen = Boolean(open) && isNarrowMonthlyMaintenanceDrawer();
+      panel.classList.toggle("mobile-open", shouldOpen);
+      toggle.classList.toggle("mobile-open", shouldOpen);
+      backdrop.classList.toggle("mobile-open", shouldOpen);
+      toggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      toggle.setAttribute("aria-label", shouldOpen ? "일정미정 접기" : "일정미정 펼치기");
+      backdrop.setAttribute("aria-hidden", shouldOpen ? "false" : "true");
+      document.body.classList.toggle("maintenance-drawer-open", shouldOpen);
+      document.body.classList.toggle("maintenance-drawer-dragging", Boolean(dragging));
+    }
+    window.toggleMonthlyMaintenanceDrawer = event => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      const panel = document.getElementById("monthlyMaintenancePanel");
+      setMonthlyMaintenanceDrawerOpen(!panel?.classList.contains("mobile-open"));
+    };
+    window.closeMonthlyMaintenanceDrawer = options => setMonthlyMaintenanceDrawerOpen(false, options || {});
     function renderMonthlyMaintenancePanel() {
       const list = document.getElementById("monthlyMaintenanceList");
       const sub = document.getElementById("monthlyMaintenanceSub");
+      const count = document.getElementById("monthlyMaintenanceToggleCount");
       if (!list || !sub) return;
       const range = monthRangeForCursor();
       const orgs = monthlyMaintenanceOrgs(range);
       const todos = monthlyMaintenanceTodoMemos();
       const total = orgs.length + todos.length;
       sub.textContent = `${range.year}년 ${range.month}월 · ${total}건`;
+      if (count) {
+        count.textContent = total > 99 ? "99+" : String(total);
+        count.hidden = total < 1;
+      }
       if (!total) {
         list.innerHTML = '<div class="empty">이번 달 일정미정 기관이 없습니다.</div>';
         return;
@@ -9996,6 +10145,9 @@
       }
       if (!drag.moved) return;
       if (!drag.ghost) createMaintenanceDragGhost(drag, event);
+      if (isNarrowMonthlyMaintenanceDrawer() && document.getElementById("monthlyMaintenancePanel")?.classList.contains("mobile-open")) {
+        closeMonthlyMaintenanceDrawer({ dragging: true });
+      }
       setCalendarDragging(true);
       drag.el.classList.remove("drag-ready");
       drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
@@ -10012,6 +10164,7 @@
       drag.lastY = event.clientY;
       stopScheduleDragAutoScroll(drag);
       detachScheduleDragTouchBlocker(drag);
+      document.body.classList.remove("maintenance-drawer-dragging");
       const shouldHandle = drag.armed || (!drag.cancelled && !drag.moved);
       if (shouldHandle) {
         event.preventDefault();
@@ -10039,6 +10192,7 @@
       clearTimeout(drag.contextTimer);
       stopScheduleDragAutoScroll(drag);
       detachScheduleDragTouchBlocker(drag);
+      document.body.classList.remove("maintenance-drawer-dragging");
       resetMaintenanceDragElement(drag.el);
       setCalendarDragging(false);
       clearDropTarget();
@@ -10140,6 +10294,9 @@
         el.style.visibility = "hidden";
       };
       hide(draggedEl);
+      if (document.body.classList.contains("maintenance-drawer-dragging")) {
+        hide(document.getElementById("monthlyMaintenancePanel"));
+      }
       let cell = null;
       for (let i = 0; i < 10; i++) {
         const el = document.elementFromPoint(x, y);
@@ -14604,6 +14761,7 @@
       if (!document.hidden) refreshCloudDataIfStale();
     });
     window.addEventListener("resize", () => {
+      if (!isNarrowMonthlyMaintenanceDrawer()) closeMonthlyMaintenanceDrawer();
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     });
     testKakaoBtn.onclick = () => {
