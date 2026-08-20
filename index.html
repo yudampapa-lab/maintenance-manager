@@ -1993,6 +1993,41 @@
       gap: 12px;
     }
     .field { display: grid; gap: 6px; min-width: 0; }
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .schedule-lunar-options {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+    }
+    .schedule-lunar-option {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+    .schedule-lunar-option input {
+      width: 13px;
+      height: 13px;
+      margin: 0;
+      accent-color: var(--blue);
+      box-shadow: none;
+    }
+    .schedule-lunar-hint {
+      min-height: 14px;
+      color: #667380;
+      font-size: 10px;
+      line-height: 1.35;
+    }
     label { font-weight: 800; font-size: 12px; color: #263541; }
     input, select, textarea {
       width: 100%;
@@ -2928,7 +2963,7 @@
       .monthly-maintenance-toggle {
         display: inline-flex;
         position: fixed;
-        top: 47%;
+        top: 50dvh;
         right: 0;
         z-index: 230;
         width: 30px;
@@ -2944,6 +2979,8 @@
         box-shadow: -4px 3px 14px rgba(15, 23, 42, .08);
         backdrop-filter: blur(12px) saturate(135%);
         -webkit-backdrop-filter: blur(12px) saturate(135%);
+        transform: translateY(-50%);
+        will-change: right, top;
         transition: right .24s cubic-bezier(.22, .8, .24, 1), opacity .18s ease;
       }
       .monthly-maintenance-toggle svg {
@@ -4709,7 +4746,17 @@
             <option value="custom">수기입력</option>
           </select></div>
           <div class="field hidden" id="scheduleVisitReasonCustomWrap"><label>방문사유 직접입력</label><input id="scheduleVisitReasonCustom" autocomplete="off" placeholder="방문사유 입력"></div>
-          <div class="field"><label>시작일</label><input id="scheduleDate" type="date" required></div>
+          <div class="field">
+            <div class="field-label-row">
+              <label for="scheduleDate">시작일</label>
+              <span class="schedule-lunar-options">
+                <label class="schedule-lunar-option"><input id="scheduleLunarDate" type="checkbox">음력</label>
+                <label class="schedule-lunar-option hidden" id="scheduleLunarLeapWrap"><input id="scheduleLunarLeap" type="checkbox">윤달</label>
+              </span>
+            </div>
+            <input id="scheduleDate" type="date" required>
+            <small class="schedule-lunar-hint hidden" id="scheduleLunarHint"></small>
+          </div>
           <div class="field"><label>종료일</label><input id="scheduleEndDate" type="date" required></div>
           <div class="field"><label>작업 시작시간</label><input id="scheduleStartTime" type="time"></div>
           <div class="field"><label>작업 종료시간</label><input id="scheduleEndTime" type="time"></div>
@@ -5719,6 +5766,10 @@
         color: ["blue", "green", "purple", "pink", "orange", "red", "gray", "mint", "sky", "lavender", "coral", "peach", "lemon", "aqua", "lilac", "rose", "sage"].includes(schedule.color) ? schedule.color : "",
         recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
         recurrenceRootId: schedule.recurrenceRootId || "",
+        lunarDate: Boolean(schedule.lunarDate),
+        lunarStartDate: schedule.lunarStartDate || "",
+        lunarEndDate: schedule.lunarEndDate || schedule.lunarStartDate || "",
+        lunarLeap: Boolean(schedule.lunarLeap),
         googleEventId: schedule.googleEventId || "",
         googleDuplicateEventIds: Array.isArray(schedule.googleDuplicateEventIds) ? schedule.googleDuplicateEventIds.filter(Boolean) : [],
         googleUpdated: schedule.googleUpdated || "",
@@ -6116,6 +6167,58 @@
       target.setDate(Math.min(day, lastDay));
       return localDateISO(target);
     }
+    const lunarSolarDateCache = new Map();
+    function parseLunarDateISO(value = "") {
+      const match = String(value || "").trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!match) return null;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 30) return null;
+      return { year, month, day };
+    }
+    function lunarDateInfoFromSolar(iso = "") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+      try {
+        const parts = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { year: "numeric", month: "long", day: "numeric" })
+          .formatToParts(new Date(`${iso}T00:00:00`));
+        const year = Number(parts.find(part => part.type === "relatedYear")?.value);
+        const monthText = parts.find(part => part.type === "month")?.value || "";
+        const month = Number(monthText.replace(/\D/g, ""));
+        const day = Number(parts.find(part => part.type === "day")?.value);
+        if (!year || !month || !day) return null;
+        return { year, month, day, leap: monthText.includes("윤") };
+      } catch {
+        return null;
+      }
+    }
+    function lunarDateISOFromInfo(info) {
+      if (!info) return "";
+      return `${info.year}-${String(info.month).padStart(2, "0")}-${String(info.day).padStart(2, "0")}`;
+    }
+    function solarDateForLunarISO(lunarISO = "", leap = false) {
+      const lunar = parseLunarDateISO(lunarISO);
+      if (!lunar) return "";
+      const cacheKey = `${lunarDateISOFromInfo(lunar)}:${leap ? 1 : 0}`;
+      if (lunarSolarDateCache.has(cacheKey)) return lunarSolarDateCache.get(cacheKey);
+      const cursor = new Date(lunar.year, 0, 1);
+      const limit = new Date(lunar.year + 1, 2, 15);
+      while (cursor <= limit) {
+        const solarISO = localDateISO(cursor);
+        const info = lunarDateInfoFromSolar(solarISO);
+        if (info && info.year === lunar.year && info.month === lunar.month && info.day === lunar.day && info.leap === Boolean(leap)) {
+          lunarSolarDateCache.set(cacheKey, solarISO);
+          return solarISO;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      lunarSolarDateCache.set(cacheKey, "");
+      return "";
+    }
+    function lunarDateWithYear(lunarISO = "", year) {
+      const lunar = parseLunarDateISO(lunarISO);
+      return lunar ? `${year}-${String(lunar.month).padStart(2, "0")}-${String(lunar.day).padStart(2, "0")}` : "";
+    }
     function scheduleEndDateISO(schedule) {
       return addDaysISO(schedule.endDate || schedule.date, 1);
     }
@@ -6193,11 +6296,17 @@
       let date = data.date;
       let index = 0;
       while (date && copies.length < maxCount) {
+        const occurrenceEndDate = addDaysISO(date, duration);
+        const occurrenceLunarStart = data.lunarDate ? lunarDateInfoFromSolar(date) : null;
+        const occurrenceLunarEnd = data.lunarDate ? lunarDateInfoFromSolar(occurrenceEndDate) : null;
         const copy = {
           ...data,
           id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
           date,
-          endDate: addDaysISO(date, duration),
+          endDate: occurrenceEndDate,
+          lunarStartDate: occurrenceLunarStart ? lunarDateISOFromInfo(occurrenceLunarStart) : "",
+          lunarEndDate: occurrenceLunarEnd ? lunarDateISOFromInfo(occurrenceLunarEnd) : "",
+          lunarLeap: Boolean(occurrenceLunarStart?.leap),
           recurrence: repeat,
           recurrenceRootId: rootId,
           createdAt: new Date().toISOString(),
@@ -6205,7 +6314,13 @@
         };
         markGoogleDirty(copy);
         copies.push(copy);
-        date = nextRepeatDate(date, repeat);
+        if (data.lunarDate && repeat === "yearly") {
+          const baseLunar = parseLunarDateISO(data.lunarStartDate);
+          const nextLunar = baseLunar ? lunarDateWithYear(data.lunarStartDate, baseLunar.year + index + 1) : "";
+          date = solarDateForLunarISO(nextLunar, data.lunarLeap) || solarDateForLunarISO(nextLunar, false);
+        } else {
+          date = nextRepeatDate(date, repeat);
+        }
         index++;
       }
       return copies;
@@ -6234,13 +6349,25 @@
         const duration = Math.max(0, Math.round((new Date((template.endDate || template.date) + "T00:00:00") - new Date(template.date + "T00:00:00")) / 86400000));
         let date = template.date;
         for (let index = 1; index < maxCount; index++) {
-          date = nextRepeatDate(date, repeat);
+          if (template.lunarDate && repeat === "yearly") {
+            const baseLunar = parseLunarDateISO(template.lunarStartDate);
+            const nextLunar = baseLunar ? lunarDateWithYear(template.lunarStartDate, baseLunar.year + index) : "";
+            date = solarDateForLunarISO(nextLunar, template.lunarLeap) || solarDateForLunarISO(nextLunar, false);
+          } else {
+            date = nextRepeatDate(date, repeat);
+          }
           if (!date) break;
+          const repairedEndDate = addDaysISO(date, duration);
+          const repairedLunarStart = template.lunarDate ? lunarDateInfoFromSolar(date) : null;
+          const repairedLunarEnd = template.lunarDate ? lunarDateInfoFromSolar(repairedEndDate) : null;
           const copy = {
             ...template,
             id: `${rootId}--repeat--${date}`,
             date,
-            endDate: addDaysISO(date, duration),
+            endDate: repairedEndDate,
+            lunarStartDate: repairedLunarStart ? lunarDateISOFromInfo(repairedLunarStart) : "",
+            lunarEndDate: repairedLunarEnd ? lunarDateISOFromInfo(repairedLunarEnd) : "",
+            lunarLeap: Boolean(repairedLunarStart?.leap),
             recurrence: repeat,
             recurrenceRootId: rootId,
             googleEventId: "",
@@ -6359,8 +6486,19 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.10";
+    const appVersion = "1.7.11";
     const versionHistory = [
+      {
+        version: "1.7.11",
+        date: "2026-08-20",
+        title: "음력 일정 등록",
+        changes: [
+          "일정 등록·수정 시작일 옆에 작은 음력 체크와 윤달 선택 추가",
+          "입력한 음력 날짜를 양력 일정으로 변환하고 변환 결과를 바로 안내",
+          "매년 반복 음력 일정은 해마다 해당 음력일의 실제 양력 날짜로 생성하고 Google 캘린더에도 음력 정보 보존",
+          "모바일 일정미정 화살표가 화면 스크롤 중에도 우측 중앙을 따라오도록 보강"
+        ]
+      },
       {
         version: "1.7.10",
         date: "2026-08-20",
@@ -11172,6 +11310,61 @@
     function isScheduleTimeGuardActive() {
       return Date.now() < state.scheduleTimeGuardUntil;
     }
+    function scheduleLunarFormElements() {
+      return {
+        enabled: document.getElementById("scheduleLunarDate"),
+        leap: document.getElementById("scheduleLunarLeap"),
+        leapWrap: document.getElementById("scheduleLunarLeapWrap"),
+        hint: document.getElementById("scheduleLunarHint")
+      };
+    }
+    function applyScheduleLunarInputMode(enabled) {
+      const { leapWrap, hint } = scheduleLunarFormElements();
+      [scheduleDate, scheduleEndDate].forEach(input => {
+        input.type = enabled ? "text" : "date";
+        input.inputMode = enabled ? "numeric" : "";
+        input.placeholder = enabled ? "YYYY-MM-DD" : "";
+        if (enabled) input.setAttribute("pattern", "\\d{4}-\\d{1,2}-\\d{1,2}");
+        else input.removeAttribute("pattern");
+      });
+      leapWrap?.classList.toggle("hidden", !enabled);
+      hint?.classList.toggle("hidden", !enabled);
+    }
+    function refreshScheduleLunarHint() {
+      const { enabled, leap, hint } = scheduleLunarFormElements();
+      if (!enabled?.checked || !hint) return;
+      const solarStart = solarDateForLunarISO(scheduleDate.value, leap?.checked);
+      const solarEnd = solarDateForLunarISO(scheduleEndDate.value, leap?.checked);
+      if (!solarStart || !solarEnd) {
+        hint.textContent = "변환할 수 없는 음력 날짜입니다.";
+        hint.style.color = "#d92929";
+        return;
+      }
+      hint.textContent = solarStart === solarEnd ? `양력 ${solarStart}로 등록` : `양력 ${solarStart} ~ ${solarEnd}로 등록`;
+      hint.style.color = "";
+    }
+    function toggleScheduleLunarDateMode() {
+      const { enabled, leap } = scheduleLunarFormElements();
+      if (!enabled || !leap) return;
+      if (enabled.checked) {
+        leap.checked = false;
+        applyScheduleLunarInputMode(true);
+        refreshScheduleLunarHint();
+        return;
+      }
+      const solarStart = solarDateForLunarISO(scheduleDate.value, leap.checked);
+      const solarEnd = solarDateForLunarISO(scheduleEndDate.value, leap.checked);
+      if (!solarStart || !solarEnd) {
+        enabled.checked = true;
+        toast("음력 날짜를 먼저 올바르게 입력해주세요.");
+        refreshScheduleLunarHint();
+        return;
+      }
+      applyScheduleLunarInputMode(false);
+      scheduleDate.value = solarStart;
+      scheduleEndDate.value = solarEnd;
+      leap.checked = false;
+    }
     [scheduleStartTime, scheduleEndTime].forEach(input => {
       ["pointerdown", "click"].forEach(type => {
         input.addEventListener(type, event => {
@@ -11184,6 +11377,10 @@
         if (isScheduleTimeGuardActive()) input.blur();
       });
     });
+    document.getElementById("scheduleLunarDate")?.addEventListener("change", toggleScheduleLunarDateMode);
+    document.getElementById("scheduleLunarLeap")?.addEventListener("change", refreshScheduleLunarHint);
+    scheduleDate.addEventListener("input", refreshScheduleLunarHint);
+    scheduleEndDate.addEventListener("input", refreshScheduleLunarHint);
     function openScheduleDialog(schedule = {}) {
       if (dayScheduleDialog.open) dayScheduleDialog.close();
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
@@ -11200,8 +11397,13 @@
       scheduleName.value = schedule.title || "";
       scheduleTeamMembers.value = schedule.teamMembers || "";
       setScheduleVisitReason(schedule.visitReason || "");
-      scheduleDate.value = schedule.date || todayISO();
-      scheduleEndDate.value = schedule.endDate || schedule.date || todayISO();
+      const lunarForm = scheduleLunarFormElements();
+      lunarForm.enabled.checked = Boolean(schedule.lunarDate);
+      lunarForm.leap.checked = Boolean(schedule.lunarLeap);
+      applyScheduleLunarInputMode(lunarForm.enabled.checked);
+      scheduleDate.value = lunarForm.enabled.checked ? (schedule.lunarStartDate || lunarDateISOFromInfo(lunarDateInfoFromSolar(schedule.date))) : (schedule.date || todayISO());
+      scheduleEndDate.value = lunarForm.enabled.checked ? (schedule.lunarEndDate || lunarDateISOFromInfo(lunarDateInfoFromSolar(schedule.endDate || schedule.date))) : (schedule.endDate || schedule.date || todayISO());
+      refreshScheduleLunarHint();
       scheduleStartTime.value = schedule.startTime || schedule.time || "";
       scheduleEndTime.value = schedule.endTime || "";
       state.editingScheduleColor = defaultScheduleColor({ ...schedule, type: scheduleType.value });
@@ -11226,7 +11428,23 @@
       }
       const orgId = orgIdFromScheduleInput();
       if (!scheduleDate.value || !scheduleEndDate.value) return false;
-      const [date, endDate] = orderedDates(scheduleDate.value, scheduleEndDate.value);
+      const lunarForm = scheduleLunarFormElements();
+      const lunarEnabled = Boolean(lunarForm.enabled?.checked);
+      const lunarLeap = Boolean(lunarForm.leap?.checked);
+      let lunarStartDate = lunarEnabled ? scheduleDate.value.trim() : "";
+      let lunarEndDate = lunarEnabled ? scheduleEndDate.value.trim() : "";
+      let date = lunarEnabled ? solarDateForLunarISO(lunarStartDate, lunarLeap) : scheduleDate.value;
+      let endDate = lunarEnabled ? solarDateForLunarISO(lunarEndDate, lunarLeap) : scheduleEndDate.value;
+      if (lunarEnabled && (!date || !endDate)) {
+        toast("변환할 수 없는 음력 날짜입니다.");
+        scheduleDate.focus();
+        refreshScheduleLunarHint();
+        return false;
+      }
+      if (date > endDate) {
+        [date, endDate] = [endDate, date];
+        [lunarStartDate, lunarEndDate] = [lunarEndDate, lunarStartDate];
+      }
       const data = {
         id: existing?.id || uid(),
         type,
@@ -11241,10 +11459,14 @@
         color: safeScheduleColor(state.editingScheduleColor || document.getElementById("scheduleColor")?.value),
         recurrence: existing ? (existing.recurrence || "none") : (scheduleRepeat.value || "none"),
         recurrenceRootId: existing?.recurrenceRootId || "",
+        lunarDate: lunarEnabled,
+        lunarStartDate,
+        lunarEndDate,
+        lunarLeap,
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "date", "endDate", "startTime", "endTime", "color"].some(key => String(existing[key] || "") !== String(data[key] || ""));
+      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "date", "endDate", "startTime", "endTime", "color", "lunarDate", "lunarStartDate", "lunarEndDate", "lunarLeap"].some(key => String(existing[key] || "") !== String(data[key] || ""));
       if (existing && !scheduleChanged) {
         if (closeAfter) scheduleDialog.close();
         return true;
@@ -11254,7 +11476,9 @@
         const updateAll = recurringGroup.length > 1 && confirm(`반복 일정입니다. 같이 묶인 ${recurringGroup.length}개 일정도 모두 수정할까요?\n확인: 전체 반복 일정 수정\n취소: 이 일정만 수정`);
         if (updateAll) {
           const dateOffset = Math.round((new Date(data.date + "T00:00:00") - new Date(existing.date + "T00:00:00")) / 86400000);
-          recurringGroup.forEach(item => {
+          const orderedGroup = recurringGroup.slice().sort((a, b) => a.date.localeCompare(b.date));
+          const editedOccurrenceIndex = Math.max(0, orderedGroup.findIndex(item => item.id === existing.id));
+          orderedGroup.forEach((item, index) => {
             const itemDuration = Math.max(0, Math.round((new Date((item.endDate || item.date) + "T00:00:00") - new Date(item.date + "T00:00:00")) / 86400000));
             item.type = data.type;
             item.orgId = data.orgId;
@@ -11264,8 +11488,20 @@
             item.startTime = data.startTime;
             item.endTime = data.endTime;
             item.color = data.color;
-            item.date = addDaysISO(item.date, dateOffset);
+            if (data.lunarDate && item.recurrence === "yearly") {
+              const baseLunar = parseLunarDateISO(data.lunarStartDate);
+              const occurrenceLunar = baseLunar ? lunarDateWithYear(data.lunarStartDate, baseLunar.year + index - editedOccurrenceIndex) : "";
+              item.date = solarDateForLunarISO(occurrenceLunar, data.lunarLeap) || solarDateForLunarISO(occurrenceLunar, false) || addDaysISO(item.date, dateOffset);
+            } else {
+              item.date = addDaysISO(item.date, dateOffset);
+            }
             item.endDate = addDaysISO(item.date, itemDuration);
+            const itemLunarStart = data.lunarDate ? lunarDateInfoFromSolar(item.date) : null;
+            const itemLunarEnd = data.lunarDate ? lunarDateInfoFromSolar(item.endDate) : null;
+            item.lunarDate = data.lunarDate;
+            item.lunarStartDate = itemLunarStart ? lunarDateISOFromInfo(itemLunarStart) : "";
+            item.lunarEndDate = itemLunarEnd ? lunarDateISOFromInfo(itemLunarEnd) : "";
+            item.lunarLeap = Boolean(itemLunarStart?.leap);
             item.updatedAt = data.updatedAt;
             markGoogleDirty(item);
           });
@@ -14046,6 +14282,12 @@
         : [scheduleTypeLabel(schedule)];
       if (schedule.visitReason) lines.push(`방문사유: ${schedule.visitReason}`);
       if (schedule.type === "team" && schedule.teamMembers) lines.push(`팀원: ${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      if (schedule.lunarDate && schedule.lunarStartDate) {
+        const lunarRange = schedule.lunarEndDate && schedule.lunarEndDate !== schedule.lunarStartDate
+          ? `${schedule.lunarStartDate} ~ ${schedule.lunarEndDate}`
+          : schedule.lunarStartDate;
+        lines.push(`음력: ${lunarRange}${schedule.lunarLeap ? " (윤달)" : ""}`);
+      }
       if (schedule.body) lines.push(`내용: ${schedule.body}`);
       return lines.filter(Boolean).join("\n");
     }
@@ -14079,6 +14321,10 @@
             maintenanceManagerTeamMembers: schedule.teamMembers || "",
             maintenanceManagerVisitReason: schedule.visitReason || "",
             maintenanceManagerColor: defaultScheduleColor(schedule),
+            maintenanceManagerLunarDate: schedule.lunarDate ? "1" : "0",
+            maintenanceManagerLunarStartDate: schedule.lunarStartDate || "",
+            maintenanceManagerLunarEndDate: schedule.lunarEndDate || "",
+            maintenanceManagerLunarLeap: schedule.lunarLeap ? "1" : "0",
             maintenanceManagerCompleted: schedule.completed || schedule.completedAt ? "1" : "0",
             maintenanceManagerCompletedAt: schedule.completedAt || ""
           }
@@ -14213,6 +14459,10 @@
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
         endTime: isAllDay ? "" : googleTimeToLocal(endRaw),
         color: scheduleColors[privateProps.maintenanceManagerColor] ? privateProps.maintenanceManagerColor : googleEventColorToScheduleColor(event.colorId),
+        lunarDate: privateProps.maintenanceManagerLunarDate === "1",
+        lunarStartDate: privateProps.maintenanceManagerLunarStartDate || "",
+        lunarEndDate: privateProps.maintenanceManagerLunarEndDate || privateProps.maintenanceManagerLunarStartDate || "",
+        lunarLeap: privateProps.maintenanceManagerLunarLeap === "1",
         ...completionFromGoogle,
         googleEventId: event.id,
         googleDuplicateEventIds: [],
