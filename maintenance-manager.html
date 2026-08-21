@@ -3445,6 +3445,23 @@
       gap: 3px;
       min-width: 0;
     }
+    .day-steps {
+      position: absolute;
+      top: 21px;
+      right: 4px;
+      z-index: 2;
+      max-width: calc(100% - 8px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(36, 94, 86, .58);
+      font-size: 7px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -.15px;
+      pointer-events: none;
+    }
+    .day-cell.muted .day-steps { opacity: .42; }
     .event-pill {
       border-radius: 7px;
       background: rgba(0, 122, 255, .13);
@@ -5101,7 +5118,10 @@
       destinationMapRenderTimer: null,
       destinationMapRenderToken: 0,
       orgPage: 1,
-      orgListMode: "all"
+      orgListMode: "all",
+      monthlySteps: {},
+      monthlyStepsKey: "",
+      monthlyStepsRequestedAt: 0
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -5840,23 +5860,20 @@
       return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleDuplicateEventIds: duplicateIds.filter(id => id !== (base.googleEventId || next.googleEventId)), googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
     }
     function dedupeSchedules(schedules = []) {
-      const byGoogle = new Map();
-      const byContent = new Map();
+      const deduped = [];
       schedules.forEach(schedule => {
-        const googleKey = schedule.googleEventId ? "google:" + schedule.googleEventId : "";
-        const contentKey = "content:" + scheduleContentKey(schedule);
-        const existing = (googleKey && byGoogle.get(googleKey)) || byContent.get(contentKey);
-        const merged = betterSchedule(existing, schedule);
-        if (existing) {
-          const existingGoogleKey = existing.googleEventId ? "google:" + existing.googleEventId : "";
-          const existingContentKey = "content:" + scheduleContentKey(existing);
-          if (existingGoogleKey) byGoogle.delete(existingGoogleKey);
-          byContent.delete(existingContentKey);
+        const existingIndex = deduped.findIndex(existing =>
+          (schedule.id && existing.id === schedule.id) ||
+          (schedule.googleEventId && existing.googleEventId === schedule.googleEventId) ||
+          scheduleContentKey(existing) === scheduleContentKey(schedule)
+        );
+        if (existingIndex < 0) {
+          deduped.push(schedule);
+          return;
         }
-        if (merged.googleEventId) byGoogle.set("google:" + merged.googleEventId, merged);
-        byContent.set("content:" + scheduleContentKey(merged), merged);
+        deduped[existingIndex] = betterSchedule(deduped[existingIndex], schedule);
       });
-      return [...new Set([...byContent.values(), ...byGoogle.values()])]
+      return deduped
         .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.startTime || "").localeCompare(b.startTime || "") || (a.title || "").localeCompare(b.title || ""))
         .map(schedule => ({ ...schedule }));
     }
@@ -6490,8 +6507,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.14";
+    const appVersion = "1.7.15";
     const versionHistory = [
+      {
+        version: "1.7.15",
+        date: "2026-08-20",
+        title: "일정 이름 변경 동기화 안정화",
+        changes: [
+          "모바일에서 일정 이름을 바꾼 뒤 PC에 변경 전·후 일정이 함께 보이던 동기화 오류 수정",
+          "같은 일정 ID는 제목이 달라도 최신 수정본 하나로 병합",
+          "Google 캘린더 서버 동기화에도 동일한 ID 우선 병합 규칙 적용"
+        ]
+      },
       {
         version: "1.7.14",
         date: "2026-08-20",
@@ -10466,6 +10493,38 @@
     document.addEventListener("pointercancel", () => {
       if (!state.maintenanceOrgDrag) cleanupMaintenanceDragGhosts();
     }, { passive: true });
+    function calendarStepText(value) {
+      const count = Math.max(0, Math.round(Number(value) || 0));
+      if (!count) return "";
+      if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
+      return count.toLocaleString("ko-KR");
+    }
+    function requestMonthlySteps(year, month) {
+      if (!window.ReportMateAndroid?.requestMonthlySteps) return;
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const now = Date.now();
+      if (state.monthlyStepsKey === key && now - state.monthlyStepsRequestedAt < 30000) return;
+      state.monthlyStepsKey = key;
+      state.monthlyStepsRequestedAt = now;
+      try { window.ReportMateAndroid.requestMonthlySteps(year, month); } catch (error) {}
+    }
+    window.applyNativeMonthlySteps = payloadJson => {
+      try {
+        const payload = typeof payloadJson === "string" ? JSON.parse(payloadJson) : payloadJson;
+        if (!payload || payload.status !== "ok") return;
+        const key = `${payload.year}-${String(payload.month).padStart(2, "0")}`;
+        state.monthlyStepsKey = key;
+        state.monthlyStepsRequestedAt = Date.now();
+        state.monthlySteps = payload.steps && typeof payload.steps === "object" ? payload.steps : {};
+        if (currentViewName() === "calendar"
+            && state.monthCursor.getFullYear() === Number(payload.year)
+            && state.monthCursor.getMonth() + 1 === Number(payload.month)) {
+          renderCalendar("mainCalendar", false);
+        }
+      } catch (error) {
+        console.warn("Monthly step data could not be applied", error);
+      }
+    };
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -10492,8 +10551,10 @@
           if (isHoliday(iso)) classes.push("holiday");
           if (iso === todayISO()) classes.push("today");
           const lunar = lunarLabel(iso, d);
+          const stepText = d.getMonth() === m ? calendarStepText(state.monthlySteps[iso]) : "";
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
             <div class="day-number"><span>${d.getDate()}</span>${lunar || holiday ? `<span class="date-meta">${holiday ? `<span class="holiday-label">${escapeHTML(holiday)}</span>` : ""}${lunar ? `<span class="lunar-label">${escapeHTML(lunar)}</span>` : ""}</span>` : ""}</div>
+            ${stepText ? `<span class="day-steps" title="${escapeHTML(Number(state.monthlySteps[iso]).toLocaleString("ko-KR"))}걸음">👟 ${escapeHTML(stepText)}</span>` : ""}
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
@@ -10519,6 +10580,7 @@
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid weeks-${weekCount}" style="--calendar-weeks:${weekCount}"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
+      if (!compact) requestMonthlySteps(y, m + 1);
       renderMonthlyMaintenancePanel();
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     }

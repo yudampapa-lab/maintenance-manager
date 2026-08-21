@@ -3445,6 +3445,23 @@
       gap: 3px;
       min-width: 0;
     }
+    .day-steps {
+      position: absolute;
+      top: 21px;
+      right: 4px;
+      z-index: 2;
+      max-width: calc(100% - 8px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(36, 94, 86, .58);
+      font-size: 7px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -.15px;
+      pointer-events: none;
+    }
+    .day-cell.muted .day-steps { opacity: .42; }
     .event-pill {
       border-radius: 7px;
       background: rgba(0, 122, 255, .13);
@@ -5101,7 +5118,10 @@
       destinationMapRenderTimer: null,
       destinationMapRenderToken: 0,
       orgPage: 1,
-      orgListMode: "all"
+      orgListMode: "all",
+      monthlySteps: {},
+      monthlyStepsKey: "",
+      monthlyStepsRequestedAt: 0
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -10473,6 +10493,38 @@
     document.addEventListener("pointercancel", () => {
       if (!state.maintenanceOrgDrag) cleanupMaintenanceDragGhosts();
     }, { passive: true });
+    function calendarStepText(value) {
+      const count = Math.max(0, Math.round(Number(value) || 0));
+      if (!count) return "";
+      if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
+      return count.toLocaleString("ko-KR");
+    }
+    function requestMonthlySteps(year, month) {
+      if (!window.ReportMateAndroid?.requestMonthlySteps) return;
+      const key = `${year}-${String(month).padStart(2, "0")}`;
+      const now = Date.now();
+      if (state.monthlyStepsKey === key && now - state.monthlyStepsRequestedAt < 30000) return;
+      state.monthlyStepsKey = key;
+      state.monthlyStepsRequestedAt = now;
+      try { window.ReportMateAndroid.requestMonthlySteps(year, month); } catch (error) {}
+    }
+    window.applyNativeMonthlySteps = payloadJson => {
+      try {
+        const payload = typeof payloadJson === "string" ? JSON.parse(payloadJson) : payloadJson;
+        if (!payload || payload.status !== "ok") return;
+        const key = `${payload.year}-${String(payload.month).padStart(2, "0")}`;
+        state.monthlyStepsKey = key;
+        state.monthlyStepsRequestedAt = Date.now();
+        state.monthlySteps = payload.steps && typeof payload.steps === "object" ? payload.steps : {};
+        if (currentViewName() === "calendar"
+            && state.monthCursor.getFullYear() === Number(payload.year)
+            && state.monthCursor.getMonth() + 1 === Number(payload.month)) {
+          renderCalendar("mainCalendar", false);
+        }
+      } catch (error) {
+        console.warn("Monthly step data could not be applied", error);
+      }
+    };
     function renderCalendar(targetId, compact = false) {
       const target = document.getElementById(targetId);
       const cursor = state.monthCursor;
@@ -10499,8 +10551,10 @@
           if (isHoliday(iso)) classes.push("holiday");
           if (iso === todayISO()) classes.push("today");
           const lunar = lunarLabel(iso, d);
+          const stepText = d.getMonth() === m ? calendarStepText(state.monthlySteps[iso]) : "";
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
             <div class="day-number"><span>${d.getDate()}</span>${lunar || holiday ? `<span class="date-meta">${holiday ? `<span class="holiday-label">${escapeHTML(holiday)}</span>` : ""}${lunar ? `<span class="lunar-label">${escapeHTML(lunar)}</span>` : ""}</span>` : ""}</div>
+            ${stepText ? `<span class="day-steps" title="${escapeHTML(Number(state.monthlySteps[iso]).toLocaleString("ko-KR"))}걸음">👟 ${escapeHTML(stepText)}</span>` : ""}
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
@@ -10526,6 +10580,7 @@
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid weeks-${weekCount}" style="--calendar-weeks:${weekCount}"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
       installSwipe(target);
+      if (!compact) requestMonthlySteps(y, m + 1);
       renderMonthlyMaintenancePanel();
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     }
