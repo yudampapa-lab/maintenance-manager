@@ -6572,8 +6572,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.16";
+    const appVersion = "1.7.17";
     const versionHistory = [
+      {
+        version: "1.7.17",
+        date: "2026-08-21",
+        title: "Health Connect 과거 걸음 수 보완",
+        changes: [
+          "Health Connect 화면에는 있지만 일별 집계 API에서 누락되는 삼성 헬스 걸음 수 문제 수정",
+          "집계값이 없는 날짜만 원본 걸음 기록을 출처별로 확인해 자동 보완",
+          "여러 출처가 겹칠 때 중복 합산하지 않고 출처별 합계 중 가장 큰 값을 사용"
+        ]
+      },
       {
         version: "1.7.16",
         date: "2026-08-21",
