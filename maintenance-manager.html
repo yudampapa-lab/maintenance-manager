@@ -3461,6 +3461,15 @@
       letter-spacing: -.15px;
       pointer-events: none;
     }
+    .day-steps.step-goal { color: #d99a00; }
+    .step-shoe {
+      width: 7px;
+      height: 7px;
+      margin-right: 1px;
+      vertical-align: -1px;
+      fill: currentColor;
+      pointer-events: none;
+    }
     .day-cell.muted .day-steps { opacity: .42; }
     .event-pill {
       border-radius: 7px;
@@ -10551,10 +10560,11 @@
           if (isHoliday(iso)) classes.push("holiday");
           if (iso === todayISO()) classes.push("today");
           const lunar = lunarLabel(iso, d);
-          const stepText = d.getMonth() === m ? calendarStepText(state.monthlySteps[iso]) : "";
+          const stepCount = d.getMonth() === m ? Math.max(0, Math.round(Number(state.monthlySteps[iso]) || 0)) : 0;
+          const stepText = calendarStepText(stepCount);
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
             <div class="day-number"><span>${d.getDate()}</span>${lunar || holiday ? `<span class="date-meta">${holiday ? `<span class="holiday-label">${escapeHTML(holiday)}</span>` : ""}${lunar ? `<span class="lunar-label">${escapeHTML(lunar)}</span>` : ""}</span>` : ""}</div>
-            ${stepText ? `<span class="day-steps" title="${escapeHTML(Number(state.monthlySteps[iso]).toLocaleString("ko-KR"))}걸음">👟 ${escapeHTML(stepText)}</span>` : ""}
+            ${stepText ? `<span class="day-steps ${stepCount >= 8000 ? "step-goal" : ""}" title="${escapeHTML(stepCount.toLocaleString("ko-KR"))}걸음"><svg class="step-shoe" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15.5c0-1.2.9-2.2 2.1-2.3l3.4-.3 1.8-5.5 2.1.8-.5 2 2.1.8.8-1.7 2 .8-.6 1.8 4.4 2.4c1.4.8 2.2 2.3 1.9 3.9-.2 1-1.1 1.7-2.1 1.7H4.5A2.5 2.5 0 0 1 2 15.5Z"/></svg>${escapeHTML(stepText)}</span>` : ""}
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
