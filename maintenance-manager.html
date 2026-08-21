@@ -5192,7 +5192,10 @@
       monthlySteps: {},
       monthlyExercises: {},
       monthlyStepsKey: "",
-      monthlyStepsRequestedAt: 0
+      monthlyStepsRequestedAt: 0,
+      healthMonthLoadedAt: {},
+      healthMonthLoading: {},
+      healthNativeAppliedAt: {}
     };
     state.settings.googleClientId = state.settings.googleClientId || defaultGoogleClientId;
     state.settings.googleCalendarId = state.settings.googleCalendarId || "primary";
@@ -6578,8 +6581,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.18";
+    const appVersion = "1.7.19";
     const versionHistory = [
+      {
+        version: "1.7.19",
+        date: "2026-08-22",
+        title: "건강 기록 Firebase 동기화",
+        changes: [
+          "휴대폰에서 읽은 날짜별 걸음 수와 운동 기록을 Firebase에 월 단위로 저장",
+          "PC·웹에서도 Firebase에 저장된 걸음 수와 운동 기록을 캘린더에 표시",
+          "기기 내부 캐시를 함께 사용해 일시적인 오프라인에서도 최근 건강 기록 유지"
+        ]
+      },
       {
         version: "1.7.18",
         date: "2026-08-21",
@@ -10654,12 +10667,153 @@
       if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만`;
       return count.toLocaleString("ko-KR");
     }
+    function healthMonthKey(year, month) {
+      return `${Number(year)}-${String(Number(month)).padStart(2, "0")}`;
+    }
+    function healthMonthDoc(key) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(key || ""))) return null;
+      const current = userStateDoc();
+      return current ? current.parent.doc(`health-${key}`) : null;
+    }
+    function normalizeHealthSteps(value, key) {
+      const result = {};
+      if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+      Object.entries(value).forEach(([date, count]) => {
+        const normalized = Math.max(0, Math.round(Number(count) || 0));
+        if (date.startsWith(`${key}-`) && normalized > 0) result[date] = normalized;
+      });
+      return result;
+    }
+    function normalizeHealthExercises(value, key) {
+      const result = {};
+      if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+      Object.entries(value).forEach(([date, sessions]) => {
+        if (!date.startsWith(`${key}-`) || !Array.isArray(sessions) || !sessions.length) return;
+        result[date] = sessions.slice(0, 100).map(session => ({
+          typeKey: String(session?.typeKey || "other_workout").slice(0, 80),
+          title: String(session?.title || "").slice(0, 120),
+          startTime: String(session?.startTime || "").slice(0, 8),
+          endTime: String(session?.endTime || "").slice(0, 8),
+          durationMinutes: Math.max(1, Math.round(Number(session?.durationMinutes) || 1))
+        }));
+      });
+      return result;
+    }
+    function cachedHealthMonth(key) {
+      const cached = load(`maint_health_${key}`, {});
+      return {
+        steps: normalizeHealthSteps(cached?.steps, key),
+        exercises: normalizeHealthExercises(cached?.exercises, key)
+      };
+    }
+    function cacheHealthMonth(key, steps, exercises) {
+      try {
+        localStorage.setItem(`maint_health_${key}`, JSON.stringify({
+          steps: normalizeHealthSteps(steps, key),
+          exercises: normalizeHealthExercises(exercises, key),
+          updatedAt: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.warn("Health cache could not be saved", error);
+      }
+    }
+    function applyHealthMonth(key, value, { overwrite = true } = {}) {
+      if (state.monthlyStepsKey !== key) return;
+      const steps = normalizeHealthSteps(value?.steps, key);
+      const exercises = normalizeHealthExercises(value?.exercises, key);
+      state.monthlySteps = overwrite ? { ...state.monthlySteps, ...steps } : { ...steps, ...state.monthlySteps };
+      state.monthlyExercises = overwrite ? { ...state.monthlyExercises, ...exercises } : { ...exercises, ...state.monthlyExercises };
+      if (dayScheduleDialog?.open && state.selectedCalendarDate?.startsWith(`${key}-`)) {
+        renderDayFitnessSummary(state.selectedCalendarDate);
+      }
+      if (currentViewName() === "calendar"
+          && healthMonthKey(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + 1) === key) {
+        renderCalendar("mainCalendar", false);
+      }
+    }
+    async function loadCloudHealthMonth(key, { force = false } = {}) {
+      const now = Date.now();
+      if (state.healthMonthLoading[key]) return;
+      if (!force && now - Number(state.healthMonthLoadedAt[key] || 0) < 30000) return;
+      state.healthMonthLoading[key] = true;
+      try {
+        const cached = cachedHealthMonth(key);
+        applyHealthMonth(key, cached, { overwrite: false });
+        if (!canUseCloudSync()) {
+          state.healthMonthLoadedAt[key] = 0;
+          return;
+        }
+        state.healthMonthLoadedAt[key] = now;
+        const ref = healthMonthDoc(key);
+        if (!ref) return;
+        const startedAt = Date.now();
+        try {
+          const snapshot = await ref.get();
+          const data = snapshot.data() || {};
+          const remoteSteps = normalizeHealthSteps(data.steps, key);
+          const remoteExercises = normalizeHealthExercises(data.exercises, key);
+          const merged = {
+            steps: { ...remoteSteps, ...cached.steps },
+            exercises: { ...remoteExercises, ...cached.exercises }
+          };
+          const nativeAppliedAfterRequest = Number(state.healthNativeAppliedAt[key] || 0) > startedAt;
+          if (nativeAppliedAfterRequest && state.monthlyStepsKey === key) {
+            Object.assign(merged.steps, normalizeHealthSteps(state.monthlySteps, key));
+            Object.assign(merged.exercises, normalizeHealthExercises(state.monthlyExercises, key));
+          }
+          applyHealthMonth(key, merged, { overwrite: !nativeAppliedAfterRequest });
+          cacheHealthMonth(key, merged.steps, merged.exercises);
+          const hasCachedData = Object.keys(cached.steps).length || Object.keys(cached.exercises).length;
+          const cloudNeedsUpdate = JSON.stringify(remoteSteps) !== JSON.stringify(merged.steps)
+            || JSON.stringify(remoteExercises) !== JSON.stringify(merged.exercises);
+          if (hasCachedData && (!snapshot.exists || cloudNeedsUpdate)) {
+            persistCloudHealthMonth(key, merged.steps, merged.exercises);
+          }
+        } catch (error) {
+          console.warn("Firebase health data could not be loaded", error);
+        }
+      } finally {
+        state.healthMonthLoading[key] = false;
+      }
+    }
+    async function persistCloudHealthMonth(key, steps, exercises) {
+      cacheHealthMonth(key, steps, exercises);
+      if (!canUseCloudSync()) return false;
+      const ref = healthMonthDoc(key);
+      if (!ref) return false;
+      try {
+        const snapshot = await ref.get();
+        const remote = snapshot.exists ? snapshot.data() || {} : {};
+        const mergedSteps = { ...normalizeHealthSteps(remote.steps, key), ...normalizeHealthSteps(steps, key) };
+        const mergedExercises = { ...normalizeHealthExercises(remote.exercises, key), ...normalizeHealthExercises(exercises, key) };
+        await ref.set({
+          year: Number(key.slice(0, 4)),
+          month: Number(key.slice(5, 7)),
+          steps: mergedSteps,
+          exercises: mergedExercises,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
+          schemaVersion: 1
+        }, { merge: true });
+        cacheHealthMonth(key, mergedSteps, mergedExercises);
+        return true;
+      } catch (error) {
+        console.warn("Firebase health data could not be saved", error);
+        return false;
+      }
+    }
     function requestMonthlySteps(year, month) {
+      const key = healthMonthKey(year, month);
+      if (state.monthlyStepsKey !== key) {
+        state.monthlyStepsKey = key;
+        state.monthlySteps = {};
+        state.monthlyExercises = {};
+        state.monthlyStepsRequestedAt = 0;
+      }
+      loadCloudHealthMonth(key);
       if (!window.ReportMateAndroid?.requestMonthlySteps) return;
-      const key = `${year}-${String(month).padStart(2, "0")}`;
       const now = Date.now();
       if (state.monthlyStepsKey === key && now - state.monthlyStepsRequestedAt < 30000) return;
-      state.monthlyStepsKey = key;
       state.monthlyStepsRequestedAt = now;
       try { window.ReportMateAndroid.requestMonthlySteps(year, month); } catch (error) {}
     }
@@ -10670,19 +10824,22 @@
           state.monthlyStepsRequestedAt = 0;
           return;
         }
-        const key = `${payload.year}-${String(payload.month).padStart(2, "0")}`;
-        state.monthlyStepsKey = key;
-        state.monthlyStepsRequestedAt = Date.now();
-        state.monthlySteps = payload.steps && typeof payload.steps === "object" ? payload.steps : {};
-        state.monthlyExercises = payload.exercises && typeof payload.exercises === "object" ? payload.exercises : {};
-        if (dayScheduleDialog?.open && state.selectedCalendarDate) {
-          renderDayFitnessSummary(state.selectedCalendarDate);
+        const key = healthMonthKey(payload.year, payload.month);
+        const native = {
+          steps: normalizeHealthSteps(payload.steps, key),
+          exercises: normalizeHealthExercises(payload.exercises, key)
+        };
+        const cached = cachedHealthMonth(key);
+        const merged = {
+          steps: { ...cached.steps, ...native.steps },
+          exercises: { ...cached.exercises, ...native.exercises }
+        };
+        state.healthNativeAppliedAt[key] = Date.now();
+        if (state.monthlyStepsKey === key) {
+          state.monthlyStepsRequestedAt = Date.now();
+          applyHealthMonth(key, merged, { overwrite: true });
         }
-        if (currentViewName() === "calendar"
-            && state.monthCursor.getFullYear() === Number(payload.year)
-            && state.monthCursor.getMonth() + 1 === Number(payload.month)) {
-          renderCalendar("mainCalendar", false);
-        }
+        persistCloudHealthMonth(key, merged.steps, merged.exercises);
       } catch (error) {
         console.warn("Monthly step data could not be applied", error);
       }
