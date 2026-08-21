@@ -2739,6 +2739,43 @@
       justify-content: space-between;
       gap: 10px;
     }
+    .day-schedule-title-row { align-items: flex-start; }
+    .day-schedule-heading { min-width: 0; }
+    .day-schedule-fitness {
+      margin-left: auto;
+      max-width: 48%;
+      display: grid;
+      gap: 3px;
+      color: #8a6800;
+      font-size: 9.5px;
+      font-weight: 750;
+      line-height: 1.25;
+      text-align: right;
+    }
+    .day-schedule-fitness.hidden { display: none; }
+    .day-fitness-line {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .day-fitness-line svg {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .day-fitness-line.steps { color: rgba(36, 94, 86, .8); }
+    .day-fitness-line span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .modal-actions {
       display: flex;
       gap: 8px;
@@ -4843,11 +4880,12 @@
 
   <dialog id="dayScheduleDialog">
     <div class="modal-body">
-      <div class="modal-title-row">
-        <div>
+      <div class="modal-title-row day-schedule-title-row">
+        <div class="day-schedule-heading">
           <h2 class="panel-title" id="dayScheduleTitle">일정</h2>
           <p class="panel-sub" id="dayScheduleSub"></p>
         </div>
+        <div class="day-schedule-fitness hidden" id="dayScheduleFitness" aria-label="이 날짜의 휘트니스 정보"></div>
         <button type="button" class="icon good" id="addDayScheduleBtn" title="일정 추가" aria-label="일정 추가">
           <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         </button>
@@ -6534,8 +6572,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.15";
+    const appVersion = "1.7.16";
     const versionHistory = [
+      {
+        version: "1.7.16",
+        date: "2026-08-21",
+        title: "캘린더 날짜별 휘트니스 상세정보",
+        changes: [
+          "날짜를 누르면 일정 상세창의 날짜 오른쪽에 그날 걸음 수 표시",
+          "Health Connect 운동 기록의 운동명, 시작·종료 시각, 운동시간을 세션별로 표시",
+          "캘린더 운동 표시는 알아보기 쉬운 노란색 덤벨 아이콘으로 개선"
+        ]
+      },
       {
         version: "1.7.15",
         date: "2026-08-20",
@@ -8812,6 +8860,45 @@
         </div>
       </article>`;
     }
+    function exerciseTypeLabel(session) {
+      const customTitle = String(session?.title || "").trim();
+      if (customTitle) return customTitle;
+      const labels = {
+        walking: "걷기", running: "달리기", running_treadmill: "러닝머신",
+        biking: "자전거", biking_stationary: "실내 자전거", hiking: "등산",
+        swimming_pool: "수영", swimming_open_water: "야외 수영",
+        strength_training: "근력 운동", weightlifting: "웨이트",
+        high_intensity_interval_training: "인터벌 운동", calisthenics: "맨몸 운동",
+        yoga: "요가", pilates: "필라테스", stretching: "스트레칭",
+        stair_climbing: "계단 오르기", stair_climbing_machine: "스텝퍼",
+        elliptical: "일립티컬", rowing_machine: "로잉머신", rowing: "조정",
+        dancing: "댄스", badminton: "배드민턴", table_tennis: "탁구",
+        tennis: "테니스", golf: "골프", soccer: "축구", basketball: "농구",
+        volleyball: "배구", baseball: "야구", boxing: "복싱",
+        martial_arts: "무술", exercise_class: "그룹 운동", other_workout: "운동"
+      };
+      return labels[String(session?.typeKey || "")] || "운동";
+    }
+    function renderDayFitnessSummary(date) {
+      const wrap = document.getElementById("dayScheduleFitness");
+      if (!wrap) return;
+      const steps = Math.max(0, Number(state.monthlySteps?.[date]) || 0);
+      const rawSessions = state.monthlyExercises?.[date];
+      const sessions = Array.isArray(rawSessions) ? rawSessions.slice().sort((a, b) =>
+        String(a?.startTime || "").localeCompare(String(b?.startTime || ""))) : [];
+      const lines = [];
+      if (steps > 0) {
+        lines.push(`<div class="day-fitness-line steps" title="${steps.toLocaleString("ko-KR")}걸음"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15.5c0-1.2.9-2.2 2.1-2.3l3.4-.3 1.8-5.5 2.1.8-.5 2 2.1.8.8-1.7 2 .8-.6 1.8 4.4 2.4c1.4.8 2.2 2.3 1.9 3.9-.2 1-1.1 1.7-2.1 1.7H4.5A2.5 2.5 0 0 1 2 15.5Z"/></svg><span>${steps.toLocaleString("ko-KR")}걸음</span></div>`);
+      }
+      sessions.forEach(session => {
+        const duration = Math.max(1, Number(session?.durationMinutes) || 0);
+        const time = session?.startTime && session?.endTime ? ` ${session.startTime}~${session.endTime}` : "";
+        const text = `${exerciseTypeLabel(session)}${time} · ${duration}분`;
+        lines.push(`<div class="day-fitness-line" title="${escapeAttr(text)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6M6 7v10M18 9v6M15 7v10M6 12h9M18 12h3"/></svg><span>${escapeHTML(text)}</span></div>`);
+      });
+      wrap.innerHTML = lines.join("");
+      wrap.classList.toggle("hidden", !lines.length);
+    }
     function installDayScheduleMenuHandlers(date) {
       dayScheduleList.querySelectorAll(".day-schedule-item[data-schedule-id]").forEach(item => {
         let timer = null;
@@ -8846,6 +8933,7 @@
       dayScheduleTitle.textContent = formatDateWithYear(date);
       dayScheduleTitle.dataset.date = date;
       dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
+      renderDayFitnessSummary(date);
       dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
       dayScheduleNote.value = state.dayNotes?.[date] || "";
       installDayScheduleMenuHandlers(date);
@@ -10561,6 +10649,9 @@
         state.monthlyStepsRequestedAt = Date.now();
         state.monthlySteps = payload.steps && typeof payload.steps === "object" ? payload.steps : {};
         state.monthlyExercises = payload.exercises && typeof payload.exercises === "object" ? payload.exercises : {};
+        if (dayScheduleDialog?.open && state.selectedCalendarDate) {
+          renderDayFitnessSummary(state.selectedCalendarDate);
+        }
         if (currentViewName() === "calendar"
             && state.monthCursor.getFullYear() === Number(payload.year)
             && state.monthCursor.getMonth() + 1 === Number(payload.month)) {
