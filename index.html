@@ -3462,6 +3462,11 @@
       pointer-events: none;
     }
     .day-steps.step-goal { color: #d99a00; }
+    .day-steps.exercise-only {
+      top: 9px;
+      right: auto;
+      left: 24px;
+    }
     .step-shoe {
       width: 7px;
       height: 7px;
@@ -3471,13 +3476,13 @@
       pointer-events: none;
     }
     .day-exercise {
-      width: 9px;
+      width: 11px;
       height: 9px;
       margin-right: 2px;
       vertical-align: -1px;
       fill: none;
       stroke: #d99a00;
-      stroke-width: 2.35;
+      stroke-width: 2.6;
       stroke-linecap: round;
       stroke-linejoin: round;
       pointer-events: none;
@@ -10547,7 +10552,10 @@
     window.applyNativeMonthlySteps = payloadJson => {
       try {
         const payload = typeof payloadJson === "string" ? JSON.parse(payloadJson) : payloadJson;
-        if (!payload || payload.status !== "ok") return;
+        if (!payload || payload.status !== "ok") {
+          state.monthlyStepsRequestedAt = 0;
+          return;
+        }
         const key = `${payload.year}-${String(payload.month).padStart(2, "0")}`;
         state.monthlyStepsKey = key;
         state.monthlyStepsRequestedAt = Date.now();
@@ -10594,7 +10602,7 @@
           const healthTitle = [stepText ? `${stepCount.toLocaleString("ko-KR")}걸음` : "", hasExercise ? "운동 기록 있음" : ""].filter(Boolean).join(" · ");
           cells.push(`<div class="${classes.join(" ")}" data-date="${iso}" onpointerdown="calendarRangeStart(event, '${iso}')" onpointermove="calendarRangeMove(event)" onpointerup="calendarRangeEnd(event)" onpointercancel="calendarRangeCancel(event)" onclick="openScheduleForDate(event, '${iso}')">
             <div class="day-number"><span>${d.getDate()}</span>${lunar || holiday ? `<span class="date-meta">${holiday ? `<span class="holiday-label">${escapeHTML(holiday)}</span>` : ""}${lunar ? `<span class="lunar-label">${escapeHTML(lunar)}</span>` : ""}</span>` : ""}</div>
-            ${stepText || hasExercise ? `<span class="day-steps ${stepCount >= 8000 ? "step-goal" : ""}" title="${escapeHTML(healthTitle)}">${hasExercise ? `<svg class="day-exercise" viewBox="0 0 24 24" aria-label="운동 기록 있음"><circle cx="14.5" cy="4" r="2" fill="#d99a00" stroke="none"/><path d="m12.5 7-2.8 4 3.2 2.2 1.6 4.8M9.7 11 6 9M12.9 13.2l4.3-1.1M14.5 18l-3.2 3M14.5 18l4 3"/></svg>` : ""}${stepText ? `<svg class="step-shoe" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15.5c0-1.2.9-2.2 2.1-2.3l3.4-.3 1.8-5.5 2.1.8-.5 2 2.1.8.8-1.7 2 .8-.6 1.8 4.4 2.4c1.4.8 2.2 2.3 1.9 3.9-.2 1-1.1 1.7-2.1 1.7H4.5A2.5 2.5 0 0 1 2 15.5Z"/></svg>${escapeHTML(stepText)}` : ""}</span>` : ""}
+            ${stepText || hasExercise ? `<span class="day-steps ${stepCount >= 8000 ? "step-goal" : ""} ${hasExercise && !stepText ? "exercise-only" : ""}" title="${escapeHTML(healthTitle)}">${hasExercise ? `<svg class="day-exercise" viewBox="0 0 24 24" aria-label="운동 기록 있음"><path d="M3 9v6M6 7v10M18 9v6M15 7v10M6 12h9M18 12h3"/></svg>` : ""}${stepText ? `<svg class="step-shoe" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15.5c0-1.2.9-2.2 2.1-2.3l3.4-.3 1.8-5.5 2.1.8-.5 2 2.1.8.8-1.7 2 .8-.6 1.8 4.4 2.4c1.4.8 2.2 2.3 1.9 3.9-.2 1-1.1 1.7-2.1 1.7H4.5A2.5 2.5 0 0 1 2 15.5Z"/></svg>${escapeHTML(stepText)}` : ""}</span>` : ""}
           </div>`);
         }
         const segments = calendarWeekSegments(weekDates);
