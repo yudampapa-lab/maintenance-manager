@@ -6581,8 +6581,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.19";
+    const appVersion = "1.7.20";
     const versionHistory = [
+      {
+        version: "1.7.20",
+        date: "2026-08-22",
+        title: "수동 복원 건강 기록 보호",
+        changes: [
+          "Firebase에 수동 복원한 건강 기록을 기기 캐시보다 우선 표시",
+          "Health Connect의 제한된 과거 응답이 복원 기록을 덮어쓰지 않도록 보호",
+          "건강 수치 원문은 공개 웹 코드에 포함하지 않고 사용자 전용 문서에만 저장"
+        ]
+      },
       {
         version: "1.7.19",
         date: "2026-08-22",
@@ -10752,9 +10762,11 @@
           const data = snapshot.data() || {};
           const remoteSteps = normalizeHealthSteps(data.steps, key);
           const remoteExercises = normalizeHealthExercises(data.exercises, key);
+          const manualSteps = normalizeHealthSteps(data.manualSteps, key);
+          const manualExercises = normalizeHealthExercises(data.manualExercises, key);
           const merged = {
-            steps: { ...remoteSteps, ...cached.steps },
-            exercises: { ...remoteExercises, ...cached.exercises }
+            steps: { ...remoteSteps, ...cached.steps, ...manualSteps },
+            exercises: { ...remoteExercises, ...cached.exercises, ...manualExercises }
           };
           const nativeAppliedAfterRequest = Number(state.healthNativeAppliedAt[key] || 0) > startedAt;
           if (nativeAppliedAfterRequest && state.monthlyStepsKey === key) {
@@ -10784,8 +10796,10 @@
       try {
         const snapshot = await ref.get();
         const remote = snapshot.exists ? snapshot.data() || {} : {};
-        const mergedSteps = { ...normalizeHealthSteps(remote.steps, key), ...normalizeHealthSteps(steps, key) };
-        const mergedExercises = { ...normalizeHealthExercises(remote.exercises, key), ...normalizeHealthExercises(exercises, key) };
+        const manualSteps = normalizeHealthSteps(remote.manualSteps, key);
+        const manualExercises = normalizeHealthExercises(remote.manualExercises, key);
+        const mergedSteps = { ...normalizeHealthSteps(remote.steps, key), ...normalizeHealthSteps(steps, key), ...manualSteps };
+        const mergedExercises = { ...normalizeHealthExercises(remote.exercises, key), ...normalizeHealthExercises(exercises, key), ...manualExercises };
         await ref.set({
           year: Number(key.slice(0, 4)),
           month: Number(key.slice(5, 7)),
