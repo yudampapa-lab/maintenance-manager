@@ -2780,6 +2780,11 @@
       fill: currentColor;
       stroke: none;
     }
+    .day-fitness-line.calories { color: #d87924; }
+    .day-fitness-line.calories svg {
+      fill: currentColor;
+      stroke: none;
+    }
     .day-fitness-line span {
       min-width: 0;
       overflow: hidden;
@@ -5191,6 +5196,7 @@
       orgListMode: "all",
       monthlySteps: {},
       monthlyExercises: {},
+      monthlyCalories: {},
       monthlyStepsKey: "",
       monthlyStepsRequestedAt: 0,
       healthMonthLoadedAt: {},
@@ -6581,8 +6587,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.21";
+    const appVersion = "1.7.22";
     const versionHistory = [
+      {
+        version: "1.7.22",
+        date: "2026-08-22",
+        title: "날짜별 활동 소모 칼로리",
+        changes: [
+          "Android Health Connect에서 날짜별 활동 소모 칼로리를 함께 조회",
+          "캘린더 날짜 상세의 운동정보 영역에 kcal 표시",
+          "칼로리 기록을 Firebase 월별 건강 문서에 저장해 PC·웹에서도 공유"
+        ]
+      },
       {
         version: "1.7.21",
         date: "2026-08-22",
@@ -8941,6 +8957,7 @@
       const wrap = document.getElementById("dayScheduleFitness");
       if (!wrap) return;
       const steps = Math.max(0, Number(state.monthlySteps?.[date]) || 0);
+      const calories = Math.max(0, Math.round(Number(state.monthlyCalories?.[date]) || 0));
       const rawSessions = state.monthlyExercises?.[date];
       const sessions = Array.isArray(rawSessions) ? rawSessions.slice().sort((a, b) =>
         String(a?.startTime || "").localeCompare(String(b?.startTime || ""))) : [];
@@ -8954,6 +8971,10 @@
         const text = `${exerciseTypeLabel(session)}${time} · ${duration}분`;
         lines.push(`<div class="day-fitness-line exercise" title="${escapeAttr(text)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-3.7 11.8 1-4.4 2.1 2V21h2v-7.5l-2.1-2 .6-3C14.7 9.9 16.7 11 19 11V9c-2 0-3.7-1.1-4.6-2.7l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.2L5 6.3V11h2V7.6l1.8-.7-1.6 8.2-4.9-1-.4 2 7.9 1.2Z"/></svg><span>${escapeHTML(text)}</span></div>`);
       });
+      if (calories > 0) {
+        const calorieText = `활동 소모 ${calories.toLocaleString("ko-KR")} kcal`;
+        lines.push(`<div class="day-fitness-line calories" title="${escapeAttr(calorieText)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.3 2.2c.5 3.1-.8 4.7-2.1 6.1-1.2 1.3-2.3 2.5-2.3 4.7 0 1.4.8 2.6 2 3.2-.2-2.2.8-3.7 2.3-5.2.2 2 1.8 3.1 2.7 4.3.7.9 1.1 1.9 1 3A7 7 0 0 0 20 12.4c0-4.2-2.6-7.8-6.7-10.2ZM12 22a8 8 0 0 1-8-8c0-3.4 1.7-6.4 5.1-9-.1 2.3-1.3 3.6-2.4 4.9-.9 1-1.7 2-1.7 4.1a7 7 0 0 0 14 0c0-1.2-.2-2.3-.7-3.4A8 8 0 0 1 12 22Z"/></svg><span>${escapeHTML(calorieText)}</span></div>`);
+      }
       wrap.innerHTML = lines.join("");
       wrap.classList.toggle("hidden", !lines.length);
     }
@@ -10703,6 +10724,15 @@
       });
       return result;
     }
+    function normalizeHealthCalories(value, key) {
+      const result = {};
+      if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+      Object.entries(value).forEach(([date, calories]) => {
+        const normalized = Math.max(0, Math.round(Number(calories) || 0));
+        if (date.startsWith(`${key}-`) && normalized > 0) result[date] = normalized;
+      });
+      return result;
+    }
     function normalizeHealthExercises(value, key) {
       const result = {};
       if (!value || typeof value !== "object" || Array.isArray(value)) return result;
@@ -10722,14 +10752,16 @@
       const cached = load(`maint_health_${key}`, {});
       return {
         steps: normalizeHealthSteps(cached?.steps, key),
-        exercises: normalizeHealthExercises(cached?.exercises, key)
+        exercises: normalizeHealthExercises(cached?.exercises, key),
+        calories: normalizeHealthCalories(cached?.calories, key)
       };
     }
-    function cacheHealthMonth(key, steps, exercises) {
+    function cacheHealthMonth(key, steps, exercises, calories = {}) {
       try {
         localStorage.setItem(`maint_health_${key}`, JSON.stringify({
           steps: normalizeHealthSteps(steps, key),
           exercises: normalizeHealthExercises(exercises, key),
+          calories: normalizeHealthCalories(calories, key),
           updatedAt: new Date().toISOString()
         }));
       } catch (error) {
@@ -10740,8 +10772,10 @@
       if (state.monthlyStepsKey !== key) return;
       const steps = normalizeHealthSteps(value?.steps, key);
       const exercises = normalizeHealthExercises(value?.exercises, key);
+      const calories = normalizeHealthCalories(value?.calories, key);
       state.monthlySteps = overwrite ? { ...state.monthlySteps, ...steps } : { ...steps, ...state.monthlySteps };
       state.monthlyExercises = overwrite ? { ...state.monthlyExercises, ...exercises } : { ...exercises, ...state.monthlyExercises };
+      state.monthlyCalories = overwrite ? { ...state.monthlyCalories, ...calories } : { ...calories, ...state.monthlyCalories };
       if (dayScheduleDialog?.open && state.selectedCalendarDate?.startsWith(`${key}-`)) {
         renderDayFitnessSummary(state.selectedCalendarDate);
       }
@@ -10771,24 +10805,30 @@
           const data = snapshot.data() || {};
           const remoteSteps = normalizeHealthSteps(data.steps, key);
           const remoteExercises = normalizeHealthExercises(data.exercises, key);
+          const remoteCalories = normalizeHealthCalories(data.calories, key);
           const manualSteps = normalizeHealthSteps(data.manualSteps, key);
           const manualExercises = normalizeHealthExercises(data.manualExercises, key);
+          const manualCalories = normalizeHealthCalories(data.manualCalories, key);
           const merged = {
             steps: { ...remoteSteps, ...cached.steps, ...manualSteps },
-            exercises: { ...remoteExercises, ...cached.exercises, ...manualExercises }
+            exercises: { ...remoteExercises, ...cached.exercises, ...manualExercises },
+            calories: { ...remoteCalories, ...cached.calories, ...manualCalories }
           };
           const nativeAppliedAfterRequest = Number(state.healthNativeAppliedAt[key] || 0) > startedAt;
           if (nativeAppliedAfterRequest && state.monthlyStepsKey === key) {
             Object.assign(merged.steps, normalizeHealthSteps(state.monthlySteps, key));
             Object.assign(merged.exercises, normalizeHealthExercises(state.monthlyExercises, key));
+            Object.assign(merged.calories, normalizeHealthCalories(state.monthlyCalories, key));
           }
           applyHealthMonth(key, merged, { overwrite: !nativeAppliedAfterRequest });
-          cacheHealthMonth(key, merged.steps, merged.exercises);
-          const hasCachedData = Object.keys(cached.steps).length || Object.keys(cached.exercises).length;
+          cacheHealthMonth(key, merged.steps, merged.exercises, merged.calories);
+          const hasCachedData = Object.keys(cached.steps).length || Object.keys(cached.exercises).length
+            || Object.keys(cached.calories).length;
           const cloudNeedsUpdate = JSON.stringify(remoteSteps) !== JSON.stringify(merged.steps)
-            || JSON.stringify(remoteExercises) !== JSON.stringify(merged.exercises);
+            || JSON.stringify(remoteExercises) !== JSON.stringify(merged.exercises)
+            || JSON.stringify(remoteCalories) !== JSON.stringify(merged.calories);
           if (hasCachedData && (!snapshot.exists || cloudNeedsUpdate)) {
-            persistCloudHealthMonth(key, merged.steps, merged.exercises);
+            persistCloudHealthMonth(key, merged.steps, merged.exercises, merged.calories);
           }
         } catch (error) {
           console.warn("Firebase health data could not be loaded", error);
@@ -10797,8 +10837,8 @@
         state.healthMonthLoading[key] = false;
       }
     }
-    async function persistCloudHealthMonth(key, steps, exercises) {
-      cacheHealthMonth(key, steps, exercises);
+    async function persistCloudHealthMonth(key, steps, exercises, calories = {}) {
+      cacheHealthMonth(key, steps, exercises, calories);
       if (!canUseCloudSync()) return false;
       const ref = healthMonthDoc(key);
       if (!ref) return false;
@@ -10807,18 +10847,21 @@
         const remote = snapshot.exists ? snapshot.data() || {} : {};
         const manualSteps = normalizeHealthSteps(remote.manualSteps, key);
         const manualExercises = normalizeHealthExercises(remote.manualExercises, key);
+        const manualCalories = normalizeHealthCalories(remote.manualCalories, key);
         const mergedSteps = { ...normalizeHealthSteps(remote.steps, key), ...normalizeHealthSteps(steps, key), ...manualSteps };
         const mergedExercises = { ...normalizeHealthExercises(remote.exercises, key), ...normalizeHealthExercises(exercises, key), ...manualExercises };
+        const mergedCalories = { ...normalizeHealthCalories(remote.calories, key), ...normalizeHealthCalories(calories, key), ...manualCalories };
         await ref.set({
           year: Number(key.slice(0, 4)),
           month: Number(key.slice(5, 7)),
           steps: mergedSteps,
           exercises: mergedExercises,
+          calories: mergedCalories,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: state.firebase?.auth?.currentUser?.email || allowedLoginEmail,
           schemaVersion: 1
         }, { merge: true });
-        cacheHealthMonth(key, mergedSteps, mergedExercises);
+        cacheHealthMonth(key, mergedSteps, mergedExercises, mergedCalories);
         return true;
       } catch (error) {
         console.warn("Firebase health data could not be saved", error);
@@ -10831,6 +10874,7 @@
         state.monthlyStepsKey = key;
         state.monthlySteps = {};
         state.monthlyExercises = {};
+        state.monthlyCalories = {};
         state.monthlyStepsRequestedAt = 0;
       }
       loadCloudHealthMonth(key);
@@ -10850,19 +10894,21 @@
         const key = healthMonthKey(payload.year, payload.month);
         const native = {
           steps: normalizeHealthSteps(payload.steps, key),
-          exercises: normalizeHealthExercises(payload.exercises, key)
+          exercises: normalizeHealthExercises(payload.exercises, key),
+          calories: normalizeHealthCalories(payload.calories, key)
         };
         const cached = cachedHealthMonth(key);
         const merged = {
           steps: { ...cached.steps, ...native.steps },
-          exercises: { ...cached.exercises, ...native.exercises }
+          exercises: { ...cached.exercises, ...native.exercises },
+          calories: { ...cached.calories, ...native.calories }
         };
         state.healthNativeAppliedAt[key] = Date.now();
         if (state.monthlyStepsKey === key) {
           state.monthlyStepsRequestedAt = Date.now();
           applyHealthMonth(key, merged, { overwrite: true });
         }
-        persistCloudHealthMonth(key, merged.steps, merged.exercises);
+        persistCloudHealthMonth(key, merged.steps, merged.exercises, merged.calories);
       } catch (error) {
         console.warn("Monthly step data could not be applied", error);
       }
