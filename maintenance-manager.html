@@ -6135,6 +6135,9 @@
         })
         .join(", ");
     }
+    function formatTeamMembersForClipboard(value = "") {
+      return formatTeamMembersWithRoles(value).replace(/\s*·\s*/g, " ");
+    }
     function normalizeTodoMemos() {
       state.todoMemos = (Array.isArray(state.todoMemos) ? state.todoMemos : [])
         .filter(item => item && typeof item === "object")
@@ -6587,8 +6590,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.23";
+    const appVersion = "1.7.24";
     const versionHistory = [
+      {
+        version: "1.7.24",
+        date: "2026-08-24",
+        title: "팀 일정 클립보드 표기 정리",
+        changes: [
+          "팀 일정 복사 시 팀원 이름과 직급 사이의 가운데점을 제거",
+          "팀원 표기를 이름 직급 형태로 간결하게 통일"
+        ]
+      },
       {
         version: "1.7.23",
         date: "2026-08-22",
@@ -8551,7 +8563,7 @@
       const parts = [];
       const reason = scheduleVisitReasonLabel(schedule);
       if (reason) parts.push(reason);
-      if (schedule.teamMembers) parts.push(`팀원:${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      if (schedule.teamMembers) parts.push(`팀원:${formatTeamMembersForClipboard(schedule.teamMembers)}`);
       return parts.length ? `${name} (${parts.join(" / ")})` : name;
     }
     function clipboardAffiliationGroupLabel(schedule) {
@@ -8563,7 +8575,7 @@
       const parts = [];
       const reason = scheduleVisitReasonLabel(schedule);
       if (reason) parts.push(reason);
-      if (includeTeam && schedule.teamMembers) parts.push(`팀원:${formatTeamMembersWithRoles(schedule.teamMembers)}`);
+      if (includeTeam && schedule.teamMembers) parts.push(`팀원:${formatTeamMembersForClipboard(schedule.teamMembers)}`);
       return parts;
     }
     function clipboardNameWithParts(name, parts = []) {
