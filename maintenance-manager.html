@@ -2741,6 +2741,7 @@
     }
     .day-schedule-title-row { align-items: flex-start; }
     .day-schedule-heading { min-width: 0; }
+    #dayScheduleTitle { white-space: nowrap; }
     .day-schedule-fitness {
       margin-left: auto;
       max-width: 48%;
@@ -3683,6 +3684,16 @@
         padding: 5px 12px;
       }
       .brand strong { font-size: 15px; }
+      .day-schedule-title-row { gap: 6px; }
+      .day-schedule-heading { flex: 0 0 auto; }
+      #dayScheduleTitle {
+        font-size: 15px;
+        letter-spacing: -.035em;
+      }
+      .day-schedule-fitness {
+        max-width: none;
+        font-size: 8.5px;
+      }
       #membershipBarcodeDialog { width: calc(100vw - 6px); }
       #membershipBarcodeDialog .modal-body { padding: 12px 8px; }
       #membershipBarcodeDialog .membership-card { padding-inline: 10px; }
@@ -6590,8 +6601,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.25";
+    const appVersion = "1.7.26";
     const versionHistory = [
+      {
+        version: "1.7.26",
+        date: "2026-08-24",
+        title: "모바일 날짜 제목 한 줄 정렬",
+        changes: [
+          "모바일 날짜 상세창의 날짜 제목 크기와 자간을 소폭 조정",
+          "날짜와 요일이 두 줄로 나뉘지 않도록 한 줄 표시로 고정"
+        ]
+      },
       {
         version: "1.7.25",
         date: "2026-08-24",
