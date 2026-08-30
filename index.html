@@ -1472,6 +1472,66 @@
       background: var(--soft);
       box-shadow: none;
     }
+    .calendar-month-tide {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+    .tide-station-select {
+      width: 96px;
+      min-width: 0;
+      min-height: 32px;
+      height: 32px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 750;
+      color: #22677d;
+      background-color: rgba(111, 210, 230, .13);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: none;
+    }
+    .tide-place-search {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tide-place-results { display: grid; gap: 7px; margin-top: 12px; }
+    .tide-place-result {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      box-shadow: none;
+    }
+    .tide-place-result strong,
+    .tide-place-result span { display: block; }
+    .tide-place-result strong { font-size: 13px; }
+    .tide-place-result span { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .tide-place-quick {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      max-height: 150px;
+      overflow: auto;
+    }
+    .tide-place-quick button {
+      min-height: 30px;
+      padding: 5px 9px;
+      border-radius: 9px;
+      font-size: 10px;
+      box-shadow: none;
+    }
+    .tide-place-attribution { margin: 10px 0 0; color: var(--muted); font-size: 9px; }
+    .day-tide-basis { display: block; margin-top: 2px; color: #6b8790; font-size: 9px; font-weight: 600; }
     .calendar-search {
       display: flex;
       align-items: center;
@@ -2771,6 +2831,60 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+    .day-tide-card {
+      margin: 12px 0 10px;
+      padding: 11px 12px;
+      border: 1px solid rgba(46, 157, 184, .18);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(224, 248, 252, .9), rgba(236, 244, 255, .88));
+      color: #244b59;
+    }
+    .day-tide-card[hidden] { display: none; }
+    .day-tide-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+    .day-tide-head strong {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: #155d76;
+    }
+    .day-tide-head span { color: #64808a; font-size: 10px; font-weight: 700; }
+    .day-tide-wave { width: 17px; height: 17px; fill: none; stroke: #1683a5; stroke-width: 2; }
+    .day-tide-events {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .day-tide-event {
+      min-width: 0;
+      padding: 7px 4px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.66);
+      text-align: center;
+    }
+    .day-tide-event span { display: block; font-size: 9px; font-weight: 800; color: #4d7784; }
+    .day-tide-event strong { display: block; margin-top: 2px; font-size: 12px; color: #173f4d; }
+    .day-tide-event em { display: block; margin-top: 1px; color: #6e858d; font-size: 9px; font-style: normal; }
+    .day-tide-event.high span { color: #087aa0; }
+    .day-tide-event.low span { color: #7866a5; }
+    .day-tide-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 10px;
+      margin-top: 8px;
+      color: #3e6876;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .day-tide-flow strong { color: #17627b; }
+    .day-tide-source { margin: 7px 0 0; color: #78909a; font-size: 8.5px; line-height: 1.35; }
+    .day-tide-message { margin: 0; color: #607982; font-size: 11px; line-height: 1.45; }
     .day-fitness-line.steps { color: rgba(36, 94, 86, .8); }
     .day-fitness-line.steps svg {
       fill: currentColor;
@@ -3694,6 +3808,20 @@
         max-width: none;
         font-size: 8.5px;
       }
+      #view-calendar .calendar-month-tide { gap: 2px; }
+      #view-calendar .calendar-month-tide .calendar-title-button {
+        min-width: 94px;
+        padding-inline: 4px;
+        font-size: 16px;
+      }
+      #view-calendar .tide-station-select {
+        width: 76px;
+        height: 30px;
+        min-height: 30px;
+        padding: 2px 5px;
+        font-size: 10px;
+      }
+      .day-tide-events { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #membershipBarcodeDialog { width: calc(100vw - 6px); }
       #membershipBarcodeDialog .modal-body { padding: 12px 8px; }
       #membershipBarcodeDialog .membership-card { padding-inline: 10px; }
@@ -4912,6 +5040,7 @@
           <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         </button>
       </div>
+      <section class="day-tide-card" id="dayTideCard" aria-live="polite" hidden></section>
       <div class="day-schedule-list" id="dayScheduleList"></div>
       <section class="photo-log-section" id="photoLogSection" hidden>
         <button type="button" class="secondary photo-log-button" id="photoLogBtn" aria-expanded="false" aria-controls="photoLogContent" onclick="loadAndroidPhotoLog()">
@@ -4964,6 +5093,23 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="secondary" id="closeCalendarSearchDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
+  <dialog id="tidePlaceDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">물때 지역 선택</h2>
+      <p class="panel-sub">전국의 항·포구·선착장·방조제 이름을 검색하세요. 가장 가까운 공식 조위관측소가 자동 연결됩니다.</p>
+      <form class="tide-place-search" onsubmit="searchTidePlace(event)">
+        <input id="tidePlaceSearchInput" autocomplete="off" placeholder="예: 궁평항, 시화방조제, 영흥도 선착장">
+        <button type="submit">검색</button>
+      </form>
+      <div class="tide-place-results" id="tidePlaceResults"></div>
+      <div class="tide-place-quick" id="tidePlaceQuick"></div>
+      <p class="tide-place-attribution">장소 검색 © OpenStreetMap contributors · 조위 국립해양조사원</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeTidePlaceDialogBtn">닫기</button>
     </div>
   </dialog>
 
@@ -5134,6 +5280,67 @@
       { sourceId: "nyj-public-hopyeong", name: "호평도서관", address: "경기도 남양주시 천마산로 67(호평동 369-8번지)", tel: "031-590-8340, 8346", closed: "매달 둘째·넷째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" }
     ];
 
+    const tideStations = [
+      { code: "DT_0001", name: "인천", coast: "서해", system: 7 },
+      { code: "DT_0052", name: "인천송도", coast: "서해", system: 7 },
+      { code: "DT_0008", name: "안산", coast: "서해", system: 7 },
+      { code: "DT_0002", name: "평택", coast: "서해", system: 7 },
+      { code: "DT_0050", name: "태안", coast: "서해", system: 7 },
+      { code: "DT_0067", name: "안흥", coast: "서해", system: 7 },
+      { code: "DT_0025", name: "보령", coast: "서해", system: 7 },
+      { code: "DT_0017", name: "대산", coast: "서해", system: 7 },
+      { code: "DT_0018", name: "군산", coast: "서해", system: 7 },
+      { code: "DT_0024", name: "장항", coast: "서해", system: 7 },
+      { code: "DT_0003", name: "영광", coast: "서해", system: 7 },
+      { code: "DT_0007", name: "목포", coast: "서해", system: 7 },
+      { code: "DT_0068", name: "위도", coast: "서해", system: 7 },
+      { code: "DT_0028", name: "진도", coast: "서해", system: 7 },
+      { code: "DT_0035", name: "흑산도", coast: "서해", system: 7 },
+      { code: "DT_0027", name: "완도", coast: "남해", system: 8 },
+      { code: "DT_0016", name: "여수", coast: "남해", system: 8 },
+      { code: "DT_0026", name: "고흥발포", coast: "남해", system: 8 },
+      { code: "DT_0049", name: "광양", coast: "남해", system: 8 },
+      { code: "DT_0055", name: "순천만", coast: "남해", system: 8 },
+      { code: "DT_0014", name: "통영", coast: "남해", system: 8 },
+      { code: "DT_0029", name: "거제도", coast: "남해", system: 8 },
+      { code: "DT_0061", name: "삼천포", coast: "남해", system: 8 },
+      { code: "DT_0005", name: "부산", coast: "남해", system: 8 },
+      { code: "DT_0056", name: "부산항신항", coast: "남해", system: 8 },
+      { code: "DT_0063", name: "가덕도", coast: "남해", system: 8 },
+      { code: "DT_0062", name: "마산", coast: "남해", system: 8 },
+      { code: "DT_0004", name: "제주", coast: "제주", system: 8 },
+      { code: "DT_0010", name: "서귀포", coast: "제주", system: 8 },
+      { code: "DT_0022", name: "성산포", coast: "제주", system: 8 },
+      { code: "DT_0023", name: "모슬포", coast: "제주", system: 8 },
+      { code: "DT_0021", name: "추자도", coast: "제주", system: 8 },
+      { code: "DT_0020", name: "울산", coast: "동해", system: 8 },
+      { code: "DT_0091", name: "포항", coast: "동해", system: 8 },
+      { code: "DT_0011", name: "후포", coast: "동해", system: 8 },
+      { code: "DT_0006", name: "묵호", coast: "동해", system: 8 },
+      { code: "DT_0057", name: "동해항", coast: "동해", system: 8 },
+      { code: "DT_0012", name: "속초", coast: "동해", system: 8 },
+      { code: "DT_0013", name: "울릉도", coast: "동해", system: 8 }
+    ];
+    const tideStationCoordinates = {
+      DT_0001: [37.451944, 126.592222], DT_0052: [37.338056, 126.586111], DT_0008: [37.192222, 126.647222],
+      DT_0002: [36.966944, 126.822778], DT_0050: [36.913056, 126.238889], DT_0067: [36.674639, 126.129556],
+      DT_0025: [36.406389, 126.486111], DT_0017: [37.0075, 126.352778], DT_0018: [35.975556, 126.563056],
+      DT_0024: [36.006944, 126.6875], DT_0003: [35.426111, 126.420556], DT_0007: [34.779722, 126.375556],
+      DT_0068: [35.618084, 126.301816], DT_0028: [34.377778, 126.308611], DT_0035: [34.684167, 125.435556],
+      DT_0027: [34.315556, 126.759722], DT_0016: [34.747222, 127.765556], DT_0026: [34.481111, 127.342778],
+      DT_0049: [34.903672, 127.754836], DT_0055: [34.884111, 127.512556], DT_0014: [34.827778, 128.434722],
+      DT_0029: [34.801389, 128.699167], DT_0061: [34.924167, 128.069722], DT_0005: [35.096389, 129.035278],
+      DT_0056: [35.0775, 128.786944], DT_0063: [35.024178, 128.810933], DT_0062: [35.1975, 128.576389],
+      DT_0004: [33.5275, 126.543056], DT_0010: [33.24, 126.561667], DT_0022: [33.474722, 126.927778],
+      DT_0023: [33.214444, 126.251111], DT_0021: [33.961944, 126.300278], DT_0020: [35.501944, 129.387222],
+      DT_0091: [36.047128, 129.383806], DT_0011: [36.6775, 129.453056], DT_0006: [37.550278, 129.116389],
+      DT_0057: [37.494722, 129.143889], DT_0012: [38.207222, 128.594167], DT_0013: [37.491389, 130.913611]
+    };
+    tideStations.forEach(station => {
+      [station.lat, station.lon] = tideStationCoordinates[station.code] || [0, 0];
+    });
+    const tideStationMap = new Map(tideStations.map(station => [station.code, station]));
+
     const state = {
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
@@ -5145,7 +5352,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", cloudPendingScheduleSyncToken: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", tideStationCode: "DT_0001", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], restoredScheduleIds: [], deletedScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", cloudPendingScheduleSyncToken: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -5231,6 +5438,16 @@
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
     state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
     state.settings.mobileMembershipBarcode = String(state.settings.mobileMembershipBarcode || "12810425006025").slice(0, 80);
+    state.settings.tideStationCode = tideStationMap.has(state.settings.tideStationCode) ? state.settings.tideStationCode : "DT_0001";
+    state.settings.tidePlaceName = String(state.settings.tidePlaceName || "").trim().slice(0, 80);
+    state.settings.tidePlaceLat = Number.isFinite(Number(state.settings.tidePlaceLat)) ? Number(state.settings.tidePlaceLat) : null;
+    state.settings.tidePlaceLon = Number.isFinite(Number(state.settings.tidePlaceLon)) ? Number(state.settings.tidePlaceLon) : null;
+    state.settings.tideStationDistanceKm = Number.isFinite(Number(state.settings.tideStationDistanceKm)) ? Number(state.settings.tideStationDistanceKm) : 0;
+    state.tideCache = {};
+    state.tideLoading = {};
+    state.tidePlaceResults = [];
+    state.tideServiceKey = "";
+    state.tideKeyLoading = null;
     const defaultWorkoutIntervals = [{ type: "work", label: "운동", seconds: 30 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 40 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 50 }, { type: "rest", label: "휴식", seconds: 10 }];
     function normalizeWorkoutIntervals(value) {
       const source = Array.isArray(value) ? value : defaultWorkoutIntervals;
@@ -5366,6 +5583,12 @@
       const uid = services?.auth?.currentUser?.uid;
       if (!services || !uid) return null;
       return services.db.collection("reportmateUsers").doc(uid).collection("state").doc("current");
+    }
+    function userTideKeyDoc() {
+      const services = initFirebaseServices();
+      const uid = services?.auth?.currentUser?.uid;
+      if (!services || !uid) return null;
+      return services.db.collection("reportmateUsers").doc(uid).collection("private").doc("tideApi");
     }
     function waitForFirebaseAuthUser(timeoutMs = 5000) {
       const services = initFirebaseServices();
@@ -6601,8 +6824,30 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.26";
+    const appVersion = "1.7.28";
     const versionHistory = [
+      {
+        version: "1.7.28",
+        date: "2026-08-30",
+        title: "전국 항·방조제 물때 검색",
+        changes: [
+          "항, 포구, 선착장, 방조제 이름으로 전국 장소 검색",
+          "선택 장소에서 가장 가까운 공식 조위관측소 자동 연결",
+          "날짜 상세에 기준 관측소와 거리 표시",
+          "선택 장소를 모바일과 PC에 동기화"
+        ]
+      },
+      {
+        version: "1.7.27",
+        date: "2026-08-30",
+        title: "캘린더 물때·조위 정보",
+        changes: [
+          "캘린더 월 제목 옆에 해안 지역 선택 기능 추가",
+          "날짜 상세에 물때, 만조·간조 시각과 예측 조위 표시",
+          "인접한 만조·간조 수위 차이로 들물·날물 변화량 표시",
+          "선택한 조위관측소를 모바일과 PC에 동기화"
+        ]
+      },
       {
         version: "1.7.26",
         date: "2026-08-24",
@@ -9039,6 +9284,304 @@
       wrap.innerHTML = lines.join("");
       wrap.classList.toggle("hidden", !lines.length);
     }
+    function selectedTideStation() {
+      return tideStationMap.get(state.settings.tideStationCode) || tideStations[0];
+    }
+    function selectedTidePlaceName() {
+      return state.settings.tidePlaceName || selectedTideStation().name;
+    }
+    function tideStationSelectHTML() {
+      return `<button type="button" class="tide-station-select" title="항·방조제 물때 지역 선택" aria-label="물때 지역 선택: ${escapeAttr(selectedTidePlaceName())}" onclick="event.stopPropagation(); openTidePlaceDialog()">${escapeHTML(selectedTidePlaceName())}</button>`;
+    }
+    function tideDistanceKm(lat1, lon1, lat2, lon2) {
+      const toRad = value => Number(value) * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function nearestTideStation(lat, lon) {
+      return tideStations.map(station => ({ station, distanceKm: tideDistanceKm(lat, lon, station.lat, station.lon) }))
+        .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+    }
+    function applyTidePlace(place, station, distanceKm = 0) {
+      state.settings.tideStationCode = station.code;
+      state.settings.tidePlaceName = String(place?.name || station.name).trim().slice(0, 80);
+      state.settings.tidePlaceLat = Number.isFinite(Number(place?.lat)) ? Number(place.lat) : station.lat;
+      state.settings.tidePlaceLon = Number.isFinite(Number(place?.lon)) ? Number(place.lon) : station.lon;
+      state.settings.tideStationDistanceKm = Math.max(0, Number(distanceKm) || 0);
+      save();
+      if (tidePlaceDialog.open) tidePlaceDialog.close();
+      renderCalendar("mainCalendar", false);
+      if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayTideInfo(state.selectedCalendarDate, { force: true });
+      toast(`${state.settings.tidePlaceName} · ${station.name} 관측소 기준`);
+    }
+    window.selectQuickTideStation = code => {
+      const station = tideStationMap.get(code);
+      if (station) applyTidePlace({ name: station.name, lat: station.lat, lon: station.lon }, station, 0);
+    };
+    window.selectTidePlaceResult = index => {
+      const place = state.tidePlaceResults[Number(index)];
+      if (!place) return;
+      const nearest = nearestTideStation(place.lat, place.lon);
+      applyTidePlace(place, nearest.station, nearest.distanceKm);
+    };
+    function renderTidePlaceQuick() {
+      tidePlaceQuick.innerHTML = tideStations.map(station => `<button type="button" class="secondary" onclick="selectQuickTideStation('${station.code}')">${escapeHTML(station.name)}</button>`).join("");
+    }
+    window.openTidePlaceDialog = () => {
+      tidePlaceSearchInput.value = state.settings.tidePlaceName || "";
+      tidePlaceResults.innerHTML = `<p class="panel-sub">장소를 검색하거나 아래 기준 관측소를 바로 선택할 수 있습니다.</p>`;
+      renderTidePlaceQuick();
+      tidePlaceDialog.showModal();
+      setTimeout(() => tidePlaceSearchInput.focus(), 60);
+    };
+    window.searchTidePlace = async event => {
+      event?.preventDefault?.();
+      const query = String(tidePlaceSearchInput.value || "").trim();
+      if (query.length < 2) {
+        tidePlaceResults.innerHTML = `<p class="panel-sub">두 글자 이상 입력해주세요.</p>`;
+        return;
+      }
+      tidePlaceResults.innerHTML = `<p class="panel-sub">항·방조제 위치를 찾는 중입니다...</p>`;
+      try {
+        const cacheKey = `maint_tide_place_${query}`;
+        let rows = [];
+        try { rows = JSON.parse(localStorage.getItem(cacheKey) || "[]"); } catch {}
+        if (!Array.isArray(rows) || !rows.length) {
+          rows = await requestTidePlaces(query);
+          try { localStorage.setItem(cacheKey, JSON.stringify(rows)); } catch {}
+        }
+        state.tidePlaceResults = rows.map(row => ({
+          name: String(row.name || query).trim(),
+          address: String(row.address || ""),
+          lat: Number(row.lat),
+          lon: Number(row.lon)
+        })).filter(place => place.name && Number.isFinite(place.lat) && Number.isFinite(place.lon));
+        tidePlaceResults.innerHTML = state.tidePlaceResults.length
+          ? state.tidePlaceResults.map((place, index) => {
+              const nearest = nearestTideStation(place.lat, place.lon);
+              return `<button type="button" class="tide-place-result" onclick="selectTidePlaceResult(${index})"><strong>${escapeHTML(place.name)}</strong><span>${escapeHTML(place.address)}</span><span>기준 조위관측소: ${escapeHTML(nearest.station.name)} · 약 ${nearest.distanceKm.toFixed(1)}km</span></button>`;
+            }).join("")
+          : `<p class="panel-sub">검색 결과가 없습니다. ‘항’, ‘방조제’, ‘선착장’까지 포함해 다시 검색해주세요.</p>`;
+      } catch (error) {
+        tidePlaceResults.innerHTML = `<p class="panel-sub">장소 검색에 실패했습니다. 잠시 후 다시 시도해주세요.</p>`;
+      }
+    };
+    function tideMulLabel(date, station = selectedTideStation()) {
+      const lunar = lunarDateInfoFromSolar(date);
+      if (!lunar?.day) return "물때 확인";
+      const west = ["7물", "8물", "9물", "10물", "11물", "12물", "13물", "조금", "무시", "1물", "2물", "3물", "4물", "5물", "6물"];
+      const south = ["8물", "9물", "10물", "11물", "12물", "13물", "조금", "무시", "1물", "2물", "3물", "4물", "5물", "6물", "7물"];
+      return (station.system === 7 ? west : south)[(lunar.day - 1) % 15];
+    }
+    async function requestTidePlaces(query) {
+      const url = new URL("https://nominatim.openstreetmap.org/search");
+      url.searchParams.set("q", query);
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("countrycodes", "kr");
+      url.searchParams.set("addressdetails", "1");
+      url.searchParams.set("accept-language", "ko");
+      url.searchParams.set("limit", "8");
+      const response = await fetch(url, { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error(`PLACE_HTTP_${response.status}`);
+      const rows = await response.json();
+      return (Array.isArray(rows) ? rows : []).map(row => ({
+        name: String(row?.name || row?.display_name || query).split(",")[0].trim(),
+        address: String(row?.display_name || ""),
+        lat: Number(row?.lat),
+        lon: Number(row?.lon)
+      })).filter(place => place.name && Number.isFinite(place.lat) && Number.isFinite(place.lon));
+    }
+    async function loadTideServiceKey() {
+      if (state.tideServiceKey) return state.tideServiceKey;
+      if (state.tideKeyLoading) return state.tideKeyLoading;
+      state.tideKeyLoading = (async () => {
+        const user = await waitForFirebaseAuthUser();
+        if (!user) throw new Error("LOGIN_REQUIRED");
+        const ref = userTideKeyDoc();
+        if (!ref) throw new Error("LOGIN_REQUIRED");
+        const snapshot = await ref.get({ source: "server" });
+        const key = String(snapshot.data()?.serviceKey || "").trim();
+        if (!key) throw new Error("TIDE_KEY_REQUIRED");
+        state.tideServiceKey = key;
+        return key;
+      })().finally(() => { state.tideKeyLoading = null; });
+      return state.tideKeyLoading;
+    }
+    function tideResponseItems(payload = {}) {
+      const body = payload?.response?.body || payload?.body || {};
+      const source = body?.items?.item ?? body?.items ?? [];
+      return Array.isArray(source) ? source : (source ? [source] : []);
+    }
+    function tideCacheKey(stationCode, date) {
+      return `${stationCode}:${date}`;
+    }
+    function readTideCache(stationCode, date) {
+      const key = tideCacheKey(stationCode, date);
+      if (state.tideCache[key]) return state.tideCache[key];
+      try {
+        const saved = JSON.parse(localStorage.getItem(`maint_tide_${stationCode}_${date}`) || "null");
+        if (saved?.data && Date.now() - Number(saved.savedAt || 0) < 12 * 60 * 60 * 1000) {
+          state.tideCache[key] = saved.data;
+          return saved.data;
+        }
+      } catch {}
+      return null;
+    }
+    function writeTideCache(stationCode, date, data) {
+      const key = tideCacheKey(stationCode, date);
+      state.tideCache[key] = data;
+      try { localStorage.setItem(`maint_tide_${stationCode}_${date}`, JSON.stringify({ savedAt: Date.now(), data })); } catch {}
+    }
+    async function requestTideInfo(stationCode, date, { force = false } = {}) {
+      if (!force) {
+        const cached = readTideCache(stationCode, date);
+        if (cached) return cached;
+      }
+      const key = tideCacheKey(stationCode, date);
+      if (state.tideLoading[key]) return state.tideLoading[key];
+      state.tideLoading[key] = (async () => {
+        const serviceKey = await loadTideServiceKey();
+        const url = new URL("https://apis.data.go.kr/1192136/surveyTideLevel/GetSurveyTideLevelApiService");
+        let decodedKey = serviceKey;
+        try { decodedKey = decodeURIComponent(serviceKey); } catch {}
+        url.searchParams.set("serviceKey", decodedKey);
+        url.searchParams.set("type", "json");
+        url.searchParams.set("obsCode", stationCode);
+        url.searchParams.set("reqDate", date.replaceAll("-", ""));
+        url.searchParams.set("min", "10");
+        url.searchParams.set("pageNo", "1");
+        url.searchParams.set("numOfRows", "300");
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        const payload = await response.json().catch(() => ({}));
+        const header = payload?.response?.header || payload?.header || {};
+        const resultCode = String(header.resultCode ?? "00");
+        if (!response.ok || !["00", "0", "200"].includes(resultCode)) throw new Error(header.resultMsg || `TIDE_HTTP_${response.status}`);
+        const target = date.replaceAll("-", "");
+        const items = tideResponseItems(payload).filter(item => String(item?.obsrvnDt || "").replace(/\D/g, "").startsWith(target));
+        const data = {
+          stationCode,
+          stationName: String(items[0]?.obsvtrNm || ""),
+          date,
+          samples: items.map(item => ({
+            observedAt: String(item.obsrvnDt || ""),
+            predictedCm: Number(item.tdlvHgt),
+            observedCm: item.bscTdlvHgt == null || item.bscTdlvHgt === "" ? null : Number(item.bscTdlvHgt)
+          })).filter(item => Number.isFinite(item.predictedCm))
+        };
+        writeTideCache(stationCode, date, data);
+        return data;
+      })().finally(() => { delete state.tideLoading[key]; });
+      return state.tideLoading[key];
+    }
+    function tideSampleInfo(sample = {}) {
+      const digits = String(sample.observedAt || "").replace(/\D/g, "");
+      const hour = Number(digits.slice(8, 10));
+      const minute = Number(digits.slice(10, 12));
+      return {
+        ...sample,
+        minutes: Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0,
+        time: `${String(hour || 0).padStart(2, "0")}:${String(minute || 0).padStart(2, "0")}`,
+        height: Math.round(Number(sample.predictedCm) || 0)
+      };
+    }
+    function tideTurningPoints(samples = []) {
+      const values = samples.map(tideSampleInfo).sort((a, b) => a.minutes - b.minutes);
+      const points = [];
+      let previousSign = 0;
+      for (let index = 1; index < values.length; index++) {
+        const diff = values[index].height - values[index - 1].height;
+        const sign = diff > 0 ? 1 : diff < 0 ? -1 : previousSign;
+        if (previousSign && sign && sign !== previousSign) {
+          const point = { ...values[index - 1], type: previousSign > 0 ? "high" : "low" };
+          const last = points[points.length - 1];
+          if (last?.type === point.type) {
+            if ((point.type === "high" && point.height > last.height) || (point.type === "low" && point.height < last.height)) points[points.length - 1] = point;
+          } else if (!last || point.minutes - last.minutes >= 60) {
+            points.push(point);
+          }
+        }
+        previousSign = sign;
+      }
+      return points.slice(0, 5);
+    }
+    function tideFlowSegments(points = []) {
+      return points.slice(1).map((point, index) => {
+        const previous = points[index];
+        const rising = previous.type === "low" && point.type === "high";
+        const falling = previous.type === "high" && point.type === "low";
+        if (!rising && !falling) return null;
+        return {
+          label: rising ? "들물" : "날물",
+          from: previous.time,
+          to: point.time,
+          amount: Math.abs(point.height - previous.height),
+          sign: rising ? "+" : "-"
+        };
+      }).filter(Boolean);
+    }
+    function currentTideFlow(date, samples, points) {
+      if (date !== todayISO() || samples.length < 2) return null;
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const values = samples.map(tideSampleInfo).sort((a, b) => a.minutes - b.minutes);
+      let index = values.findIndex(sample => sample.minutes >= nowMinutes);
+      if (index < 0) index = values.length - 1;
+      else if (index < 1) index = 1;
+      const rising = values[index].height >= values[index - 1].height;
+      const next = points.find(point => point.minutes >= nowMinutes && point.type === (rising ? "high" : "low"));
+      const current = values[index - 1];
+      return {
+        label: rising ? "현재 들물" : "현재 날물",
+        detail: next ? `${next.time} ${rising ? "만조" : "간조"}까지 ${rising ? "+" : "-"}${Math.abs(next.height - current.height)}cm` : "다음 변곡 시각 계산 중"
+      };
+    }
+    function tideWaveIcon() {
+      return '<svg class="day-tide-wave" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2S21.8 7 24 7"/><path d="M2 14c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2 2.2-2 4.4-2"/><path d="M2 19c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2 2.2-2 4.4-2"/></svg>';
+    }
+    function tideErrorMessage(error) {
+      const code = String(error?.message || error || "");
+      if (code === "LOGIN_REQUIRED" || code === "AUTH_REQUIRED") return "로그인 후 물때 정보를 확인할 수 있습니다.";
+      if (code === "TIDE_KEY_REQUIRED") return "해양 공공데이터 API 연결키 등록이 필요합니다.";
+      if (code.includes("404")) return "물때 조회 서버를 배포한 뒤 사용할 수 있습니다.";
+      return "물때 정보를 불러오지 못했습니다. 잠시 후 다시 확인해주세요.";
+    }
+    function tideHeadingHTML(date, station, status) {
+      const placeName = selectedTidePlaceName();
+      const distance = Number(state.settings.tideStationDistanceKm || 0);
+      const basis = placeName !== station.name || distance >= .1
+        ? `<small class="day-tide-basis">${escapeHTML(station.name)} 조위관측소 기준${distance >= .1 ? ` · 약 ${distance.toFixed(1)}km` : ""}</small>`
+        : "";
+      return `<div class="day-tide-head"><div><strong>${tideWaveIcon()}${escapeHTML(placeName)} · ${escapeHTML(tideMulLabel(date, station))}</strong>${basis}</div><span>${escapeHTML(status)}</span></div>`;
+    }
+    async function renderDayTideInfo(date, { force = false } = {}) {
+      const card = document.getElementById("dayTideCard");
+      if (!card) return;
+      const station = selectedTideStation();
+      const requestKey = tideCacheKey(station.code, date);
+      card.hidden = false;
+      card.dataset.requestKey = requestKey;
+      card.innerHTML = `${tideHeadingHTML(date, station, `${station.system}물때식`)}<p class="day-tide-message">만조·간조와 들물·날물 정보를 불러오는 중입니다.</p>`;
+      try {
+        const data = await requestTideInfo(station.code, date, { force });
+        if (card.dataset.requestKey !== requestKey) return;
+        const samples = Array.isArray(data.samples) ? data.samples : [];
+        const points = tideTurningPoints(samples);
+        if (!samples.length || !points.length) {
+          card.innerHTML = `${tideHeadingHTML(date, station, "예측조위")}<p class="day-tide-message">이 날짜의 조위 예측 자료가 없습니다.</p>`;
+          return;
+        }
+        const events = points.slice(0, 4).map(point => `<div class="day-tide-event ${point.type}"><span>${point.type === "high" ? "만조" : "간조"}</span><strong>${escapeHTML(point.time)}</strong><em>${point.height.toLocaleString("ko-KR")}cm</em></div>`).join("");
+        const flows = tideFlowSegments(points).slice(0, 4);
+        const current = currentTideFlow(date, samples, points);
+        const flowLines = [current ? `<span><strong>${escapeHTML(current.label)}</strong> · ${escapeHTML(current.detail)}</span>` : "", ...flows.map(flow => `<span><strong>${flow.label}</strong> ${flow.from}→${flow.to} · ${flow.sign}${flow.amount.toLocaleString("ko-KR")}cm</span>`)].filter(Boolean).join("");
+        card.innerHTML = `${tideHeadingHTML(date, station, "예측조위")}<div class="day-tide-events">${events}</div><div class="day-tide-flow">${flowLines}</div><p class="day-tide-source">국립해양조사원 예측 조위 · 선택 장소는 가장 가까운 관측소 기준이며 기상과 현장 지형에 따라 실제 수위와 차이가 날 수 있습니다.</p>`;
+      } catch (error) {
+        if (card.dataset.requestKey !== requestKey) return;
+        card.innerHTML = `${tideHeadingHTML(date, station, `${station.system}물때식`)}<p class="day-tide-message">${escapeHTML(tideErrorMessage(error))}</p>`;
+      }
+    }
     function installDayScheduleMenuHandlers(date) {
       dayScheduleList.querySelectorAll(".day-schedule-item[data-schedule-id]").forEach(item => {
         let timer = null;
@@ -9074,6 +9617,7 @@
       dayScheduleTitle.dataset.date = date;
       dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
       renderDayFitnessSummary(date);
+      renderDayTideInfo(date);
       dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
       dayScheduleNote.value = state.dayNotes?.[date] || "";
       installDayScheduleMenuHandlers(date);
@@ -11026,7 +11570,7 @@
       target.innerHTML = `<div class="calendar-toolbar">
         <div class="calendar-nav">
           <button class="icon secondary" onclick="moveMonth(-1)" title="이전 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-          <button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>
+          <div class="calendar-month-tide"><button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>${tideStationSelectHTML()}</div>
           <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
         <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
@@ -12204,6 +12748,7 @@
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
     closeScheduleActionDialogBtn.onclick = () => scheduleActionDialog.close();
     closeCalendarSearchDialogBtn.onclick = () => calendarSearchDialog.close();
+    closeTidePlaceDialogBtn.onclick = () => tidePlaceDialog.close();
     cancelCalendarJumpBtn.onclick = () => calendarJumpDialog.close();
     applyCalendarJumpBtn.onclick = applyCalendarJump;
     [calendarJumpYear, calendarJumpMonth, calendarJumpDay].forEach(el => {
@@ -12298,7 +12843,7 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
@@ -13131,6 +13676,11 @@
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
         mobileMembershipBarcode: state.settings.mobileMembershipBarcode || "12810425006025",
+        tideStationCode: selectedTideStation().code,
+        tidePlaceName: state.settings.tidePlaceName || "",
+        tidePlaceLat: state.settings.tidePlaceLat,
+        tidePlaceLon: state.settings.tidePlaceLon,
+        tideStationDistanceKm: Number(state.settings.tideStationDistanceKm || 0),
         workoutPresets: normalizeWorkoutPresets(state.settings.workoutPresets),
         activeWorkoutPresetId: state.settings.activeWorkoutPresetId,
         workoutIntervals: normalizeWorkoutIntervals(state.settings.workoutIntervals),
@@ -13175,6 +13725,13 @@
       if (typeof data.mobileMembershipBarcode === "string" && data.mobileMembershipBarcode.trim()) {
         state.settings.mobileMembershipBarcode = data.mobileMembershipBarcode.slice(0, 80);
       }
+      if (typeof data.tideStationCode === "string" && tideStationMap.has(data.tideStationCode)) {
+        state.settings.tideStationCode = data.tideStationCode;
+      }
+      if (typeof data.tidePlaceName === "string") state.settings.tidePlaceName = data.tidePlaceName.trim().slice(0, 80);
+      if (Number.isFinite(Number(data.tidePlaceLat))) state.settings.tidePlaceLat = Number(data.tidePlaceLat);
+      if (Number.isFinite(Number(data.tidePlaceLon))) state.settings.tidePlaceLon = Number(data.tidePlaceLon);
+      if (Number.isFinite(Number(data.tideStationDistanceKm))) state.settings.tideStationDistanceKm = Math.max(0, Number(data.tideStationDistanceKm));
       const incomingWorkoutIntervals = Array.isArray(data.workoutIntervals)
         ? normalizeWorkoutIntervals(data.workoutIntervals)
         : null;
