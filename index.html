@@ -6648,7 +6648,9 @@
       if (!lunar) return "";
       const cacheKey = `${lunarDateISOFromInfo(lunar)}:${leap ? 1 : 0}`;
       if (lunarSolarDateCache.has(cacheKey)) return lunarSolarDateCache.get(cacheKey);
-      const cursor = new Date(lunar.year, 0, 1);
+      // 음력 월은 대체로 같은 해의 양력 월보다 1~2개월 뒤에 있으므로
+      // 해당 월 근처부터 찾으면 연초부터 훑는 것보다 훨씬 빠르다.
+      const cursor = new Date(lunar.year, Math.max(0, lunar.month - 2), 1);
       const limit = new Date(lunar.year + 1, 2, 15);
       while (cursor <= limit) {
         const solarISO = localDateISO(cursor);
@@ -6762,7 +6764,8 @@
     function recurrenceGenerationCount(repeat, anchorDate = "") {
       if (repeat === "yearly") {
         const anchorYear = Number(String(anchorDate).slice(0, 4)) || new Date().getFullYear();
-        return clamp(2101 - anchorYear, 2, 100);
+        const rollingTargetYear = Math.max(anchorYear + 1, new Date().getFullYear() + 5);
+        return clamp(rollingTargetYear - anchorYear + 1, 2, 40);
       }
       return ({ daily: 120, weekly: 104, monthly: 60 })[repeat] || 1;
     }
@@ -6856,6 +6859,7 @@
         template.recurrenceAnchorLunarLeap = anchor.lunarLeap;
         const existingDates = new Set(group.map(item => item.date));
         const maxCount = recurrenceGenerationCount(repeat, anchor.date);
+        if (group.length >= maxCount) return;
         for (let index = 0; index < maxCount; index++) {
           const copy = recurrenceCopy(template, repeat, rootId, index);
           if (!copy) break;
@@ -6975,8 +6979,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.31";
+    const appVersion = "1.7.32";
     const versionHistory = [
+      {
+        version: "1.7.32",
+        date: "2026-08-31",
+        title: "반복 일정 시작 속도 개선",
+        changes: [
+          "매년 반복을 2100년까지 한꺼번에 계산하던 작업 제거",
+          "앞으로 5년치만 준비하고 해가 바뀌면 자동으로 한 해씩 연장",
+          "이미 생성이 끝난 반복 일정은 앱 시작 시 재계산하지 않도록 개선"
+        ]
+      },
       {
         version: "1.7.31",
         date: "2026-08-31",
