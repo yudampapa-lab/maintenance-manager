@@ -1417,6 +1417,64 @@
       color: #0f5f58;
       overflow-wrap: anywhere;
     }
+    .solution-tile.dashboard-solution-tile {
+      padding: 5px 8px;
+      gap: 7px;
+      align-items: center;
+    }
+    .dashboard-solution-tile > svg {
+      width: 16px;
+      height: 16px;
+    }
+    .dashboard-solution-tile span {
+      font-size: 10px;
+    }
+    .dashboard-solution-tile strong {
+      font-size: 12px;
+      line-height: 1.15;
+    }
+    .visit-card.dashboard-visit-card {
+      gap: 6px;
+    }
+    .dashboard-schedule-note {
+      min-width: 0;
+      min-height: 28px;
+      padding: 6px 8px;
+      border: 1px solid rgba(118,118,128,.12);
+      border-radius: 7px;
+      background: rgba(118,118,128,.06);
+      color: #385451;
+      font-size: 11px;
+      line-height: 15px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dashboard-schedule-note::before {
+      content: "비고 ";
+      color: var(--muted);
+      font-weight: 700;
+    }
+    textarea.dashboard-schedule-note-editor {
+      display: block;
+      width: 100%;
+      height: 28px;
+      min-height: 28px;
+      max-height: 28px;
+      padding: 5px 7px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.62);
+      box-shadow: inset 0 0 0 1px rgba(15,95,88,.12);
+      color: #263d3a;
+      font-size: 11px;
+      line-height: 18px;
+      resize: none;
+      overflow: hidden;
+    }
+    textarea.dashboard-schedule-note-editor::placeholder {
+      color: var(--muted);
+      opacity: .82;
+    }
     .tag {
       display: inline-flex;
       align-items: center;
@@ -5102,6 +5160,7 @@
               </details>
             </div>
           </div>
+          <div class="field full"><label>비고</label><textarea id="scheduleNote" rows="3" maxlength="500" placeholder="일정과 함께 확인할 메모를 적어두세요."></textarea></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -6199,6 +6258,7 @@
         teamMembers: schedule.teamMembers || "",
         visitReason: schedule.visitReason === "사유없음" ? "" : (schedule.visitReason || ""),
         body: schedule.body || "",
+        note: String(schedule.note || "").slice(0, 500),
         todoMemoId: schedule.todoMemoId || "",
         date: schedule.date || todayISO(),
         endDate: schedule.endDate || schedule.date || todayISO(),
@@ -6252,7 +6312,8 @@
         schedule.orgId || "",
         schedule.type || "",
         schedule.teamMembers || "",
-        schedule.visitReason || ""
+        schedule.visitReason || "",
+        schedule.note || ""
       ].join("|");
     }
     function scheduleContentKey(schedule = {}) {
@@ -6265,7 +6326,8 @@
         schedule.orgId || "",
         schedule.type || "",
         schedule.teamMembers || "",
-        schedule.visitReason || ""
+        schedule.visitReason || "",
+        schedule.note || ""
       ].join("|");
     }
     function betterSchedule(base, next) {
@@ -6979,8 +7041,19 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.32";
+    const appVersion = "1.7.33";
     const versionHistory = [
+      {
+        version: "1.7.33",
+        date: "2026-08-31",
+        title: "일정 비고와 대시보드 간편 메모",
+        changes: [
+          "일정 등록·수정창 최하단에 비고 입력란 추가",
+          "오늘·내일 할일의 솔루션 아래에 별도 비고 영역 표시",
+          "오늘 할일 카드에서 비고를 메모장처럼 바로 수정하고 서버 동기화",
+          "솔루션 타일과 카드 간격을 줄여 비고 추가 전후 카드 크기 변화 최소화"
+        ]
+      },
       {
         version: "1.7.32",
         date: "2026-08-31",
@@ -9404,10 +9477,12 @@
       const hideGoogleButton = elId === "todayVisits" || elId === "tomorrowVisits";
       const showRecentVisit = elId === "todayVisits" || elId === "tomorrowVisits";
       const showCompletion = elId === "todayVisits";
+      const showNote = elId === "todayVisits" || elId === "tomorrowVisits";
+      const allowNoteEdit = elId === "todayVisits";
       if (showCompletion) {
         items.sort((a, b) => Number(Boolean(a.completed || a.completedAt)) - Number(Boolean(b.completed || b.completedAt)));
       }
-      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
+      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion, showNote, allowNoteEdit })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
     }
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
@@ -10067,6 +10142,11 @@
       const o = orgForSchedule(schedule);
       const completed = Boolean(schedule.completed || schedule.completedAt);
       const completedClass = options.showCompletion && completed ? " is-completed" : "";
+      const dashboardClass = options.showNote ? " dashboard-visit-card" : "";
+      const note = String(schedule.note || "").slice(0, 500);
+      const noteBlock = options.allowNoteEdit
+        ? `<textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="비고 메모..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea>`
+        : (options.showNote && note ? `<div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div>` : "");
       const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
       const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
         <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}')" aria-label="${escapeAttr(schedule.title)} 완료">
@@ -10075,13 +10155,14 @@
       const teamLine = schedule.type === "team" && schedule.teamMembers ? `<div class="visit-meta">팀원: ${escapeHTML(formatTeamMembersWithRoles(schedule.teamMembers))}</div>` : "";
       const reasonLine = scheduleVisitReasonLabel(schedule) ? `<div class="visit-meta">방문사유: ${escapeHTML(scheduleVisitReasonLabel(schedule))}</div>` : "";
       if (!o) {
-        return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
+        return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <div class="visit-statuses"><span class="tag gray">개인</span>${completedStamp}</div>
           </div>
           ${reasonLine}
           ${teamLine}
+          ${noteBlock}
           <div class="visit-actions">
             ${completionControl}
             <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
@@ -10097,7 +10178,7 @@
         ? buildRecentVisitDateMap(schedule.date).get(o.id) || ""
         : "";
       const recentVisitMeta = options.showRecentVisit ? ` · 최근 방문 ${recentVisitText(previousVisit)}` : "";
-      return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
+      return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)}${escapeHTML(recentVisitMeta)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <div class="visit-statuses">
@@ -10105,7 +10186,8 @@
             ${completedStamp}
           </div>
         </div>
-        <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        <div class="solution-tile${options.showNote ? " dashboard-solution-tile" : ""}">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        ${noteBlock}
         ${reasonLine}
         ${teamLine}
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
@@ -10139,6 +10221,37 @@
       const cloudSaved = await persistSchedulesNow("schedule-completion");
       if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
+    const todayScheduleNoteTimers = new Map();
+    function setTodayScheduleNoteValue(id, value) {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return null;
+      const note = String(value || "").slice(0, 500);
+      if (schedule.note === note) return schedule;
+      schedule.note = note;
+      schedule.updatedAt = new Date().toISOString();
+      state.settings.cloudPendingScheduleSyncToken = `${schedule.updatedAt}:${uid()}`;
+      markGoogleDirty(schedule);
+      try { localStorage.setItem("maint_schedules", JSON.stringify(state.schedules)); } catch {}
+      return schedule;
+    }
+    async function persistTodayScheduleNote(id, value) {
+      const timer = todayScheduleNoteTimers.get(id);
+      if (timer) clearTimeout(timer);
+      todayScheduleNoteTimers.delete(id);
+      const schedule = setTodayScheduleNoteValue(id, value);
+      if (!schedule) return;
+      save();
+      scheduleGoogleAutoSync("schedule-note");
+      const cloudSaved = await persistSchedulesNow("schedule-note");
+      if (cloudSaved === false) toast("비고는 기기에 저장했고 서버 동기화를 자동 재시도합니다.");
+    }
+    window.queueTodayScheduleNote = (id, value) => {
+      setTodayScheduleNoteValue(id, value);
+      const timer = todayScheduleNoteTimers.get(id);
+      if (timer) clearTimeout(timer);
+      todayScheduleNoteTimers.set(id, setTimeout(() => persistTodayScheduleNote(id, value), 700));
+    };
+    window.commitTodayScheduleNote = (id, value) => persistTodayScheduleNote(id, value);
     function dashboardSearchText(value) {
       return normalizeOrgKeyword(typeof value === "string" ? value : JSON.stringify(value || ""));
     }
@@ -10152,6 +10265,7 @@
         schedule.endTime,
         schedule.teamMembers,
         schedule.visitReason,
+        schedule.note,
         org?.name,
         org?.region,
         org?.type,
@@ -12790,6 +12904,7 @@
       scheduleOrgSearch.value = org ? org.name : "";
       scheduleName.value = schedule.title || "";
       scheduleTeamMembers.value = schedule.teamMembers || "";
+      scheduleNote.value = schedule.note || "";
       setScheduleVisitReason(schedule.visitReason || "");
       const lunarForm = scheduleLunarFormElements();
       lunarForm.enabled.checked = Boolean(schedule.lunarDate);
@@ -12846,6 +12961,7 @@
         title,
         teamMembers: type === "team" ? scheduleTeamMembers.value.trim() : "",
         visitReason: scheduleVisitReasonFromForm(),
+        note: scheduleNote.value.trim().slice(0, 500),
         date,
         endDate,
         startTime: scheduleStartTime.value,
@@ -12860,7 +12976,7 @@
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "date", "endDate", "startTime", "endTime", "color", "lunarDate", "lunarStartDate", "lunarEndDate", "lunarLeap"].some(key => String(existing[key] || "") !== String(data[key] || ""));
+      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "note", "date", "endDate", "startTime", "endTime", "color", "lunarDate", "lunarStartDate", "lunarEndDate", "lunarLeap"].some(key => String(existing[key] || "") !== String(data[key] || ""));
       if (existing && !scheduleChanged) {
         if (closeAfter) scheduleDialog.close();
         return true;
@@ -12879,6 +12995,7 @@
             item.title = data.title;
             item.teamMembers = data.teamMembers;
             item.visitReason = data.visitReason;
+            item.note = data.note;
             item.startTime = data.startTime;
             item.endTime = data.endTime;
             item.color = data.color;
@@ -15721,6 +15838,7 @@
         lines.push(`음력: ${lunarRange}${schedule.lunarLeap ? " (윤달)" : ""}`);
       }
       if (schedule.body) lines.push(`내용: ${schedule.body}`);
+      if (schedule.note) lines.push(`비고: ${schedule.note}`);
       return lines.filter(Boolean).join("\n");
     }
     function scheduleLocation(schedule) {
@@ -15752,6 +15870,7 @@
             maintenanceManagerOrgId: schedule.orgId || "",
             maintenanceManagerTeamMembers: schedule.teamMembers || "",
             maintenanceManagerVisitReason: schedule.visitReason || "",
+            maintenanceManagerNote: schedule.note || "",
             maintenanceManagerColor: defaultScheduleColor(schedule),
             maintenanceManagerLunarDate: schedule.lunarDate ? "1" : "0",
             maintenanceManagerLunarStartDate: schedule.lunarStartDate || "",
@@ -15886,6 +16005,7 @@
         title: event.summary || "(제목 없음)",
         teamMembers: privateProps.maintenanceManagerTeamMembers || "",
         visitReason: privateProps.maintenanceManagerVisitReason || "",
+        note: privateProps.maintenanceManagerNote || "",
         date,
         endDate: safeEndDate,
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
