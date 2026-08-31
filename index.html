@@ -6207,6 +6207,12 @@
         color: ["blue", "green", "purple", "pink", "orange", "red", "gray", "mint", "sky", "lavender", "coral", "peach", "lemon", "aqua", "lilac", "rose", "sage"].includes(schedule.color) ? schedule.color : "",
         recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
         recurrenceRootId: schedule.recurrenceRootId || "",
+        recurrenceAnchorDate: schedule.recurrenceAnchorDate || "",
+        recurrenceAnchorEndDate: schedule.recurrenceAnchorEndDate || "",
+        recurrenceAnchorLunarDate: schedule.recurrenceAnchorLunarDate || "",
+        recurrenceAnchorLunarLeap: Object.prototype.hasOwnProperty.call(schedule, "recurrenceAnchorLunarLeap")
+          ? Boolean(schedule.recurrenceAnchorLunarLeap)
+          : Boolean(schedule.lunarLeap),
         lunarDate: Boolean(schedule.lunarDate),
         lunarStartDate: schedule.lunarStartDate || "",
         lunarEndDate: schedule.lunarEndDate || schedule.lunarStartDate || "",
@@ -6743,47 +6749,83 @@
       if (repeat === "yearly") return addYearsISO(iso, 1);
       return "";
     }
+    function recurrenceAnchor(schedule = {}) {
+      return {
+        date: schedule.recurrenceAnchorDate || schedule.date,
+        endDate: schedule.recurrenceAnchorEndDate || schedule.endDate || schedule.date,
+        lunarDate: schedule.recurrenceAnchorLunarDate || schedule.lunarStartDate || "",
+        lunarLeap: Object.prototype.hasOwnProperty.call(schedule, "recurrenceAnchorLunarLeap")
+          ? Boolean(schedule.recurrenceAnchorLunarLeap)
+          : Boolean(schedule.lunarLeap)
+      };
+    }
+    function recurrenceGenerationCount(repeat, anchorDate = "") {
+      if (repeat === "yearly") {
+        const anchorYear = Number(String(anchorDate).slice(0, 4)) || new Date().getFullYear();
+        return clamp(2101 - anchorYear, 2, 100);
+      }
+      return ({ daily: 120, weekly: 104, monthly: 60 })[repeat] || 1;
+    }
+    function recurrenceDateAt(schedule, repeat, index) {
+      const anchor = recurrenceAnchor(schedule);
+      if (index === 0) return anchor.date;
+      if (schedule.lunarDate && repeat === "yearly") {
+        const baseLunar = parseLunarDateISO(anchor.lunarDate);
+        const targetLunar = baseLunar ? lunarDateWithYear(anchor.lunarDate, baseLunar.year + index) : "";
+        return solarDateForLunarRepeat(targetLunar, anchor.lunarLeap);
+      }
+      if (schedule.lunarDate && repeat === "monthly") {
+        return solarDateForLunarRepeat(addLunarMonthsISO(anchor.lunarDate, index), false);
+      }
+      if (repeat === "daily") return addDaysISO(anchor.date, index);
+      if (repeat === "weekly") return addDaysISO(anchor.date, index * 7);
+      if (repeat === "monthly") return addMonthsISO(anchor.date, index);
+      if (repeat === "yearly") return addYearsISO(anchor.date, index);
+      return "";
+    }
+    function recurrenceCopy(schedule, repeat, rootId, index) {
+      const anchor = recurrenceAnchor(schedule);
+      const date = recurrenceDateAt(schedule, repeat, index);
+      if (!date) return null;
+      const duration = Math.max(0, Math.round((new Date(`${anchor.endDate}T00:00:00`) - new Date(`${anchor.date}T00:00:00`)) / 86400000));
+      const endDate = addDaysISO(date, duration);
+      const lunarStart = schedule.lunarDate ? lunarDateInfoFromSolar(date) : null;
+      const lunarEnd = schedule.lunarDate ? lunarDateInfoFromSolar(endDate) : null;
+      return {
+        ...schedule,
+        id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
+        date,
+        endDate,
+        lunarStartDate: lunarStart ? lunarDateISOFromInfo(lunarStart) : "",
+        lunarEndDate: lunarEnd ? lunarDateISOFromInfo(lunarEnd) : "",
+        lunarLeap: Boolean(lunarStart?.leap),
+        recurrence: repeat,
+        recurrenceRootId: rootId,
+        recurrenceAnchorDate: anchor.date,
+        recurrenceAnchorEndDate: anchor.endDate,
+        recurrenceAnchorLunarDate: anchor.lunarDate,
+        recurrenceAnchorLunarLeap: anchor.lunarLeap,
+        createdAt: schedule.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
     function recurringScheduleCopies(data, repeat) {
       if (!["daily", "weekly", "monthly", "yearly"].includes(repeat)) {
         markGoogleDirty(data);
         return [data];
       }
-      const duration = Math.max(0, Math.round((new Date((data.endDate || data.date) + "T00:00:00") - new Date(data.date + "T00:00:00")) / 86400000));
       const rootId = data.id;
-      const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
+      data.recurrenceAnchorDate = data.date;
+      data.recurrenceAnchorEndDate = data.endDate || data.date;
+      data.recurrenceAnchorLunarDate = data.lunarStartDate || "";
+      data.recurrenceAnchorLunarLeap = Boolean(data.lunarLeap);
+      const maxCount = recurrenceGenerationCount(repeat, data.date);
       const copies = [];
-      let date = data.date;
-      let index = 0;
-      while (date && copies.length < maxCount) {
-        const occurrenceEndDate = addDaysISO(date, duration);
-        const occurrenceLunarStart = data.lunarDate ? lunarDateInfoFromSolar(date) : null;
-        const occurrenceLunarEnd = data.lunarDate ? lunarDateInfoFromSolar(occurrenceEndDate) : null;
-        const copy = {
-          ...data,
-          id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
-          date,
-          endDate: occurrenceEndDate,
-          lunarStartDate: occurrenceLunarStart ? lunarDateISOFromInfo(occurrenceLunarStart) : "",
-          lunarEndDate: occurrenceLunarEnd ? lunarDateISOFromInfo(occurrenceLunarEnd) : "",
-          lunarLeap: Boolean(occurrenceLunarStart?.leap),
-          recurrence: repeat,
-          recurrenceRootId: rootId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
+      for (let index = 0; index < maxCount; index++) {
+        const copy = recurrenceCopy(data, repeat, rootId, index);
+        if (!copy) break;
         markGoogleDirty(copy);
         copies.push(copy);
-        if (data.lunarDate && repeat === "yearly") {
-          const baseLunar = parseLunarDateISO(data.lunarStartDate);
-          const nextLunar = baseLunar ? lunarDateWithYear(data.lunarStartDate, baseLunar.year + index + 1) : "";
-          date = solarDateForLunarRepeat(nextLunar, data.lunarLeap);
-        } else if (data.lunarDate && repeat === "monthly") {
-          const nextLunar = addLunarMonthsISO(data.lunarStartDate, index + 1);
-          date = solarDateForLunarRepeat(nextLunar, false);
-        } else {
-          date = nextRepeatDate(date, repeat);
-        }
-        index++;
       }
       return copies;
     }
@@ -6803,38 +6845,22 @@
         groups.get(rootId).push(schedule);
       });
       groups.forEach(group => {
-        if (group.length !== 1) return;
-        const template = group[0];
+        const ordered = group.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        const template = ordered.find(item => item.id === item.recurrenceRootId) || ordered[0];
         const repeat = template.recurrence;
         const rootId = template.recurrenceRootId || template.id;
-        const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
-        const duration = Math.max(0, Math.round((new Date((template.endDate || template.date) + "T00:00:00") - new Date(template.date + "T00:00:00")) / 86400000));
-        let date = template.date;
-        for (let index = 1; index < maxCount; index++) {
-          if (template.lunarDate && repeat === "yearly") {
-            const baseLunar = parseLunarDateISO(template.lunarStartDate);
-            const nextLunar = baseLunar ? lunarDateWithYear(template.lunarStartDate, baseLunar.year + index) : "";
-            date = solarDateForLunarRepeat(nextLunar, template.lunarLeap);
-          } else if (template.lunarDate && repeat === "monthly") {
-            const nextLunar = addLunarMonthsISO(template.lunarStartDate, index);
-            date = solarDateForLunarRepeat(nextLunar, false);
-          } else {
-            date = nextRepeatDate(date, repeat);
-          }
-          if (!date) break;
-          const repairedEndDate = addDaysISO(date, duration);
-          const repairedLunarStart = template.lunarDate ? lunarDateInfoFromSolar(date) : null;
-          const repairedLunarEnd = template.lunarDate ? lunarDateInfoFromSolar(repairedEndDate) : null;
-          const copy = {
-            ...template,
-            id: `${rootId}--repeat--${date}`,
-            date,
-            endDate: repairedEndDate,
-            lunarStartDate: repairedLunarStart ? lunarDateISOFromInfo(repairedLunarStart) : "",
-            lunarEndDate: repairedLunarEnd ? lunarDateISOFromInfo(repairedLunarEnd) : "",
-            lunarLeap: Boolean(repairedLunarStart?.leap),
-            recurrence: repeat,
-            recurrenceRootId: rootId,
+        const anchor = recurrenceAnchor(template);
+        template.recurrenceAnchorDate = anchor.date;
+        template.recurrenceAnchorEndDate = anchor.endDate;
+        template.recurrenceAnchorLunarDate = anchor.lunarDate;
+        template.recurrenceAnchorLunarLeap = anchor.lunarLeap;
+        const existingDates = new Set(group.map(item => item.date));
+        const maxCount = recurrenceGenerationCount(repeat, anchor.date);
+        for (let index = 0; index < maxCount; index++) {
+          const copy = recurrenceCopy(template, repeat, rootId, index);
+          if (!copy) break;
+          if (existingDates.has(copy.date)) continue;
+          Object.assign(copy, {
             googleEventId: "",
             googleDuplicateEventIds: [],
             googleUpdated: "",
@@ -6842,10 +6868,8 @@
             googleSyncedAt: "",
             googleDirty: true,
             completed: false,
-            completedAt: "",
-            createdAt: template.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
+            completedAt: ""
+          });
           if (!isDeletedSchedule(copy)) result.push(copy);
         }
       });
@@ -6951,8 +6975,19 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.30";
+    const appVersion = "1.7.31";
     const versionHistory = [
+      {
+        version: "1.7.31",
+        date: "2026-08-31",
+        title: "반복 일정 기준일 방식으로 수정",
+        changes: [
+          "최초 등록일을 반복 기준일로 고정 저장",
+          "매년 반복은 기준일에서 연도만 증가시켜 2100년까지 생성",
+          "기존에 일부만 저장된 반복 일정도 기준일과 반복 규칙으로 자동 복구",
+          "반복 생성 실패 시 저장 완료로 잘못 안내하지 않고 오류 표시"
+        ]
+      },
       {
         version: "1.7.30",
         date: "2026-08-31",
@@ -12862,6 +12897,10 @@
         }
       } else {
         const copies = recurringScheduleCopies(data, data.recurrence);
+        if (data.recurrence !== "none" && copies.length < 2) {
+          toast("반복 날짜를 생성하지 못했습니다. 시작일과 반복 설정을 확인해주세요.");
+          return false;
+        }
         state.schedules.push(...copies);
         forgetDeletedSchedules(copies);
         logAdminAction("일정", copies.length > 1 ? "반복 일정 등록" : "일정 등록", `${data.title} · ${formatDateWithYear(data.date)}${copies.length > 1 ? ` 외 ${copies.length - 1}건` : ""}`);
@@ -12869,7 +12908,7 @@
       save();
       if (closeAfter) scheduleDialog.close();
       render();
-      toast(existing ? "일정을 수정했습니다." : (data.recurrence && data.recurrence !== "none" ? "반복 일정을 등록했습니다." : "일정을 등록했습니다."));
+      toast(existing ? "일정을 수정했습니다." : (data.recurrence && data.recurrence !== "none" ? `${scheduleRepeat.options[scheduleRepeat.selectedIndex]?.text || "반복"} 일정이 기준일부터 등록되었습니다.` : "일정을 등록했습니다."));
       scheduleGoogleAutoSync("schedule-save");
       return true;
     }
