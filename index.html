@@ -7045,8 +7045,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.34";
+    const appVersion = "1.7.35";
     const versionHistory = [
+      {
+        version: "1.7.35",
+        date: "2026-08-31",
+        title: "오늘 할일 비고 입력 성능 수정",
+        changes: [
+          "비고 입력 한 글자마다 전체 일정과 서버를 저장하던 처리 제거",
+          "입력 중에는 메모리만 변경해 한글 조합과 연속 입력이 끊기지 않도록 개선",
+          "입력을 잠시 멈추면 기기에 저장하고 입력칸을 벗어날 때 서버 동기화"
+        ]
+      },
       {
         version: "1.7.34",
         date: "2026-08-31",
@@ -10236,23 +10246,23 @@
       if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
     const todayScheduleNoteTimers = new Map();
-    function setTodayScheduleNoteValue(id, value) {
+    function setTodayScheduleNoteValue(id, value, { prepareSync = false } = {}) {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return null;
       const note = String(value || "").slice(0, 500);
-      if (schedule.note === note) return schedule;
       schedule.note = note;
-      schedule.updatedAt = new Date().toISOString();
-      state.settings.cloudPendingScheduleSyncToken = `${schedule.updatedAt}:${uid()}`;
-      markGoogleDirty(schedule);
-      try { localStorage.setItem("maint_schedules", JSON.stringify(state.schedules)); } catch {}
+      if (prepareSync) {
+        schedule.updatedAt = new Date().toISOString();
+        state.settings.cloudPendingScheduleSyncToken = `${schedule.updatedAt}:${uid()}`;
+        markGoogleDirty(schedule);
+      }
       return schedule;
     }
     async function persistTodayScheduleNote(id, value) {
       const timer = todayScheduleNoteTimers.get(id);
       if (timer) clearTimeout(timer);
       todayScheduleNoteTimers.delete(id);
-      const schedule = setTodayScheduleNoteValue(id, value);
+      const schedule = setTodayScheduleNoteValue(id, value, { prepareSync: true });
       if (!schedule) return;
       save();
       scheduleGoogleAutoSync("schedule-note");
@@ -10263,7 +10273,10 @@
       setTodayScheduleNoteValue(id, value);
       const timer = todayScheduleNoteTimers.get(id);
       if (timer) clearTimeout(timer);
-      todayScheduleNoteTimers.set(id, setTimeout(() => persistTodayScheduleNote(id, value), 700));
+      todayScheduleNoteTimers.set(id, setTimeout(() => {
+        todayScheduleNoteTimers.delete(id);
+        try { localStorage.setItem("maint_schedules", JSON.stringify(state.schedules)); } catch {}
+      }, 700));
     };
     window.commitTodayScheduleNote = (id, value) => persistTodayScheduleNote(id, value);
     function dashboardSearchText(value) {
