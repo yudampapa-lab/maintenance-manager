@@ -1478,22 +1478,20 @@
       gap: 5px;
       min-width: 0;
     }
-    .tide-station-select {
-      width: 96px;
-      min-width: 0;
+    .tide-location-button {
+      position: absolute;
+      left: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
       min-height: 32px;
-      height: 32px;
-      padding: 3px 8px;
       border-radius: 10px;
-      font-size: 11px;
-      font-weight: 750;
       color: #22677d;
       background-color: rgba(111, 210, 230, .13);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       box-shadow: none;
     }
+    .tide-location-button svg { width: 18px; height: 18px; }
+    .tide-location-button:active { transform: translateY(-50%) scale(.96); }
     .tide-place-search {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -3814,12 +3812,11 @@
         padding-inline: 4px;
         font-size: 16px;
       }
-      #view-calendar .tide-station-select {
-        width: 76px;
-        height: 30px;
-        min-height: 30px;
-        padding: 2px 5px;
-        font-size: 10px;
+      #view-calendar .tide-location-button {
+        left: 4px;
+        width: 36px;
+        min-height: 36px;
+        border-radius: 11px;
       }
       .day-tide-events { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #membershipBarcodeDialog { width: calc(100vw - 6px); }
@@ -5040,7 +5037,6 @@
           <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
         </button>
       </div>
-      <section class="day-tide-card" id="dayTideCard" aria-live="polite" hidden></section>
       <div class="day-schedule-list" id="dayScheduleList"></div>
       <section class="photo-log-section" id="photoLogSection" hidden>
         <button type="button" class="secondary photo-log-button" id="photoLogBtn" aria-expanded="false" aria-controls="photoLogContent" onclick="loadAndroidPhotoLog()">
@@ -5064,6 +5060,7 @@
         <label>특이사항</label>
         <textarea id="dayScheduleNote" placeholder="이 날짜에 있었던 특이사항을 적어두세요."></textarea>
       </div>
+      <section class="day-tide-card" id="dayTideCard" aria-live="polite" hidden></section>
     </div>
     <div class="modal-actions">
       <button type="button" class="secondary" id="closeDayScheduleDialogBtn">닫기</button>
@@ -6824,8 +6821,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.28";
+    const appVersion = "1.7.29";
     const versionHistory = [
+      {
+        version: "1.7.29",
+        date: "2026-08-31",
+        title: "물때 화면 배치 개선",
+        changes: [
+          "날짜 상세의 물때 타일을 특이사항 아래 최하단으로 이동",
+          "캘린더 물때 지역 검색을 상단 맨 왼쪽 닻 아이콘으로 변경"
+        ]
+      },
       {
         version: "1.7.28",
         date: "2026-08-30",
@@ -9291,7 +9297,7 @@
       return state.settings.tidePlaceName || selectedTideStation().name;
     }
     function tideStationSelectHTML() {
-      return `<button type="button" class="tide-station-select" title="항·방조제 물때 지역 선택" aria-label="물때 지역 선택: ${escapeAttr(selectedTidePlaceName())}" onclick="event.stopPropagation(); openTidePlaceDialog()">${escapeHTML(selectedTidePlaceName())}</button>`;
+      return `<button type="button" class="icon secondary tide-location-button" id="openTidePlaceBtn" title="물때 지역 선택 · ${escapeAttr(selectedTidePlaceName())}" aria-label="물때 지역 선택: ${escapeAttr(selectedTidePlaceName())}" onclick="event.stopPropagation(); openTidePlaceDialog()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg></button>`;
     }
     function tideDistanceKm(lat1, lon1, lat2, lon2) {
       const toRad = value => Number(value) * Math.PI / 180;
@@ -11568,9 +11574,10 @@
       }
       updateCalendarScheduleSearchList();
       target.innerHTML = `<div class="calendar-toolbar">
+        ${tideStationSelectHTML()}
         <div class="calendar-nav">
           <button class="icon secondary" onclick="moveMonth(-1)" title="이전 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-          <div class="calendar-month-tide"><button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>${tideStationSelectHTML()}</div>
+          <div class="calendar-month-tide"><button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button></div>
           <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
         <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
