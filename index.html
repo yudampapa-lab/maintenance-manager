@@ -1436,24 +1436,28 @@
     .visit-card.dashboard-visit-card {
       gap: 6px;
     }
+    .dashboard-note-section {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .dashboard-note-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+      line-height: 1;
+    }
     .dashboard-schedule-note {
       min-width: 0;
-      min-height: 28px;
-      padding: 6px 8px;
-      border: 1px solid rgba(118,118,128,.12);
-      border-radius: 7px;
-      background: rgba(118,118,128,.06);
+      padding: 2px 0;
       color: #385451;
       font-size: 11px;
       line-height: 15px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    .dashboard-schedule-note::before {
-      content: "비고 ";
-      color: var(--muted);
-      font-weight: 700;
     }
     textarea.dashboard-schedule-note-editor {
       display: block;
@@ -1463,8 +1467,8 @@
       max-height: 28px;
       padding: 5px 7px;
       border-radius: 7px;
-      background: rgba(255,255,255,.62);
-      box-shadow: inset 0 0 0 1px rgba(15,95,88,.12);
+      background: rgba(118,118,128,.07);
+      box-shadow: inset 0 0 0 1px rgba(60,60,67,.09);
       color: #263d3a;
       font-size: 11px;
       line-height: 18px;
@@ -7041,8 +7045,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.33";
+    const appVersion = "1.7.34";
     const versionHistory = [
+      {
+        version: "1.7.34",
+        date: "2026-08-31",
+        title: "대시보드 비고 영역 분리",
+        changes: [
+          "솔루션 타일에는 솔루션 정보만 표시",
+          "솔루션 바로 아래에 별도 비고 라벨과 메모칸 배치",
+          "비고 배경과 테두리를 솔루션 타일과 다른 형태로 조정"
+        ]
+      },
       {
         version: "1.7.33",
         date: "2026-08-31",
@@ -10145,8 +10159,8 @@
       const dashboardClass = options.showNote ? " dashboard-visit-card" : "";
       const note = String(schedule.note || "").slice(0, 500);
       const noteBlock = options.allowNoteEdit
-        ? `<textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="비고 메모..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea>`
-        : (options.showNote && note ? `<div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div>` : "");
+        ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="메모 입력..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea></div>`
+        : (options.showNote && note ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div></div>` : "");
       const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
       const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
         <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}')" aria-label="${escapeAttr(schedule.title)} 완료">
