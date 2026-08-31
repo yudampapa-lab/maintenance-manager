@@ -1718,6 +1718,92 @@
     .calendar-jump-actions button + button {
       border-left: 1px solid var(--line);
     }
+    .lunar-date-dialog {
+      width: min(430px, calc(100vw - 28px));
+      margin: auto;
+      border-radius: 24px;
+    }
+    .lunar-date-head {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .lunar-date-head .icon {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .lunar-date-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .lunar-date-title select {
+      width: auto;
+      min-width: 94px;
+      min-height: 42px;
+      padding: 7px 28px 7px 10px;
+      font-weight: 850;
+      text-align: center;
+    }
+    .lunar-date-title select + select {
+      min-width: 76px;
+    }
+    .lunar-date-weekdays,
+    .lunar-date-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .lunar-date-weekdays {
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .lunar-date-grid button,
+    .lunar-date-grid span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 42px;
+      padding: 0;
+      border: 0;
+      border-radius: 13px;
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 750;
+    }
+    .lunar-date-grid button.selected {
+      background: var(--accent);
+      color: white;
+    }
+    .lunar-date-grid button.today {
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+    }
+    .lunar-date-grid button:disabled {
+      opacity: .28;
+    }
+    .lunar-date-empty {
+      grid-column: 1 / -1;
+      padding: 22px 10px !important;
+      color: #d92929 !important;
+      font-size: 13px !important;
+      text-align: center;
+    }
+    .lunar-date-preview {
+      min-height: 20px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
     .calendar-grid {
       display: block;
       border: 1px solid var(--line);
@@ -5127,6 +5213,26 @@
     </div>
   </dialog>
 
+  <dialog id="lunarDatePickerDialog" class="lunar-date-dialog">
+    <div class="modal-body">
+      <div class="lunar-date-head">
+        <button type="button" class="icon secondary" id="lunarDatePrevBtn" aria-label="이전 음력 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="lunar-date-title">
+          <select id="lunarDateYear" aria-label="음력 연도"></select>
+          <select id="lunarDateMonth" aria-label="음력 월"></select>
+        </div>
+        <button type="button" class="icon secondary" id="lunarDateNextBtn" aria-label="다음 음력 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <div class="lunar-date-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="lunar-date-grid" id="lunarDateGrid"></div>
+      <p class="lunar-date-preview" id="lunarDatePreview"></p>
+    </div>
+    <div class="modal-actions calendar-jump-actions">
+      <button type="button" class="secondary" id="cancelLunarDateBtn">취소</button>
+      <button type="button" id="applyLunarDateBtn">선택</button>
+    </div>
+  </dialog>
+
   <dialog id="vehicleRecordDialog">
     <form id="vehicleRecordForm" method="dialog">
       <div class="modal-body">
@@ -6554,6 +6660,24 @@
       const lunar = parseLunarDateISO(lunarISO);
       return lunar ? `${year}-${String(lunar.month).padStart(2, "0")}-${String(lunar.day).padStart(2, "0")}` : "";
     }
+    function addLunarMonthsISO(lunarISO = "", offset = 0) {
+      const lunar = parseLunarDateISO(lunarISO);
+      if (!lunar) return "";
+      const totalMonth = lunar.year * 12 + (lunar.month - 1) + Number(offset || 0);
+      const year = Math.floor(totalMonth / 12);
+      const month = (totalMonth % 12 + 12) % 12 + 1;
+      return `${year}-${String(month).padStart(2, "0")}-${String(lunar.day).padStart(2, "0")}`;
+    }
+    function solarDateForLunarRepeat(lunarISO = "", leap = false) {
+      const lunar = parseLunarDateISO(lunarISO);
+      if (!lunar) return "";
+      for (let day = lunar.day; day >= 1; day--) {
+        const candidate = `${lunar.year}-${String(lunar.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const matched = solarDateForLunarISO(candidate, leap) || (leap ? solarDateForLunarISO(candidate, false) : "");
+        if (matched) return matched;
+      }
+      return "";
+    }
     function scheduleEndDateISO(schedule) {
       return addDaysISO(schedule.endDate || schedule.date, 1);
     }
@@ -6652,7 +6776,10 @@
         if (data.lunarDate && repeat === "yearly") {
           const baseLunar = parseLunarDateISO(data.lunarStartDate);
           const nextLunar = baseLunar ? lunarDateWithYear(data.lunarStartDate, baseLunar.year + index + 1) : "";
-          date = solarDateForLunarISO(nextLunar, data.lunarLeap) || solarDateForLunarISO(nextLunar, false);
+          date = solarDateForLunarRepeat(nextLunar, data.lunarLeap);
+        } else if (data.lunarDate && repeat === "monthly") {
+          const nextLunar = addLunarMonthsISO(data.lunarStartDate, index + 1);
+          date = solarDateForLunarRepeat(nextLunar, false);
         } else {
           date = nextRepeatDate(date, repeat);
         }
@@ -6687,7 +6814,10 @@
           if (template.lunarDate && repeat === "yearly") {
             const baseLunar = parseLunarDateISO(template.lunarStartDate);
             const nextLunar = baseLunar ? lunarDateWithYear(template.lunarStartDate, baseLunar.year + index) : "";
-            date = solarDateForLunarISO(nextLunar, template.lunarLeap) || solarDateForLunarISO(nextLunar, false);
+            date = solarDateForLunarRepeat(nextLunar, template.lunarLeap);
+          } else if (template.lunarDate && repeat === "monthly") {
+            const nextLunar = addLunarMonthsISO(template.lunarStartDate, index);
+            date = solarDateForLunarRepeat(nextLunar, false);
           } else {
             date = nextRepeatDate(date, repeat);
           }
@@ -6821,8 +6951,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.29";
+    const appVersion = "1.7.30";
     const versionHistory = [
+      {
+        version: "1.7.30",
+        date: "2026-08-31",
+        title: "음력 일정 선택·반복 등록 수정",
+        changes: [
+          "음력 일정 시작일·종료일을 누르면 음력 월 달력에서 날짜 선택",
+          "선택한 음력 날짜의 양력 변환 결과를 바로 확인",
+          "음력 매월·매년 반복 일정을 음력 날짜 기준으로 생성"
+        ]
+      },
       {
         version: "1.7.29",
         date: "2026-08-31",
@@ -12421,13 +12561,111 @@
       const { leapWrap, hint } = scheduleLunarFormElements();
       [scheduleDate, scheduleEndDate].forEach(input => {
         input.type = enabled ? "text" : "date";
-        input.inputMode = enabled ? "numeric" : "";
-        input.placeholder = enabled ? "YYYY-MM-DD" : "";
-        if (enabled) input.setAttribute("pattern", "\\d{4}-\\d{1,2}-\\d{1,2}");
-        else input.removeAttribute("pattern");
+        input.readOnly = enabled;
+        input.inputMode = enabled ? "none" : "";
+        input.placeholder = enabled ? "눌러서 음력 날짜 선택" : "";
+        input.classList.toggle("lunar-picker-input", enabled);
+        input.removeAttribute("pattern");
       });
       leapWrap?.classList.toggle("hidden", !enabled);
       hint?.classList.toggle("hidden", !enabled);
+    }
+    function lunarDatePickerElements() {
+      return {
+        dialog: document.getElementById("lunarDatePickerDialog"),
+        year: document.getElementById("lunarDateYear"),
+        month: document.getElementById("lunarDateMonth"),
+        grid: document.getElementById("lunarDateGrid"),
+        preview: document.getElementById("lunarDatePreview")
+      };
+    }
+    function lunarPickerState() {
+      state.lunarDatePicker = state.lunarDatePicker || { year: new Date().getFullYear(), month: 1, day: 1, targetId: "scheduleDate" };
+      return state.lunarDatePicker;
+    }
+    function ensureLunarDatePickerOptions() {
+      const { year, month } = lunarDatePickerElements();
+      if (!year?.options.length) {
+        year.innerHTML = Array.from({ length: 201 }, (_, index) => {
+          const value = 1900 + index;
+          return `<option value="${value}">${value}년</option>`;
+        }).join("");
+      }
+      if (!month?.options.length) {
+        month.innerHTML = Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}">${index + 1}월</option>`).join("");
+      }
+    }
+    function lunarPickerISO(day = lunarPickerState().day) {
+      const picker = lunarPickerState();
+      return `${picker.year}-${String(picker.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    function renderLunarDatePicker() {
+      ensureLunarDatePickerOptions();
+      const picker = lunarPickerState();
+      const { year, month, grid, preview } = lunarDatePickerElements();
+      year.value = String(picker.year);
+      month.value = String(picker.month);
+      const leap = Boolean(scheduleLunarFormElements().leap?.checked);
+      const firstISO = `${picker.year}-${String(picker.month).padStart(2, "0")}-01`;
+      const firstSolar = solarDateForLunarISO(firstISO, leap);
+      if (!firstSolar) {
+        grid.innerHTML = `<span class="lunar-date-empty">${leap ? "선택한 해에는 이 윤달이 없습니다." : "선택할 수 없는 음력 월입니다."}</span>`;
+        preview.textContent = "다른 연도나 월을 선택해주세요.";
+        return;
+      }
+      const day30ISO = `${picker.year}-${String(picker.month).padStart(2, "0")}-30`;
+      const maxDay = solarDateForLunarISO(day30ISO, leap) ? 30 : 29;
+      picker.day = clamp(Number(picker.day) || 1, 1, maxDay);
+      const firstWeekday = new Date(`${firstSolar}T00:00:00`).getDay();
+      const currentLunar = lunarDateInfoFromSolar(todayISO());
+      const blanks = Array.from({ length: firstWeekday }, () => "<span aria-hidden=\"true\"></span>");
+      const days = Array.from({ length: maxDay }, (_, index) => {
+        const day = index + 1;
+        const selected = day === picker.day ? " selected" : "";
+        const today = currentLunar && currentLunar.year === picker.year && currentLunar.month === picker.month && currentLunar.day === day && Boolean(currentLunar.leap) === leap ? " today" : "";
+        return `<button type="button" class="${selected}${today}" data-lunar-day="${day}" aria-label="음력 ${picker.month}월 ${day}일">${day}</button>`;
+      });
+      grid.innerHTML = [...blanks, ...days].join("");
+      const selectedSolar = solarDateForLunarISO(lunarPickerISO(), leap);
+      preview.textContent = `${leap ? "윤달 " : "음력 "}${picker.year}년 ${picker.month}월 ${picker.day}일 · 양력 ${selectedSolar}`;
+    }
+    function shiftLunarPickerMonth(offset) {
+      const picker = lunarPickerState();
+      const total = picker.year * 12 + picker.month - 1 + offset;
+      picker.year = clamp(Math.floor(total / 12), 1900, 2100);
+      picker.month = (total % 12 + 12) % 12 + 1;
+      picker.day = 1;
+      renderLunarDatePicker();
+      hapticTap(8);
+    }
+    function openLunarDatePicker(targetInput) {
+      if (!scheduleLunarFormElements().enabled?.checked) return;
+      const todayLunar = lunarDateInfoFromSolar(todayISO());
+      const parsed = parseLunarDateISO(targetInput.value) || todayLunar;
+      if (!parsed) {
+        toast("음력 날짜 선택기를 열 수 없습니다.");
+        return;
+      }
+      state.lunarDatePicker = { year: parsed.year, month: parsed.month, day: parsed.day, targetId: targetInput.id };
+      renderLunarDatePicker();
+      lunarDatePickerElements().dialog.showModal();
+    }
+    function applyLunarDatePicker() {
+      const picker = lunarPickerState();
+      const leap = Boolean(scheduleLunarFormElements().leap?.checked);
+      const value = lunarPickerISO();
+      if (!solarDateForLunarISO(value, leap)) {
+        toast("선택할 수 없는 음력 날짜입니다.");
+        return;
+      }
+      const target = document.getElementById(picker.targetId);
+      if (!target) return;
+      target.value = value;
+      if (target === scheduleDate && (!scheduleEndDate.value || scheduleEndDate.value < value)) scheduleEndDate.value = value;
+      if (target === scheduleEndDate && scheduleDate.value && value < scheduleDate.value) scheduleDate.value = value;
+      lunarDatePickerElements().dialog.close();
+      refreshScheduleLunarHint();
+      hapticTap(12);
     }
     function refreshScheduleLunarHint() {
       const { enabled, leap, hint } = scheduleLunarFormElements();
@@ -12480,6 +12718,14 @@
     document.getElementById("scheduleLunarLeap")?.addEventListener("change", refreshScheduleLunarHint);
     scheduleDate.addEventListener("input", refreshScheduleLunarHint);
     scheduleEndDate.addEventListener("input", refreshScheduleLunarHint);
+    [scheduleDate, scheduleEndDate].forEach(input => {
+      input.addEventListener("click", () => openLunarDatePicker(input));
+      input.addEventListener("keydown", event => {
+        if (!scheduleLunarFormElements().enabled?.checked || !["Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        openLunarDatePicker(input);
+      });
+    });
     function openScheduleDialog(schedule = {}) {
       if (dayScheduleDialog.open) dayScheduleDialog.close();
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
@@ -12758,6 +13004,27 @@
     closeTidePlaceDialogBtn.onclick = () => tidePlaceDialog.close();
     cancelCalendarJumpBtn.onclick = () => calendarJumpDialog.close();
     applyCalendarJumpBtn.onclick = applyCalendarJump;
+    document.getElementById("cancelLunarDateBtn").onclick = () => lunarDatePickerElements().dialog.close();
+    document.getElementById("applyLunarDateBtn").onclick = applyLunarDatePicker;
+    document.getElementById("lunarDatePrevBtn").onclick = () => shiftLunarPickerMonth(-1);
+    document.getElementById("lunarDateNextBtn").onclick = () => shiftLunarPickerMonth(1);
+    document.getElementById("lunarDateYear").onchange = event => {
+      lunarPickerState().year = Number(event.target.value);
+      lunarPickerState().day = 1;
+      renderLunarDatePicker();
+    };
+    document.getElementById("lunarDateMonth").onchange = event => {
+      lunarPickerState().month = Number(event.target.value);
+      lunarPickerState().day = 1;
+      renderLunarDatePicker();
+    };
+    document.getElementById("lunarDateGrid").onclick = event => {
+      const button = event.target.closest("[data-lunar-day]");
+      if (!button) return;
+      lunarPickerState().day = Number(button.dataset.lunarDay);
+      renderLunarDatePicker();
+      hapticTap(8);
+    };
     [calendarJumpYear, calendarJumpMonth, calendarJumpDay].forEach(el => {
       let startY = 0;
       let lastStep = 0;
@@ -12850,7 +13117,7 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, lunarDatePickerDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
