@@ -1439,11 +1439,12 @@
     .dashboard-note-section {
       display: grid;
       grid-template-columns: 30px minmax(0, 1fr);
-      align-items: center;
+      align-items: start;
       gap: 6px;
       min-width: 0;
     }
     .dashboard-note-label {
+      margin-top: 3px;
       color: var(--muted);
       font-size: 10px;
       font-weight: 750;
@@ -1455,16 +1456,15 @@
       color: #385451;
       font-size: 11px;
       line-height: 15px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
     }
     textarea.dashboard-schedule-note-editor {
       display: block;
       width: 100%;
       height: 28px;
       min-height: 28px;
-      max-height: 28px;
+      max-height: 140px;
       padding: 5px 7px;
       border-radius: 7px;
       background: rgba(118,118,128,.07);
@@ -1473,7 +1473,8 @@
       font-size: 11px;
       line-height: 18px;
       resize: none;
-      overflow: hidden;
+      overflow-y: hidden;
+      transition: height .12s ease, background .18s ease, box-shadow .18s ease;
     }
     textarea.dashboard-schedule-note-editor::placeholder {
       color: var(--muted);
@@ -7045,8 +7046,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.35";
+    const appVersion = "1.7.36";
     const versionHistory = [
+      {
+        version: "1.7.36",
+        date: "2026-09-01",
+        title: "대시보드 비고 자동 확장",
+        changes: [
+          "오늘 할일 비고 입력칸이 내용에 맞춰 자동으로 아래로 확장",
+          "긴 비고는 최대 높이까지 확장된 뒤 내부 스크롤 제공",
+          "내일 할일 비고도 줄바꿈과 전체 문장을 그대로 표시"
+        ]
+      },
       {
         version: "1.7.35",
         date: "2026-08-31",
@@ -9495,6 +9506,14 @@
     window.toggleTodayCopySchedule = (id, checked) => {
       state.todayCopySelections[id] = checked;
     };
+    function autoGrowDashboardNote(element) {
+      if (!element) return;
+      element.style.height = "28px";
+      const height = Math.min(140, Math.max(28, element.scrollHeight));
+      element.style.height = `${height}px`;
+      element.style.overflowY = element.scrollHeight > 140 ? "auto" : "hidden";
+    }
+    window.autoGrowDashboardNote = autoGrowDashboardNote;
     function renderVisits(elId, date) {
       const wrap = document.getElementById(elId);
       const items = sortedSchedules(date);
@@ -9507,6 +9526,7 @@
         items.sort((a, b) => Number(Boolean(a.completed || a.completedAt)) - Number(Boolean(b.completed || b.completedAt)));
       }
       wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion, showNote, allowNoteEdit })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
+      wrap.querySelectorAll(".dashboard-schedule-note-editor").forEach(autoGrowDashboardNote);
     }
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
@@ -10169,7 +10189,7 @@
       const dashboardClass = options.showNote ? " dashboard-visit-card" : "";
       const note = String(schedule.note || "").slice(0, 500);
       const noteBlock = options.allowNoteEdit
-        ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="메모 입력..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea></div>`
+        ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="메모 입력..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="autoGrowDashboardNote(this); queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea></div>`
         : (options.showNote && note ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div></div>` : "");
       const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
       const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
