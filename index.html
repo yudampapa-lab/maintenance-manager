@@ -7062,8 +7062,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.38";
+    const appVersion = "1.7.39";
     const versionHistory = [
+      {
+        version: "1.7.39",
+        date: "2026-09-02",
+        title: "PC 오늘 할일 정보 갱신 보완",
+        changes: [
+          "PC 앱 창을 다시 열거나 활성화하면 오늘·내일 할일 데이터를 서버에서 즉시 새로 확인",
+          "PC에 열린 웹 화면이 오래된 배포본이면 최신 버전 주소로 자동 갱신",
+          "최근 방문일, 솔루션, 비고, 완료 상태 등 오늘 할일 카드 정보가 모바일과 동일하게 표시되도록 점검"
+        ]
+      },
       {
         version: "1.7.38",
         date: "2026-09-02",
@@ -14531,6 +14541,31 @@
       state.lastCloudRefreshAt = now;
       await downloadCloudData({ silent: true });
     }
+    async function refreshDeployedAppIfNeeded() {
+      if (window.ReportMateAndroid || location.protocol === "file:" || document.hidden) return false;
+      if (isDashboardScheduleNoteEditing() || document.querySelector("dialog[open]")) return false;
+      if (state.deployedVersionCheckInProgress) return false;
+      state.deployedVersionCheckInProgress = true;
+      try {
+        const checkUrl = new URL(location.href);
+        checkUrl.searchParams.set("reportmate-version-check", String(Date.now()));
+        const response = await fetch(checkUrl.href, { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) return false;
+        const html = await response.text();
+        const deployedVersion = html.match(/const\s+appVersion\s*=\s*["']([^"']+)["']/)?.[1] || "";
+        if (!deployedVersion || deployedVersion === appVersion) return false;
+        const reloadUrl = new URL(location.href);
+        reloadUrl.searchParams.delete("reportmate-version-check");
+        reloadUrl.searchParams.set("reportmate-version", deployedVersion);
+        location.replace(reloadUrl.href);
+        return true;
+      } catch (error) {
+        console.warn("ReportMate version refresh failed", error);
+        return false;
+      } finally {
+        state.deployedVersionCheckInProgress = false;
+      }
+    }
     function currentViewName() {
       return document.querySelector(".view.active")?.id?.replace("view-", "") || "dashboard";
     }
@@ -16800,8 +16835,14 @@
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) refreshCloudDataIfStale();
+      if (document.hidden) return;
+      refreshCloudDataIfStale(window.ReportMateAndroid ? 30000 : 0);
+      refreshDeployedAppIfNeeded();
     });
+    if (!window.ReportMateAndroid) {
+      setTimeout(refreshDeployedAppIfNeeded, 8000);
+      setInterval(refreshDeployedAppIfNeeded, 5 * 60 * 1000);
+    }
     window.addEventListener("resize", () => {
       syncMonthlyMaintenanceToggleRoot();
       if (!isNarrowMonthlyMaintenanceDrawer()) closeMonthlyMaintenanceDrawer();
