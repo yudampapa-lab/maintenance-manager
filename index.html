@@ -5677,6 +5677,7 @@
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
+    migrateAndroidScheduleNotesForCloud();
     normalizeWorkLogs();
     normalizeTodoMemos();
     normalizeTeamDirectory();
@@ -6264,6 +6265,7 @@
         visitReason: schedule.visitReason === "사유없음" ? "" : (schedule.visitReason || ""),
         body: schedule.body || "",
         note: String(schedule.note || "").slice(0, 500),
+        noteUpdatedAt: schedule.noteUpdatedAt || "",
         todoMemoId: schedule.todoMemoId || "",
         date: schedule.date || todayISO(),
         endDate: schedule.endDate || schedule.date || todayISO(),
@@ -6343,9 +6345,23 @@
         ...(base.googleDuplicateEventIds || []),
         ...(next.googleDuplicateEventIds || [])
       ].filter(Boolean))];
-      if (!base.googleEventId && next.googleEventId) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== next.googleEventId) };
       const baseTime = Date.parse(base.updatedAt || base.googleUpdated || base.createdAt || "") || 0;
       const nextTime = Date.parse(next.updatedAt || next.googleUpdated || next.createdAt || "") || 0;
+      if (!base.googleEventId && next.googleEventId) {
+        const newer = nextTime > baseTime ? next : base;
+        return {
+          ...base,
+          ...next,
+          ...newer,
+          id: base.id || next.id,
+          createdAt: base.createdAt || next.createdAt,
+          googleEventId: next.googleEventId,
+          googleUpdated: next.googleUpdated || base.googleUpdated,
+          googleHtmlLink: next.googleHtmlLink || base.googleHtmlLink,
+          googleSyncedAt: next.googleSyncedAt || base.googleSyncedAt,
+          googleDuplicateEventIds: duplicateIds.filter(id => id !== next.googleEventId)
+        };
+      }
       if (nextTime > baseTime) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== (next.googleEventId || base.googleEventId)) };
       return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleDuplicateEventIds: duplicateIds.filter(id => id !== (base.googleEventId || next.googleEventId)), googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
     }
@@ -7046,8 +7062,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.37";
+    const appVersion = "1.7.38";
     const versionHistory = [
+      {
+        version: "1.7.38",
+        date: "2026-09-02",
+        title: "기존 모바일 비고 동기화 복구",
+        changes: [
+          "이전 버전에서 휴대폰에만 저장된 비고를 앱 실행 시 서버로 한 번 자동 복구",
+          "PC의 오래된 일정 데이터가 휴대폰에서 수정한 최신 비고를 덮어쓰지 않도록 병합 기준 보완",
+          "비고의 마지막 수정 시각을 별도로 저장해 이후 기기 간 동기화 안정성 강화"
+        ]
+      },
       {
         version: "1.7.37",
         date: "2026-09-02",
@@ -10276,6 +10302,23 @@
       if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
     const todayScheduleNoteTimers = new Map();
+    function migrateAndroidScheduleNotesForCloud() {
+      if (!window.ReportMateAndroid) return false;
+      const schedules = state.schedules.filter(schedule => String(schedule.note || "").trim() && !schedule.noteUpdatedAt);
+      if (!schedules.length) return false;
+      const now = new Date().toISOString();
+      schedules.forEach(schedule => {
+        schedule.noteUpdatedAt = now;
+        schedule.updatedAt = now;
+        markGoogleDirty(schedule);
+      });
+      state.settings.cloudPendingScheduleSyncToken = `${now}:${uid()}`;
+      try {
+        localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+        localStorage.setItem("maint_settings", JSON.stringify(state.settings));
+      } catch {}
+      return true;
+    }
     function isDashboardScheduleNoteEditing() {
       return Boolean(document.activeElement?.classList?.contains("dashboard-schedule-note-editor"));
     }
@@ -10292,6 +10335,7 @@
       schedule.note = note;
       if (prepareSync) {
         schedule.updatedAt = new Date().toISOString();
+        schedule.noteUpdatedAt = schedule.updatedAt;
         state.settings.cloudPendingScheduleSyncToken = `${schedule.updatedAt}:${uid()}`;
         markGoogleDirty(schedule);
       }
