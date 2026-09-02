@@ -7046,8 +7046,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.36";
+    const appVersion = "1.7.37";
     const versionHistory = [
+      {
+        version: "1.7.37",
+        date: "2026-09-02",
+        title: "대시보드 비고 기기 간 동기화 수정",
+        changes: [
+          "비고 입력 후 1초 동안 변경이 없으면 포커스가 남아 있어도 서버 전송",
+          "입력 중 도착한 실시간 데이터는 편집이 끝날 때까지 화면 반영을 보류",
+          "모바일 입력 커서와 키보드를 유지하면서 PC에 비고가 표시되도록 개선"
+        ]
+      },
       {
         version: "1.7.36",
         date: "2026-09-01",
@@ -10266,6 +10276,15 @@
       if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
     const todayScheduleNoteTimers = new Map();
+    function isDashboardScheduleNoteEditing() {
+      return Boolean(document.activeElement?.classList?.contains("dashboard-schedule-note-editor"));
+    }
+    function applyDeferredCloudSnapshot() {
+      if (isDashboardScheduleNoteEditing() || !state.deferredCloudSnapshot) return;
+      const data = state.deferredCloudSnapshot;
+      state.deferredCloudSnapshot = null;
+      applyCloudSnapshot(data);
+    }
     function setTodayScheduleNoteValue(id, value, { prepareSync = false } = {}) {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return null;
@@ -10284,6 +10303,7 @@
       todayScheduleNoteTimers.delete(id);
       const schedule = setTodayScheduleNoteValue(id, value, { prepareSync: true });
       if (!schedule) return;
+      applyDeferredCloudSnapshot();
       save();
       scheduleGoogleAutoSync("schedule-note");
       const cloudSaved = await persistSchedulesNow("schedule-note");
@@ -10293,12 +10313,19 @@
       setTodayScheduleNoteValue(id, value);
       const timer = todayScheduleNoteTimers.get(id);
       if (timer) clearTimeout(timer);
-      todayScheduleNoteTimers.set(id, setTimeout(() => {
+      todayScheduleNoteTimers.set(id, setTimeout(async () => {
         todayScheduleNoteTimers.delete(id);
+        const schedule = setTodayScheduleNoteValue(id, value, { prepareSync: true });
+        if (!schedule) return;
         try { localStorage.setItem("maint_schedules", JSON.stringify(state.schedules)); } catch {}
-      }, 700));
+        scheduleGoogleAutoSync("schedule-note-idle");
+        const cloudSaved = await persistSchedulesNow("schedule-note-idle");
+        if (cloudSaved === false) scheduleCloudSave("schedule-note-idle-retry", 1500);
+      }, 1000));
     };
-    window.commitTodayScheduleNote = (id, value) => persistTodayScheduleNote(id, value);
+    window.commitTodayScheduleNote = (id, value) => {
+      setTimeout(() => persistTodayScheduleNote(id, value), 0);
+    };
     function dashboardSearchText(value) {
       return normalizeOrgKeyword(typeof value === "string" ? value : JSON.stringify(value || ""));
     }
@@ -14411,6 +14438,10 @@
         if (serverConfirmed) state.cloudHasServerSnapshot = true;
         if (!snapshot.exists) {
           if (serverConfirmed) uploadCloudData({ silent: true });
+          return;
+        }
+        if (isDashboardScheduleNoteEditing()) {
+          state.deferredCloudSnapshot = snapshot.data();
           return;
         }
         applyCloudSnapshot(snapshot.data());
