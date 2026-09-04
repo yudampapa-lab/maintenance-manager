@@ -284,7 +284,7 @@
       display: grid;
       gap: 14px;
     }
-    .parking-status-panel { margin-top: 14px; }
+    .parking-status-panel, .amsys-status-panel { margin-top: 14px; }
     .parking-status-panel.is-fault {
       margin: 0 0 14px;
       border: 2px solid rgba(195, 75, 82, .72);
@@ -4553,6 +4553,23 @@
             </div>
           </div>
         </section>
+        <section class="panel parking-status-panel amsys-status-panel" id="amsysStatusPanel">
+          <div class="panel-head">
+            <div><h2 class="panel-title">AMSYS21 검침 상태</h2><p class="panel-sub" id="amsysStatusLastSeen">마지막 검침 확인 중</p></div>
+            <div class="parking-status-head-actions">
+              <span class="tag" id="amsysAlertModeTag">장애알림 사용</span>
+              <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshAmsysStatusBtn" title="상태 새로고침" aria-label="AMSYS21 검침 상태 새로고침">
+                <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="parking-status-row">
+              <span class="parking-status-indicator" id="amsysStatusIndicator" aria-hidden="true"></span>
+              <div class="parking-status-copy"><strong id="amsysStatusTitle">상태 확인 중</strong><span id="amsysStatusDetail">전력 검침 수집 상태를 불러오고 있습니다.</span></div>
+            </div>
+          </div>
+        </section>
         <section class="panel parking-status-panel" id="parkingStatusPanel">
           <div class="panel-head">
             <div><h2 class="panel-title">주차정산기 상태</h2><p class="panel-sub" id="parkingStatusLastSeen">마지막 신호 확인 중</p></div>
@@ -4767,8 +4784,8 @@
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
               <div class="field"><label>유지보수 재계약 알림</label><input id="maintenanceRenewalNoticeDays" type="number" min="0" max="365" step="1" value="30"><div class="file-hint">유지보수 종료일 기준 · 0일이면 사용 안함 · 오전 9시 알림</div></div>
-              <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">업무일 09:00~18:00 · 장애 복구 전까지 1시간 간격</div></div>
-              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 주차정산기 알림을 표시하지 않습니다.</div></div>
+              <div class="field"><label>설비 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">주차정산기·AMSYS21 · 최초 장애 즉시, 복구 전 업무시간 1시간 간격</div></div>
+              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 설비 장애알림을 표시하지 않습니다.</div></div>
               <div class="field"><label>미수신 시작 시간</label><input id="notificationQuietHoursStart" type="time" value="22:00"></div>
               <div class="field"><label>미수신 종료 시간</label><input id="notificationQuietHoursEnd" type="time" value="08:00"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
@@ -7063,8 +7080,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.40";
+    const appVersion = "1.7.41";
     const versionHistory = [
+      {
+        version: "1.7.41",
+        date: "2026-09-04",
+        title: "AMSYS21 검침 장애 감시",
+        changes: [
+          "AMSYS21 계량값이 5분 이상 갱신되지 않으면 대시보드 최상단에 장애 상태 표시",
+          "수집 프로그램 중단과 계량 데이터 정지를 구분할 수 있도록 마지막 신호·검침 시각 표시",
+          "Android 설비 장애알림에 AMSYS21 중단 및 정상 복구 푸시 추가"
+        ]
+      },
       {
         version: "1.7.40",
         date: "2026-09-03",
@@ -14633,6 +14660,34 @@
       lastSeenElement.textContent = lastSeenText || "마지막 신호 확인 전";
       modeTag.textContent = state.settings.parkingAlertEnabled === "0" ? "장애알림 미사용" : "장애알림 사용";
     }
+    function syncAmsysDashboardPriority(status) {
+      const dashboard = document.getElementById("view-dashboard");
+      const panel = document.getElementById("amsysStatusPanel");
+      if (!dashboard || !panel) return;
+      const hasFault = status === "offline" || status === "warning";
+      panel.classList.toggle("is-fault", hasFault);
+      panel.classList.toggle("offline-fault", status === "offline");
+      panel.classList.toggle("warning-fault", status === "warning");
+      if (hasFault) {
+        if (dashboard.firstElementChild !== panel) dashboard.prepend(panel);
+      } else if (dashboard.lastElementChild !== panel) {
+        dashboard.append(panel);
+      }
+    }
+    function setAmsysDashboardStatus(status, title, detail, lastSeenText = "") {
+      const indicator = document.getElementById("amsysStatusIndicator");
+      const titleElement = document.getElementById("amsysStatusTitle");
+      const detailElement = document.getElementById("amsysStatusDetail");
+      const lastSeenElement = document.getElementById("amsysStatusLastSeen");
+      const modeTag = document.getElementById("amsysAlertModeTag");
+      if (!indicator || !titleElement || !detailElement || !lastSeenElement || !modeTag) return;
+      syncAmsysDashboardPriority(status);
+      indicator.className = `parking-status-indicator ${status || ""}`;
+      titleElement.textContent = title;
+      detailElement.textContent = detail;
+      lastSeenElement.textContent = lastSeenText || "마지막 검침 확인 전";
+      modeTag.textContent = state.settings.parkingAlertEnabled === "0" ? "장애알림 미사용" : "장애알림 사용";
+    }
     const equipmentPowerState = {
       deviceId: "",
       deviceName: "",
@@ -14913,6 +14968,57 @@
         button.setAttribute("aria-label", "주차정산기 상태 새로고침");
       }
     });
+    document.getElementById("refreshAmsysStatusBtn")?.addEventListener("click", async () => {
+      const button = document.getElementById("refreshAmsysStatusBtn");
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      button.classList.add("is-loading");
+      try {
+        await refreshAmsysDashboardStatus();
+        toast("AMSYS21 검침 상태를 새로 확인했습니다.");
+      } finally {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+      }
+    });
+    async function refreshAmsysDashboardStatus() {
+      if (state.amsysStatusLoading) return;
+      const services = initFirebaseServices();
+      if (!services?.auth?.currentUser) {
+        setAmsysDashboardStatus("", "로그인 후 확인", "AMSYS21 검침 상태는 ReportMate 로그인 후 표시됩니다.");
+        return;
+      }
+      state.amsysStatusLoading = true;
+      try {
+        const snapshot = await services.db.collection("reportmateSystem").doc("amsys21").get({ source: "server" });
+        if (!snapshot.exists) {
+          setAmsysDashboardStatus("", "검침기 미등록", "전력 측정 PC 업데이트 후 상태가 자동 등록됩니다.");
+          return;
+        }
+        const device = snapshot.data() || {};
+        const lastSeen = device.lastSeenAt?.toDate?.() || null;
+        const latestReading = device.latestReadingAt?.toDate?.() || null;
+        const heartbeatAge = lastSeen ? Date.now() - lastSeen.getTime() : Number.POSITIVE_INFINITY;
+        const readingAge = latestReading ? Date.now() - latestReading.getTime() : Number.POSITIVE_INFINITY;
+        const reported = String(device.status || "error").toLowerCase();
+        const deviceName = String(device.deviceName || "호디 R&D센터 AMSYS21");
+        const lastSeenText = latestReading
+          ? `마지막 검침 ${latestReading.toLocaleString("ko-KR")} · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`
+          : `마지막 검침 확인 불가 · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`;
+        if (heartbeatAge > 5 * 60 * 1000) {
+          setAmsysDashboardStatus("offline", "수집기 연결 끊김", `${deviceName} 수집 프로그램에서 5분 이상 상태 신호가 없습니다.`, lastSeenText);
+        } else if (reported !== "online" || readingAge > 5 * 60 * 1000) {
+          setAmsysDashboardStatus("warning", "검침 데이터 갱신 중단", `${deviceName}의 계량값이 5분 이상 갱신되지 않았습니다.`, lastSeenText);
+        } else {
+          setAmsysDashboardStatus("online", "정상 수집 중", `${deviceName}의 전력 검침 데이터가 정상적으로 갱신되고 있습니다.`, lastSeenText);
+        }
+      } catch (error) {
+        setAmsysDashboardStatus("", "상태 조회 실패", "인터넷 연결 또는 Firestore 권한을 확인해주세요.");
+        console.warn("AMSYS21 status dashboard refresh failed", error);
+      } finally {
+        state.amsysStatusLoading = false;
+      }
+    }
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
       const nativeResult = await refreshEquipmentPowerStatus({ silent: true, probeDesktop: true });
@@ -14974,6 +15080,7 @@
       renderWeeklyReport();
       scheduleTodayDestinationMapRender();
       refreshParkingDashboardStatus();
+      refreshAmsysDashboardStatus();
       refreshEquipmentPowerStatus({ silent: true });
     }
     function renderMemoView() {
@@ -16711,7 +16818,7 @@
       syncParkingNotificationToAndroid();
       syncNotificationQuietHoursToAndroid();
       refreshParkingDashboardStatus();
-      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 재계약 알림(${state.settings.maintenanceRenewalNoticeDays}일 전), 주차정산기 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
+      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 재계약 알림(${state.settings.maintenanceRenewalNoticeDays}일 전), 설비 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
@@ -17598,6 +17705,7 @@
     }
     function notificationSourceLabel(source) {
       if (source === "parking") return "주차정산기";
+      if (source === "amsys") return "AMSYS21";
       if (source === "schedule") return "오늘 일정";
       if (source === "renewal") return "재계약";
       return "ReportMate";
@@ -17661,7 +17769,10 @@
     }
     restoreLoginSession();
     setInterval(() => {
-      if (document.getElementById("view-dashboard")?.classList.contains("active")) refreshParkingDashboardStatus();
+      if (document.getElementById("view-dashboard")?.classList.contains("active")) {
+        refreshParkingDashboardStatus();
+        refreshAmsysDashboardStatus();
+      }
     }, 60 * 1000);
     setInterval(() => {
       if (document.getElementById("view-dashboard")?.classList.contains("active") && !equipmentPowerState.processing) {
