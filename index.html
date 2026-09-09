@@ -2092,6 +2092,8 @@
       box-shadow: 0 10px 22px rgba(22, 34, 45, .22);
     }
     .event-pill.calendar-drag-ghost {
+      transition: none !important;
+      will-change: transform;
       position: fixed;
       z-index: 9999;
       pointer-events: none;
@@ -7102,8 +7104,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.42";
+    const appVersion = "1.7.43";
     const versionHistory = [
+      {
+        version: "1.7.43",
+        date: "2026-09-09",
+        title: "일정 드래그 개선과 되돌릴 수 있는 달력 스와이프",
+        changes: [
+          "PC 일정 드래그 즉시 시작, 모바일 길게 누르기 유지",
+          "드래그 이동과 자동 스크롤을 화면 프레임에 맞춰 통합",
+          "달력이 손가락을 따라 이동하고 되돌리면 원래 달로 복귀"
+        ]
+      },
       {
         version: "1.7.42",
         date: "2026-09-08",
@@ -11562,9 +11574,7 @@
       list.innerHTML = orgMarkup + todoMarkup;
     }
     function monthlyMaintenancePanelFromPoint(x, y, draggedEl) {
-      if (draggedEl) draggedEl.style.visibility = "hidden";
       const panel = document.elementFromPoint(x, y)?.closest("#monthlyMaintenancePanel");
-      if (draggedEl) draggedEl.style.visibility = "";
       return panel;
     }
     function clearMaintenanceDropTarget() {
@@ -11589,12 +11599,16 @@
       ["position", "width", "height", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
     }
     function createMaintenanceDragGhost(drag, event) {
+      drag.startGhostX = event.clientX;
+      drag.startGhostY = event.clientY;
       const rect = drag.el.getBoundingClientRect();
       const ghost = drag.el.cloneNode(true);
       ghost.removeAttribute("id");
       ghost.classList.remove("drag-ready");
       ghost.classList.add("dragging", "maintenance-drag-ghost");
       ghost.style.position = "fixed";
+      ghost.style.transition = "none";
+      ghost.style.willChange = "transform";
       ghost.style.left = `${event.clientX - drag.grabX}px`;
       ghost.style.top = `${event.clientY - drag.grabY}px`;
       ghost.style.width = `${rect.width}px`;
@@ -11739,6 +11753,7 @@
         : createInspectionScheduleFromOrg(meta.id, date);
     }
     window.maintenanceOrgPointerStart = (event, itemToken) => {
+      if (event.button != null && event.button !== 0) return;
       cleanupMaintenanceDragGhosts();
       const el = event.currentTarget;
       try { el.setPointerCapture?.(event.pointerId); } catch {}
@@ -11779,15 +11794,22 @@
         openMaintenanceOrgAction(itemToken);
       }, 1120);
       state.maintenanceOrgDrag = drag;
+      el.addEventListener("lostpointercapture", () => {
+        if (state.maintenanceOrgDrag === drag) maintenanceOrgPointerCancel({}, itemToken);
+      }, { once: true });
       attachScheduleDragTouchBlocker(drag);
     };
     window.maintenanceOrgPointerMove = (event, itemToken) => {
       const drag = state.maintenanceOrgDrag;
-      if (!drag || drag.itemToken !== itemToken) return;
+      if (!drag || drag.itemToken !== itemToken || drag.pointerId !== event.pointerId || drag.cancelled) return;
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
+      if (drag.pointerType === "mouse" && Math.hypot(dx, dy) > 8) {
+        drag.armed = true;
+        clearTimeout(drag.longPressTimer);
+      }
       if (!drag.armed) {
         if (Math.abs(dx) + Math.abs(dy) > 12) {
           drag.cancelled = true;
@@ -11809,9 +11831,6 @@
       }
       setCalendarDragging(true);
       drag.el.classList.remove("drag-ready");
-      drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
-      drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      refreshMaintenanceDragTarget(drag);
       startScheduleDragAutoScroll(drag, itemToken, true);
     };
     window.maintenanceOrgPointerEnd = (event, itemToken) => {
@@ -12146,8 +12165,45 @@
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     }
     function installSwipe(target) {
+      target.style.overflowX = "clip";
       target.onpointerdown = null;
       target.onpointerup = null;
+    }
+    function previewCalendarSwipe(range, dx) {
+      const grid = range.swipeGrid || document.querySelector("#mainCalendar .calendar-grid");
+      if (!grid) return;
+      range.swipeGrid = grid;
+      range.swipeDx = Math.max(-grid.clientWidth * .85, Math.min(grid.clientWidth * .85, dx));
+      if (range.swipeFrame) return;
+      range.swipeFrame = requestAnimationFrame(() => {
+        range.swipeFrame = 0;
+        if (state.calendarRange !== range) return;
+        grid.style.willChange = "transform";
+        grid.style.transform = `translate3d(${range.swipeDx}px,0,0)`;
+      });
+    }
+    function settleCalendarSwipe(range, commit = false) {
+      if (range?.swipeFrame) cancelAnimationFrame(range.swipeFrame);
+      const grid = range?.swipeGrid;
+      if (!grid) return false;
+      const dx = range.swipeDx || 0;
+      grid.style.transform = "";
+      grid.style.willChange = "";
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const step = dx < 0 ? 1 : -1;
+      const finish = () => {
+        state.monthSwipeSettling = false;
+        if (commit) moveMonth(step);
+      };
+      if (reduced || !grid.animate) { finish(); return true; }
+      state.monthSwipeSettling = true;
+      const animation = grid.animate([
+        { transform: `translateX(${dx}px)` },
+        { transform: `translateX(${commit ? (dx < 0 ? -1 : 1) * grid.clientWidth : 0}px)` }
+      ], { duration: commit ? 180 : 220, easing: "cubic-bezier(.22,.8,.24,1)" });
+      animation.onfinish = finish;
+      animation.oncancel = () => { state.monthSwipeSettling = false; };
+      return true;
     }
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
@@ -12192,40 +12248,13 @@
       });
     }
     function dateCellFromPoint(x, y, draggedEl) {
-      const hidden = [];
-      const hide = el => {
-        if (!el || hidden.includes(el)) return;
-        hidden.push(el);
-        el.style.visibility = "hidden";
-      };
-      hide(draggedEl);
-      if (document.body.classList.contains("maintenance-drawer-dragging")) {
-        hide(document.getElementById("monthlyMaintenancePanel"));
+      // Event bars are separate overlapping layers. Read cell rectangles directly,
+      // without toggling visibility and forcing repeated style/hit-test passes.
+      for (const cell of document.querySelectorAll("#mainCalendar .day-cell[data-date]")) {
+        const rect = cell.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell;
       }
-      let cell = null;
-      for (let i = 0; i < 10; i++) {
-        const el = document.elementFromPoint(x, y);
-        if (!el) break;
-        cell = el.closest(".day-cell");
-        if (cell) break;
-        const blocker = el.closest(".event-pill, .week-events, .calendar-drag-ghost, .maintenance-drag-ghost, .maintenance-drag-card");
-        if (!blocker || hidden.includes(blocker)) break;
-        hide(blocker);
-      }
-      hidden.forEach(el => { el.style.visibility = ""; });
-      if (!cell) {
-        const candidates = [...document.querySelectorAll("#mainCalendar .day-cell[data-date]")]
-          .map(el => ({ el, rect: el.getBoundingClientRect() }))
-          .filter(item => x >= item.rect.left && x <= item.rect.right)
-          .map(item => {
-            const verticalDistance = y < item.rect.top ? item.rect.top - y : (y > item.rect.bottom ? y - item.rect.bottom : 0);
-            return { ...item, verticalDistance };
-          })
-          .sort((a, b) => a.verticalDistance - b.verticalDistance);
-        const closest = candidates[0];
-        if (closest && closest.verticalDistance <= 48) cell = closest.el;
-      }
-      return cell;
+      return null;
     }
     function isSchedulePillTarget(event) {
       const pill = event.target.closest(".event-pill");
@@ -12310,24 +12339,23 @@
       return direction ? direction * (90 + (maxSpeed - 90) * intensity * intensity) : 0;
     }
     function refreshScheduleDragTarget(drag, id = drag?.id) {
-      clearDropTarget();
-      clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
-      if (refreshCalendarDragCancelZone(drag)) return;
-      dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
-      if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
-        monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
-      }
+      const cancelled = refreshCalendarDragCancelZone(drag);
+      const cell = cancelled ? null : dateCellFromPoint(drag.lastX, drag.lastY);
+      const panel = !cancelled && canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))
+        ? monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY) : null;
+      updateDragHighlight(drag, panel || cell);
+    }
+    function updateDragHighlight(drag, target) {
+      if (drag.highlight === target) return;
+      drag.highlight?.classList.remove("drop-target");
+      target?.classList.add("drop-target");
+      drag.highlight = target;
     }
     function refreshMaintenanceDragTarget(drag) {
-      clearDropTarget();
-      clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
-      if (refreshCalendarDragCancelZone(drag)) return;
-      const targetCell = dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el);
-      if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
-        targetCell.classList.add("drop-target");
-      }
+      const cell = refreshCalendarDragCancelZone(drag) ? null : dateCellFromPoint(drag.lastX, drag.lastY);
+      updateDragHighlight(drag, cell?.dataset.date && isDateInCurrentCalendarMonth(cell.dataset.date) ? cell : null);
     }
     function scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag = false) {
       drag.autoScrollFrame = 0;
@@ -12337,6 +12365,9 @@
         return;
       }
       const velocity = scheduleDragAutoScrollVelocity(drag);
+      if (drag.ghost) drag.ghost.style.transform = `translate3d(${drag.lastX - drag.startGhostX}px, ${drag.lastY - drag.startGhostY}px, 0)`;
+      if (maintenanceDrag) refreshMaintenanceDragTarget(drag);
+      else refreshScheduleDragTarget(drag, id);
       if (!velocity) {
         drag.autoScrollLastTime = 0;
         return;
@@ -12361,12 +12392,10 @@
         drag.autoScrollLastTime = 0;
         return;
       }
-      if (maintenanceDrag) refreshMaintenanceDragTarget(drag);
-      else refreshScheduleDragTarget(drag, id);
       drag.autoScrollFrame = requestAnimationFrame(nextTime => scheduleDragAutoScrollStep(nextTime, drag, id, maintenanceDrag));
     }
     function startScheduleDragAutoScroll(drag, id, maintenanceDrag = false) {
-      if (!drag || drag.autoScrollFrame || !scheduleDragAutoScrollVelocity(drag)) return;
+      if (!drag || drag.autoScrollFrame) return;
       drag.autoScrollLastTime = 0;
       drag.autoScrollFrame = requestAnimationFrame(timestamp => scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag));
     }
@@ -12390,6 +12419,8 @@
       setCalendarDragging(false);
     }
     function createCalendarDragGhost(drag, event) {
+      drag.startGhostX = event.clientX;
+      drag.startGhostY = event.clientY;
       const rect = drag.el.getBoundingClientRect();
       const ghost = drag.el.cloneNode(true);
       ghost.removeAttribute("id");
@@ -12405,6 +12436,7 @@
       return ghost;
     }
     window.schedulePointerStart = (event, id) => {
+      if (event.button != null && event.button !== 0) return;
       event.stopPropagation();
       if (state.calendarDrag) cancelActiveScheduleDrag();
       const el = event.currentTarget;
@@ -12444,11 +12476,15 @@
     };
     window.schedulePointerMove = (event, id) => {
       const drag = state.calendarDrag;
-      if (!drag || drag.id !== id) return;
+      if (!drag || drag.id !== id || drag.pointerId !== event.pointerId || drag.cancelled) return;
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
+      if (drag.pointerType === "mouse" && Math.hypot(dx, dy) > 8) {
+        drag.armed = true;
+        clearTimeout(drag.longPressTimer);
+      }
       if (!drag.armed) {
         if (Math.abs(dx) + Math.abs(dy) > 12) {
           drag.cancelled = true;
@@ -12468,9 +12504,6 @@
       drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
       setCalendarDragging(true);
-      drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
-      drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      refreshScheduleDragTarget(drag, id);
       startScheduleDragAutoScroll(drag, id);
     };
     function applyScheduleDragDrop(drag, id) {
@@ -12562,11 +12595,16 @@
       state.calendarDrag = null;
     }
     window.addEventListener("blur", cancelActiveScheduleDrag);
+    window.addEventListener("blur", () => {
+      if (state.maintenanceOrgDrag) maintenanceOrgPointerCancel({}, state.maintenanceOrgDrag.itemToken);
+      if (state.calendarRange) calendarRangeCancel();
+    });
     window.addEventListener("pagehide", cancelActiveScheduleDrag);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) cancelActiveScheduleDrag();
     });
     window.calendarRangeStart = (event, date) => {
+      if (state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
       if (isSchedulePillTarget(event)) return;
       clearCalendarLongPress();
       const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, armed: false, cancelled: false, longPressFired: false };
@@ -12600,6 +12638,12 @@
           range.cancelled = true;
           clearCalendarLongPress(range);
         }
+        if (range.cancelled && dx > dy * 1.25) {
+          previewCalendarSwipe(range, event.clientX - range.startX);
+          if (event.cancelable) event.preventDefault();
+        } else if (range.swipeGrid) {
+          previewCalendarSwipe(range, 0);
+        }
         return;
       }
       const cell = dateCellFromPoint(event.clientX, event.clientY, null);
@@ -12625,6 +12669,16 @@
       const totalDy = Math.abs(event.clientY - range.startY);
       if (range.cancelled) {
         clearRangeSelection();
+        const width = range.swipeGrid?.clientWidth || 360;
+        const commit = Math.abs(totalDx) > Math.max(56, width * .2) && Math.abs(totalDx) > totalDy * 1.25;
+        if (range.swipeGrid) {
+          state.suppressCalendarClick = true;
+          setTimeout(() => { state.suppressCalendarClick = false; }, 500);
+          // Use final pointer position, including a last-moment reversal.
+          range.swipeDx = Math.max(-width * .85, Math.min(width * .85, totalDx));
+          settleCalendarSwipe(range, commit);
+          return;
+        }
         if (Math.abs(totalDx) > 56 && Math.abs(totalDx) > totalDy * 1.25) {
           state.suppressCalendarClick = true;
           setTimeout(() => { state.suppressCalendarClick = false; }, 260);
@@ -12648,10 +12702,12 @@
     };
     window.calendarRangeCancel = () => {
       clearCalendarLongPress();
+      settleCalendarSwipe(state.calendarRange, false);
       state.calendarRange = null;
       clearRangeSelection();
     };
     window.openScheduleForDate = (event, date) => {
+      if (state.monthSwipeSettling) return;
       if (isSchedulePillTarget(event)) return;
       if (state.suppressCalendarClick) return;
       if (state.calendarRange?.moved) return;
@@ -13581,8 +13637,16 @@
     });
     [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, lunarDatePickerDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
+      if (state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling) return;
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (grid && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        grid.animate?.([
+          { transform: `translateX(${step > 0 ? 36 : -36}px)`, opacity: .45 },
+          { transform: "translateX(0)", opacity: 1 }
+        ], { duration: 280, easing: "cubic-bezier(.22, .8, .24, 1)" });
+      }
     };
     function matchingWorkLogOrgs(value = "", limit = 20) {
       const input = normalizeOrgKeyword(value);
