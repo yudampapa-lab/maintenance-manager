@@ -284,7 +284,7 @@
       display: grid;
       gap: 14px;
     }
-    .parking-status-panel { margin-top: 14px; }
+    .parking-status-panel, .amsys-status-panel { margin-top: 14px; }
     .parking-status-panel.is-fault {
       margin: 0 0 14px;
       border: 2px solid rgba(195, 75, 82, .72);
@@ -1417,6 +1417,69 @@
       color: #0f5f58;
       overflow-wrap: anywhere;
     }
+    .solution-tile.dashboard-solution-tile {
+      padding: 5px 8px;
+      gap: 7px;
+      align-items: center;
+    }
+    .dashboard-solution-tile > svg {
+      width: 16px;
+      height: 16px;
+    }
+    .dashboard-solution-tile span {
+      font-size: 10px;
+    }
+    .dashboard-solution-tile strong {
+      font-size: 12px;
+      line-height: 1.15;
+    }
+    .visit-card.dashboard-visit-card {
+      gap: 6px;
+    }
+    .dashboard-note-section {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      align-items: start;
+      gap: 6px;
+      min-width: 0;
+    }
+    .dashboard-note-label {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+      line-height: 1;
+    }
+    .dashboard-schedule-note {
+      min-width: 0;
+      padding: 2px 0;
+      color: #385451;
+      font-size: 11px;
+      line-height: 15px;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    textarea.dashboard-schedule-note-editor {
+      display: block;
+      width: 100%;
+      height: 28px;
+      min-height: 28px;
+      max-height: 140px;
+      padding: 5px 7px;
+      border-radius: 7px;
+      background: rgba(118,118,128,.07);
+      box-shadow: inset 0 0 0 1px rgba(60,60,67,.09);
+      color: #263d3a;
+      font-size: 11px;
+      line-height: 18px;
+      resize: none;
+      overflow-y: hidden;
+      transition: height .12s ease, background .18s ease, box-shadow .18s ease;
+    }
+    textarea.dashboard-schedule-note-editor::placeholder {
+      color: var(--muted);
+      opacity: .82;
+    }
     .tag {
       display: inline-flex;
       align-items: center;
@@ -1472,6 +1535,64 @@
       background: var(--soft);
       box-shadow: none;
     }
+    .calendar-month-tide {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+    .tide-location-button {
+      position: absolute;
+      left: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      min-height: 32px;
+      border-radius: 10px;
+      color: #22677d;
+      background-color: rgba(111, 210, 230, .13);
+      box-shadow: none;
+    }
+    .tide-location-button svg { width: 18px; height: 18px; }
+    .tide-location-button:active { transform: translateY(-50%) scale(.96); }
+    .tide-place-search {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .tide-place-results { display: grid; gap: 7px; margin-top: 12px; }
+    .tide-place-result {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      box-shadow: none;
+    }
+    .tide-place-result strong,
+    .tide-place-result span { display: block; }
+    .tide-place-result strong { font-size: 13px; }
+    .tide-place-result span { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .tide-place-quick {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+      max-height: 150px;
+      overflow: auto;
+    }
+    .tide-place-quick button {
+      min-height: 30px;
+      padding: 5px 9px;
+      border-radius: 9px;
+      font-size: 10px;
+      box-shadow: none;
+    }
+    .tide-place-attribution { margin: 10px 0 0; color: var(--muted); font-size: 9px; }
+    .day-tide-basis { display: block; margin-top: 2px; color: #6b8790; font-size: 9px; font-weight: 600; }
     .calendar-search {
       display: flex;
       align-items: center;
@@ -1659,6 +1780,92 @@
     }
     .calendar-jump-actions button + button {
       border-left: 1px solid var(--line);
+    }
+    .lunar-date-dialog {
+      width: min(430px, calc(100vw - 28px));
+      margin: auto;
+      border-radius: 24px;
+    }
+    .lunar-date-head {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .lunar-date-head .icon {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .lunar-date-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .lunar-date-title select {
+      width: auto;
+      min-width: 94px;
+      min-height: 42px;
+      padding: 7px 28px 7px 10px;
+      font-weight: 850;
+      text-align: center;
+    }
+    .lunar-date-title select + select {
+      min-width: 76px;
+    }
+    .lunar-date-weekdays,
+    .lunar-date-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+    .lunar-date-weekdays {
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .lunar-date-grid button,
+    .lunar-date-grid span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 42px;
+      padding: 0;
+      border: 0;
+      border-radius: 13px;
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 750;
+    }
+    .lunar-date-grid button.selected {
+      background: var(--accent);
+      color: white;
+    }
+    .lunar-date-grid button.today {
+      box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+    }
+    .lunar-date-grid button:disabled {
+      opacity: .28;
+    }
+    .lunar-date-empty {
+      grid-column: 1 / -1;
+      padding: 22px 10px !important;
+      color: #d92929 !important;
+      font-size: 13px !important;
+      text-align: center;
+    }
+    .lunar-date-preview {
+      min-height: 20px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
     }
     .calendar-grid {
       display: block;
@@ -1885,6 +2092,8 @@
       box-shadow: 0 10px 22px rgba(22, 34, 45, .22);
     }
     .event-pill.calendar-drag-ghost {
+      transition: none !important;
+      will-change: transform;
       position: fixed;
       z-index: 9999;
       pointer-events: none;
@@ -2771,6 +2980,82 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
+    .day-tide-card {
+      margin: 12px 0 10px;
+      padding: 11px 12px;
+      border: 1px solid rgba(46, 157, 184, .18);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(224, 248, 252, .9), rgba(236, 244, 255, .88));
+      color: #244b59;
+    }
+    .day-tide-card[hidden] { display: none; }
+    .day-tide-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+    .day-tide-head strong {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: #155d76;
+    }
+    .day-tide-head span { color: #64808a; font-size: 10px; font-weight: 700; }
+    .day-tide-wave { width: 17px; height: 17px; fill: none; stroke: #1683a5; stroke-width: 2; }
+    .day-tide-events {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .day-tide-event {
+      min-width: 0;
+      padding: 7px 4px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.66);
+      text-align: center;
+    }
+    .day-tide-event span { display: block; font-size: 9px; font-weight: 800; color: #4d7784; }
+    .day-tide-event strong { display: block; margin-top: 2px; font-size: 12px; color: #173f4d; }
+    .day-tide-event em { display: block; margin-top: 1px; color: #6e858d; font-size: 9px; font-style: normal; }
+    .day-tide-event.high span { color: #087aa0; }
+    .day-tide-event.low span { color: #7866a5; }
+    .day-tide-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 10px;
+      margin-top: 8px;
+      color: #3e6876;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .day-tide-flow strong { color: #17627b; }
+    .day-tide-wind {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 7px;
+      color: #315f70;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .day-tide-wind svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+    }
+    .day-tide-source { margin: 7px 0 0; color: #78909a; font-size: 8.5px; line-height: 1.35; }
+    .day-tide-message { margin: 0; color: #607982; font-size: 11px; line-height: 1.45; }
+    #dayScheduleDialog { touch-action: pan-y; }
+    #dayScheduleDialog.day-swipe-next .modal-body { animation: day-swipe-from-right .2s ease-out; }
+    #dayScheduleDialog.day-swipe-prev .modal-body { animation: day-swipe-from-left .2s ease-out; }
+    @keyframes day-swipe-from-right { from { opacity: .35; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes day-swipe-from-left { from { opacity: .35; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
     .day-fitness-line.steps { color: rgba(36, 94, 86, .8); }
     .day-fitness-line.steps svg {
       fill: currentColor;
@@ -3694,6 +3979,19 @@
         max-width: none;
         font-size: 8.5px;
       }
+      #view-calendar .calendar-month-tide { gap: 2px; }
+      #view-calendar .calendar-month-tide .calendar-title-button {
+        min-width: 94px;
+        padding-inline: 4px;
+        font-size: 16px;
+      }
+      #view-calendar .tide-location-button {
+        left: 4px;
+        width: 36px;
+        min-height: 36px;
+        border-radius: 11px;
+      }
+      .day-tide-events { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #membershipBarcodeDialog { width: calc(100vw - 6px); }
       #membershipBarcodeDialog .modal-body { padding: 12px 8px; }
       #membershipBarcodeDialog .membership-card { padding-inline: 10px; }
@@ -4279,6 +4577,23 @@
             </div>
           </div>
         </section>
+        <section class="panel parking-status-panel amsys-status-panel" id="amsysStatusPanel">
+          <div class="panel-head">
+            <div><h2 class="panel-title">AMSYS21 검침 상태</h2><p class="panel-sub" id="amsysStatusLastSeen">마지막 검침 확인 중</p></div>
+            <div class="parking-status-head-actions">
+              <span class="tag" id="amsysAlertModeTag">장애알림 사용</span>
+              <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshAmsysStatusBtn" title="상태 새로고침" aria-label="AMSYS21 검침 상태 새로고침">
+                <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="parking-status-row">
+              <span class="parking-status-indicator" id="amsysStatusIndicator" aria-hidden="true"></span>
+              <div class="parking-status-copy"><strong id="amsysStatusTitle">상태 확인 중</strong><span id="amsysStatusDetail">전력 검침 수집 상태를 불러오고 있습니다.</span></div>
+            </div>
+          </div>
+        </section>
         <section class="panel parking-status-panel" id="parkingStatusPanel">
           <div class="panel-head">
             <div><h2 class="panel-title">주차정산기 상태</h2><p class="panel-sub" id="parkingStatusLastSeen">마지막 신호 확인 중</p></div>
@@ -4493,8 +4808,8 @@
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
               <div class="field"><label>유지보수 재계약 알림</label><input id="maintenanceRenewalNoticeDays" type="number" min="0" max="365" step="1" value="30"><div class="file-hint">유지보수 종료일 기준 · 0일이면 사용 안함 · 오전 9시 알림</div></div>
-              <div class="field"><label>주차정산기 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">업무일 09:00~18:00 · 장애 복구 전까지 1시간 간격</div></div>
-              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 주차정산기 알림을 표시하지 않습니다.</div></div>
+              <div class="field"><label>설비 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">주차정산기·AMSYS21 · 최초 장애 즉시, 복구 전 업무시간 1시간 간격</div></div>
+              <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 설비 장애알림을 표시하지 않습니다.</div></div>
               <div class="field"><label>미수신 시작 시간</label><input id="notificationQuietHoursStart" type="time" value="22:00"></div>
               <div class="field"><label>미수신 종료 시간</label><input id="notificationQuietHoursEnd" type="time" value="08:00"></div>
               <div class="field"><label>Tmap 앱키</label><input id="tmapKey" placeholder="운영 서버에서 보관 권장"></div>
@@ -4891,6 +5206,7 @@
               </details>
             </div>
           </div>
+          <div class="field full"><label>비고</label><textarea id="scheduleNote" rows="3" maxlength="500" placeholder="일정과 함께 확인할 메모를 적어두세요."></textarea></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -4935,8 +5251,10 @@
         <label>특이사항</label>
         <textarea id="dayScheduleNote" placeholder="이 날짜에 있었던 특이사항을 적어두세요."></textarea>
       </div>
+      <section class="day-tide-card" id="dayTideCard" aria-live="polite" hidden></section>
     </div>
     <div class="modal-actions">
+      <button type="button" id="goDayScheduleCalendarBtn">일정 이동</button>
       <button type="button" class="secondary" id="closeDayScheduleDialogBtn">닫기</button>
     </div>
   </dialog>
@@ -4967,6 +5285,23 @@
     </div>
   </dialog>
 
+  <dialog id="tidePlaceDialog">
+    <div class="modal-body">
+      <h2 class="panel-title">물때 지역 선택</h2>
+      <p class="panel-sub">전국의 항·포구·선착장·방조제 이름을 검색하세요. 가장 가까운 공식 조위관측소가 자동 연결됩니다.</p>
+      <form class="tide-place-search" onsubmit="searchTidePlace(event)">
+        <input id="tidePlaceSearchInput" autocomplete="off" placeholder="예: 궁평항, 시화방조제, 영흥도 선착장">
+        <button type="submit">검색</button>
+      </form>
+      <div class="tide-place-results" id="tidePlaceResults"></div>
+      <div class="tide-place-quick" id="tidePlaceQuick"></div>
+      <p class="tide-place-attribution">장소 검색 © OpenStreetMap contributors · 조위 국립해양조사원</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" id="closeTidePlaceDialogBtn">닫기</button>
+    </div>
+  </dialog>
+
   <dialog id="calendarJumpDialog" class="calendar-jump-dialog">
     <div class="modal-body">
       <div class="calendar-jump-head">
@@ -4981,6 +5316,26 @@
     <div class="modal-actions calendar-jump-actions">
       <button type="button" class="secondary" id="cancelCalendarJumpBtn">취소</button>
       <button type="button" id="applyCalendarJumpBtn">완료</button>
+    </div>
+  </dialog>
+
+  <dialog id="lunarDatePickerDialog" class="lunar-date-dialog">
+    <div class="modal-body">
+      <div class="lunar-date-head">
+        <button type="button" class="icon secondary" id="lunarDatePrevBtn" aria-label="이전 음력 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+        <div class="lunar-date-title">
+          <select id="lunarDateYear" aria-label="음력 연도"></select>
+          <select id="lunarDateMonth" aria-label="음력 월"></select>
+        </div>
+        <button type="button" class="icon secondary" id="lunarDateNextBtn" aria-label="다음 음력 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <div class="lunar-date-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="lunar-date-grid" id="lunarDateGrid"></div>
+      <p class="lunar-date-preview" id="lunarDatePreview"></p>
+    </div>
+    <div class="modal-actions calendar-jump-actions">
+      <button type="button" class="secondary" id="cancelLunarDateBtn">취소</button>
+      <button type="button" id="applyLunarDateBtn">선택</button>
     </div>
   </dialog>
 
@@ -5134,6 +5489,67 @@
       { sourceId: "nyj-public-hopyeong", name: "호평도서관", address: "경기도 남양주시 천마산로 67(호평동 369-8번지)", tel: "031-590-8340, 8346", closed: "매달 둘째·넷째 주 월요일, 1월 1일, 설날·추석 연휴(대체 공휴일 포함)" }
     ];
 
+    const tideStations = [
+      { code: "DT_0001", name: "인천", coast: "서해", system: 7 },
+      { code: "DT_0052", name: "인천송도", coast: "서해", system: 7 },
+      { code: "DT_0008", name: "안산", coast: "서해", system: 7 },
+      { code: "DT_0002", name: "평택", coast: "서해", system: 7 },
+      { code: "DT_0050", name: "태안", coast: "서해", system: 7 },
+      { code: "DT_0067", name: "안흥", coast: "서해", system: 7 },
+      { code: "DT_0025", name: "보령", coast: "서해", system: 7 },
+      { code: "DT_0017", name: "대산", coast: "서해", system: 7 },
+      { code: "DT_0018", name: "군산", coast: "서해", system: 7 },
+      { code: "DT_0024", name: "장항", coast: "서해", system: 7 },
+      { code: "DT_0003", name: "영광", coast: "서해", system: 7 },
+      { code: "DT_0007", name: "목포", coast: "서해", system: 7 },
+      { code: "DT_0068", name: "위도", coast: "서해", system: 7 },
+      { code: "DT_0028", name: "진도", coast: "서해", system: 7 },
+      { code: "DT_0035", name: "흑산도", coast: "서해", system: 7 },
+      { code: "DT_0027", name: "완도", coast: "남해", system: 8 },
+      { code: "DT_0016", name: "여수", coast: "남해", system: 8 },
+      { code: "DT_0026", name: "고흥발포", coast: "남해", system: 8 },
+      { code: "DT_0049", name: "광양", coast: "남해", system: 8 },
+      { code: "DT_0055", name: "순천만", coast: "남해", system: 8 },
+      { code: "DT_0014", name: "통영", coast: "남해", system: 8 },
+      { code: "DT_0029", name: "거제도", coast: "남해", system: 8 },
+      { code: "DT_0061", name: "삼천포", coast: "남해", system: 8 },
+      { code: "DT_0005", name: "부산", coast: "남해", system: 8 },
+      { code: "DT_0056", name: "부산항신항", coast: "남해", system: 8 },
+      { code: "DT_0063", name: "가덕도", coast: "남해", system: 8 },
+      { code: "DT_0062", name: "마산", coast: "남해", system: 8 },
+      { code: "DT_0004", name: "제주", coast: "제주", system: 8 },
+      { code: "DT_0010", name: "서귀포", coast: "제주", system: 8 },
+      { code: "DT_0022", name: "성산포", coast: "제주", system: 8 },
+      { code: "DT_0023", name: "모슬포", coast: "제주", system: 8 },
+      { code: "DT_0021", name: "추자도", coast: "제주", system: 8 },
+      { code: "DT_0020", name: "울산", coast: "동해", system: 8 },
+      { code: "DT_0091", name: "포항", coast: "동해", system: 8 },
+      { code: "DT_0011", name: "후포", coast: "동해", system: 8 },
+      { code: "DT_0006", name: "묵호", coast: "동해", system: 8 },
+      { code: "DT_0057", name: "동해항", coast: "동해", system: 8 },
+      { code: "DT_0012", name: "속초", coast: "동해", system: 8 },
+      { code: "DT_0013", name: "울릉도", coast: "동해", system: 8 }
+    ];
+    const tideStationCoordinates = {
+      DT_0001: [37.451944, 126.592222], DT_0052: [37.338056, 126.586111], DT_0008: [37.192222, 126.647222],
+      DT_0002: [36.966944, 126.822778], DT_0050: [36.913056, 126.238889], DT_0067: [36.674639, 126.129556],
+      DT_0025: [36.406389, 126.486111], DT_0017: [37.0075, 126.352778], DT_0018: [35.975556, 126.563056],
+      DT_0024: [36.006944, 126.6875], DT_0003: [35.426111, 126.420556], DT_0007: [34.779722, 126.375556],
+      DT_0068: [35.618084, 126.301816], DT_0028: [34.377778, 126.308611], DT_0035: [34.684167, 125.435556],
+      DT_0027: [34.315556, 126.759722], DT_0016: [34.747222, 127.765556], DT_0026: [34.481111, 127.342778],
+      DT_0049: [34.903672, 127.754836], DT_0055: [34.884111, 127.512556], DT_0014: [34.827778, 128.434722],
+      DT_0029: [34.801389, 128.699167], DT_0061: [34.924167, 128.069722], DT_0005: [35.096389, 129.035278],
+      DT_0056: [35.0775, 128.786944], DT_0063: [35.024178, 128.810933], DT_0062: [35.1975, 128.576389],
+      DT_0004: [33.5275, 126.543056], DT_0010: [33.24, 126.561667], DT_0022: [33.474722, 126.927778],
+      DT_0023: [33.214444, 126.251111], DT_0021: [33.961944, 126.300278], DT_0020: [35.501944, 129.387222],
+      DT_0091: [36.047128, 129.383806], DT_0011: [36.6775, 129.453056], DT_0006: [37.550278, 129.116389],
+      DT_0057: [37.494722, 129.143889], DT_0012: [38.207222, 128.594167], DT_0013: [37.491389, 130.913611]
+    };
+    tideStations.forEach(station => {
+      [station.lat, station.lon] = tideStationCoordinates[station.code] || [0, 0];
+    });
+    const tideStationMap = new Map(tideStations.map(station => [station.code, station]));
+
     const state = {
       orgs: load("maint_orgs", seedOrgs),
       schedules: load("maint_schedules", []),
@@ -5145,7 +5561,7 @@
       teamDirectory: load("maint_team_directory", []),
       vehicle: load("maint_vehicle", { records: [] }),
       adminLogs: load("maint_admin_logs", []),
-      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], deletedScheduleIds: [], restoredScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", cloudPendingScheduleSyncToken: "", libraryAuthKey: "" }),
+      settings: load("maint_settings", { kakaoWebhook: "", billingNotice: "3", dailyNotificationEnabled: "1", dailyNotificationTime: "09:00", maintenanceRenewalNoticeDays: "30", parkingAlertEnabled: "1", notificationQuietHoursEnabled: "0", notificationQuietHoursStart: "22:00", notificationQuietHoursEnd: "08:00", mobileMembershipBarcode: "12810425006025", tideStationCode: "DT_0001", workoutPresets: [], activeWorkoutPresetId: "", workoutIntervals: [{ type: "work", seconds: 30 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 40 }, { type: "rest", seconds: 10 }, { type: "work", seconds: 50 }, { type: "rest", seconds: 10 }], googleClientId: defaultGoogleClientId, googleCalendarId: "primary", googleLastSync: "", googleDeletedEventIds: [], restoredScheduleIds: [], deletedScheduleIds: [], scheduleDeletionState: {}, deletedOrgKeys: [], deletedTodoMemoIds: [], deletedWorkLogIds: [], tmapKey: "", geminiApiKey: "", geminiModel: "gemini-3.5-flash", aiEnabled: "1", aiVoiceEnabled: "1", cloudLastSync: "", cloudPendingScheduleSyncToken: "", libraryAuthKey: "" }),
       monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
       draggedOrgId: null,
       todayCopySelections: {},
@@ -5231,6 +5647,16 @@
     state.settings.notificationQuietHoursStart = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursStart || "") ? state.settings.notificationQuietHoursStart : "22:00";
     state.settings.notificationQuietHoursEnd = /^([01]\d|2[0-3]):[0-5]\d$/.test(state.settings.notificationQuietHoursEnd || "") ? state.settings.notificationQuietHoursEnd : "08:00";
     state.settings.mobileMembershipBarcode = String(state.settings.mobileMembershipBarcode || "12810425006025").slice(0, 80);
+    state.settings.tideStationCode = tideStationMap.has(state.settings.tideStationCode) ? state.settings.tideStationCode : "DT_0001";
+    state.settings.tidePlaceName = String(state.settings.tidePlaceName || "").trim().slice(0, 80);
+    state.settings.tidePlaceLat = Number.isFinite(Number(state.settings.tidePlaceLat)) ? Number(state.settings.tidePlaceLat) : null;
+    state.settings.tidePlaceLon = Number.isFinite(Number(state.settings.tidePlaceLon)) ? Number(state.settings.tidePlaceLon) : null;
+    state.settings.tideStationDistanceKm = Number.isFinite(Number(state.settings.tideStationDistanceKm)) ? Number(state.settings.tideStationDistanceKm) : 0;
+    state.tideCache = {};
+    state.tideLoading = {};
+    state.tidePlaceResults = [];
+    state.tideServiceKey = "";
+    state.tideKeyLoading = null;
     const defaultWorkoutIntervals = [{ type: "work", label: "운동", seconds: 30 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 40 }, { type: "rest", label: "휴식", seconds: 10 }, { type: "work", label: "운동", seconds: 50 }, { type: "rest", label: "휴식", seconds: 10 }];
     function normalizeWorkoutIntervals(value) {
       const source = Array.isArray(value) ? value : defaultWorkoutIntervals;
@@ -5293,6 +5719,7 @@
     restoreGoogleAccessToken();
     normalizeOrgs();
     normalizeSchedules();
+    migrateAndroidScheduleNotesForCloud();
     normalizeWorkLogs();
     normalizeTodoMemos();
     normalizeTeamDirectory();
@@ -5366,6 +5793,12 @@
       const uid = services?.auth?.currentUser?.uid;
       if (!services || !uid) return null;
       return services.db.collection("reportmateUsers").doc(uid).collection("state").doc("current");
+    }
+    function userTideKeyDoc() {
+      const services = initFirebaseServices();
+      const uid = services?.auth?.currentUser?.uid;
+      if (!services || !uid) return null;
+      return services.db.collection("reportmateUsers").doc(uid).collection("private").doc("tideApi");
     }
     function waitForFirebaseAuthUser(timeoutMs = 5000) {
       const services = initFirebaseServices();
@@ -5873,6 +6306,8 @@
         teamMembers: schedule.teamMembers || "",
         visitReason: schedule.visitReason === "사유없음" ? "" : (schedule.visitReason || ""),
         body: schedule.body || "",
+        note: String(schedule.note || "").slice(0, 500),
+        noteUpdatedAt: schedule.noteUpdatedAt || "",
         todoMemoId: schedule.todoMemoId || "",
         date: schedule.date || todayISO(),
         endDate: schedule.endDate || schedule.date || todayISO(),
@@ -5881,6 +6316,12 @@
         color: ["blue", "green", "purple", "pink", "orange", "red", "gray", "mint", "sky", "lavender", "coral", "peach", "lemon", "aqua", "lilac", "rose", "sage"].includes(schedule.color) ? schedule.color : "",
         recurrence: ["none", "daily", "weekly", "monthly", "yearly"].includes(schedule.recurrence) ? schedule.recurrence : "none",
         recurrenceRootId: schedule.recurrenceRootId || "",
+        recurrenceAnchorDate: schedule.recurrenceAnchorDate || "",
+        recurrenceAnchorEndDate: schedule.recurrenceAnchorEndDate || "",
+        recurrenceAnchorLunarDate: schedule.recurrenceAnchorLunarDate || "",
+        recurrenceAnchorLunarLeap: Object.prototype.hasOwnProperty.call(schedule, "recurrenceAnchorLunarLeap")
+          ? Boolean(schedule.recurrenceAnchorLunarLeap)
+          : Boolean(schedule.lunarLeap),
         lunarDate: Boolean(schedule.lunarDate),
         lunarStartDate: schedule.lunarStartDate || "",
         lunarEndDate: schedule.lunarEndDate || schedule.lunarStartDate || "",
@@ -5920,7 +6361,8 @@
         schedule.orgId || "",
         schedule.type || "",
         schedule.teamMembers || "",
-        schedule.visitReason || ""
+        schedule.visitReason || "",
+        schedule.note || ""
       ].join("|");
     }
     function scheduleContentKey(schedule = {}) {
@@ -5933,7 +6375,8 @@
         schedule.orgId || "",
         schedule.type || "",
         schedule.teamMembers || "",
-        schedule.visitReason || ""
+        schedule.visitReason || "",
+        schedule.note || ""
       ].join("|");
     }
     function betterSchedule(base, next) {
@@ -5944,9 +6387,23 @@
         ...(base.googleDuplicateEventIds || []),
         ...(next.googleDuplicateEventIds || [])
       ].filter(Boolean))];
-      if (!base.googleEventId && next.googleEventId) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== next.googleEventId) };
       const baseTime = Date.parse(base.updatedAt || base.googleUpdated || base.createdAt || "") || 0;
       const nextTime = Date.parse(next.updatedAt || next.googleUpdated || next.createdAt || "") || 0;
+      if (!base.googleEventId && next.googleEventId) {
+        const newer = nextTime > baseTime ? next : base;
+        return {
+          ...base,
+          ...next,
+          ...newer,
+          id: base.id || next.id,
+          createdAt: base.createdAt || next.createdAt,
+          googleEventId: next.googleEventId,
+          googleUpdated: next.googleUpdated || base.googleUpdated,
+          googleHtmlLink: next.googleHtmlLink || base.googleHtmlLink,
+          googleSyncedAt: next.googleSyncedAt || base.googleSyncedAt,
+          googleDuplicateEventIds: duplicateIds.filter(id => id !== next.googleEventId)
+        };
+      }
       if (nextTime > baseTime) return { ...base, ...next, id: base.id || next.id, createdAt: base.createdAt || next.createdAt, googleDuplicateEventIds: duplicateIds.filter(id => id !== (next.googleEventId || base.googleEventId)) };
       return { ...next, ...base, googleEventId: base.googleEventId || next.googleEventId, googleDuplicateEventIds: duplicateIds.filter(id => id !== (base.googleEventId || next.googleEventId)), googleUpdated: base.googleUpdated || next.googleUpdated, googleHtmlLink: base.googleHtmlLink || next.googleHtmlLink };
     }
@@ -6316,7 +6773,9 @@
       if (!lunar) return "";
       const cacheKey = `${lunarDateISOFromInfo(lunar)}:${leap ? 1 : 0}`;
       if (lunarSolarDateCache.has(cacheKey)) return lunarSolarDateCache.get(cacheKey);
-      const cursor = new Date(lunar.year, 0, 1);
+      // 음력 월은 대체로 같은 해의 양력 월보다 1~2개월 뒤에 있으므로
+      // 해당 월 근처부터 찾으면 연초부터 훑는 것보다 훨씬 빠르다.
+      const cursor = new Date(lunar.year, Math.max(0, lunar.month - 2), 1);
       const limit = new Date(lunar.year + 1, 2, 15);
       while (cursor <= limit) {
         const solarISO = localDateISO(cursor);
@@ -6333,6 +6792,24 @@
     function lunarDateWithYear(lunarISO = "", year) {
       const lunar = parseLunarDateISO(lunarISO);
       return lunar ? `${year}-${String(lunar.month).padStart(2, "0")}-${String(lunar.day).padStart(2, "0")}` : "";
+    }
+    function addLunarMonthsISO(lunarISO = "", offset = 0) {
+      const lunar = parseLunarDateISO(lunarISO);
+      if (!lunar) return "";
+      const totalMonth = lunar.year * 12 + (lunar.month - 1) + Number(offset || 0);
+      const year = Math.floor(totalMonth / 12);
+      const month = (totalMonth % 12 + 12) % 12 + 1;
+      return `${year}-${String(month).padStart(2, "0")}-${String(lunar.day).padStart(2, "0")}`;
+    }
+    function solarDateForLunarRepeat(lunarISO = "", leap = false) {
+      const lunar = parseLunarDateISO(lunarISO);
+      if (!lunar) return "";
+      for (let day = lunar.day; day >= 1; day--) {
+        const candidate = `${lunar.year}-${String(lunar.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const matched = solarDateForLunarISO(candidate, leap) || (leap ? solarDateForLunarISO(candidate, false) : "");
+        if (matched) return matched;
+      }
+      return "";
     }
     function scheduleEndDateISO(schedule) {
       return addDaysISO(schedule.endDate || schedule.date, 1);
@@ -6399,44 +6876,84 @@
       if (repeat === "yearly") return addYearsISO(iso, 1);
       return "";
     }
+    function recurrenceAnchor(schedule = {}) {
+      return {
+        date: schedule.recurrenceAnchorDate || schedule.date,
+        endDate: schedule.recurrenceAnchorEndDate || schedule.endDate || schedule.date,
+        lunarDate: schedule.recurrenceAnchorLunarDate || schedule.lunarStartDate || "",
+        lunarLeap: Object.prototype.hasOwnProperty.call(schedule, "recurrenceAnchorLunarLeap")
+          ? Boolean(schedule.recurrenceAnchorLunarLeap)
+          : Boolean(schedule.lunarLeap)
+      };
+    }
+    function recurrenceGenerationCount(repeat, anchorDate = "") {
+      if (repeat === "yearly") {
+        const anchorYear = Number(String(anchorDate).slice(0, 4)) || new Date().getFullYear();
+        const rollingTargetYear = Math.max(anchorYear + 1, new Date().getFullYear() + 5);
+        return clamp(rollingTargetYear - anchorYear + 1, 2, 40);
+      }
+      return ({ daily: 120, weekly: 104, monthly: 60 })[repeat] || 1;
+    }
+    function recurrenceDateAt(schedule, repeat, index) {
+      const anchor = recurrenceAnchor(schedule);
+      if (index === 0) return anchor.date;
+      if (schedule.lunarDate && repeat === "yearly") {
+        const baseLunar = parseLunarDateISO(anchor.lunarDate);
+        const targetLunar = baseLunar ? lunarDateWithYear(anchor.lunarDate, baseLunar.year + index) : "";
+        return solarDateForLunarRepeat(targetLunar, anchor.lunarLeap);
+      }
+      if (schedule.lunarDate && repeat === "monthly") {
+        return solarDateForLunarRepeat(addLunarMonthsISO(anchor.lunarDate, index), false);
+      }
+      if (repeat === "daily") return addDaysISO(anchor.date, index);
+      if (repeat === "weekly") return addDaysISO(anchor.date, index * 7);
+      if (repeat === "monthly") return addMonthsISO(anchor.date, index);
+      if (repeat === "yearly") return addYearsISO(anchor.date, index);
+      return "";
+    }
+    function recurrenceCopy(schedule, repeat, rootId, index) {
+      const anchor = recurrenceAnchor(schedule);
+      const date = recurrenceDateAt(schedule, repeat, index);
+      if (!date) return null;
+      const duration = Math.max(0, Math.round((new Date(`${anchor.endDate}T00:00:00`) - new Date(`${anchor.date}T00:00:00`)) / 86400000));
+      const endDate = addDaysISO(date, duration);
+      const lunarStart = schedule.lunarDate ? lunarDateInfoFromSolar(date) : null;
+      const lunarEnd = schedule.lunarDate ? lunarDateInfoFromSolar(endDate) : null;
+      return {
+        ...schedule,
+        id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
+        date,
+        endDate,
+        lunarStartDate: lunarStart ? lunarDateISOFromInfo(lunarStart) : "",
+        lunarEndDate: lunarEnd ? lunarDateISOFromInfo(lunarEnd) : "",
+        lunarLeap: Boolean(lunarStart?.leap),
+        recurrence: repeat,
+        recurrenceRootId: rootId,
+        recurrenceAnchorDate: anchor.date,
+        recurrenceAnchorEndDate: anchor.endDate,
+        recurrenceAnchorLunarDate: anchor.lunarDate,
+        recurrenceAnchorLunarLeap: anchor.lunarLeap,
+        createdAt: schedule.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    }
     function recurringScheduleCopies(data, repeat) {
       if (!["daily", "weekly", "monthly", "yearly"].includes(repeat)) {
         markGoogleDirty(data);
         return [data];
       }
-      const duration = Math.max(0, Math.round((new Date((data.endDate || data.date) + "T00:00:00") - new Date(data.date + "T00:00:00")) / 86400000));
       const rootId = data.id;
-      const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
+      data.recurrenceAnchorDate = data.date;
+      data.recurrenceAnchorEndDate = data.endDate || data.date;
+      data.recurrenceAnchorLunarDate = data.lunarStartDate || "";
+      data.recurrenceAnchorLunarLeap = Boolean(data.lunarLeap);
+      const maxCount = recurrenceGenerationCount(repeat, data.date);
       const copies = [];
-      let date = data.date;
-      let index = 0;
-      while (date && copies.length < maxCount) {
-        const occurrenceEndDate = addDaysISO(date, duration);
-        const occurrenceLunarStart = data.lunarDate ? lunarDateInfoFromSolar(date) : null;
-        const occurrenceLunarEnd = data.lunarDate ? lunarDateInfoFromSolar(occurrenceEndDate) : null;
-        const copy = {
-          ...data,
-          id: index === 0 ? rootId : `${rootId}--repeat--${date}`,
-          date,
-          endDate: occurrenceEndDate,
-          lunarStartDate: occurrenceLunarStart ? lunarDateISOFromInfo(occurrenceLunarStart) : "",
-          lunarEndDate: occurrenceLunarEnd ? lunarDateISOFromInfo(occurrenceLunarEnd) : "",
-          lunarLeap: Boolean(occurrenceLunarStart?.leap),
-          recurrence: repeat,
-          recurrenceRootId: rootId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
+      for (let index = 0; index < maxCount; index++) {
+        const copy = recurrenceCopy(data, repeat, rootId, index);
+        if (!copy) break;
         markGoogleDirty(copy);
         copies.push(copy);
-        if (data.lunarDate && repeat === "yearly") {
-          const baseLunar = parseLunarDateISO(data.lunarStartDate);
-          const nextLunar = baseLunar ? lunarDateWithYear(data.lunarStartDate, baseLunar.year + index + 1) : "";
-          date = solarDateForLunarISO(nextLunar, data.lunarLeap) || solarDateForLunarISO(nextLunar, false);
-        } else {
-          date = nextRepeatDate(date, repeat);
-        }
-        index++;
       }
       return copies;
     }
@@ -6456,35 +6973,23 @@
         groups.get(rootId).push(schedule);
       });
       groups.forEach(group => {
-        if (group.length !== 1) return;
-        const template = group[0];
+        const ordered = group.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        const template = ordered.find(item => item.id === item.recurrenceRootId) || ordered[0];
         const repeat = template.recurrence;
         const rootId = template.recurrenceRootId || template.id;
-        const maxCount = ({ daily: 120, weekly: 104, monthly: 60, yearly: 10 })[repeat] || 1;
-        const duration = Math.max(0, Math.round((new Date((template.endDate || template.date) + "T00:00:00") - new Date(template.date + "T00:00:00")) / 86400000));
-        let date = template.date;
-        for (let index = 1; index < maxCount; index++) {
-          if (template.lunarDate && repeat === "yearly") {
-            const baseLunar = parseLunarDateISO(template.lunarStartDate);
-            const nextLunar = baseLunar ? lunarDateWithYear(template.lunarStartDate, baseLunar.year + index) : "";
-            date = solarDateForLunarISO(nextLunar, template.lunarLeap) || solarDateForLunarISO(nextLunar, false);
-          } else {
-            date = nextRepeatDate(date, repeat);
-          }
-          if (!date) break;
-          const repairedEndDate = addDaysISO(date, duration);
-          const repairedLunarStart = template.lunarDate ? lunarDateInfoFromSolar(date) : null;
-          const repairedLunarEnd = template.lunarDate ? lunarDateInfoFromSolar(repairedEndDate) : null;
-          const copy = {
-            ...template,
-            id: `${rootId}--repeat--${date}`,
-            date,
-            endDate: repairedEndDate,
-            lunarStartDate: repairedLunarStart ? lunarDateISOFromInfo(repairedLunarStart) : "",
-            lunarEndDate: repairedLunarEnd ? lunarDateISOFromInfo(repairedLunarEnd) : "",
-            lunarLeap: Boolean(repairedLunarStart?.leap),
-            recurrence: repeat,
-            recurrenceRootId: rootId,
+        const anchor = recurrenceAnchor(template);
+        template.recurrenceAnchorDate = anchor.date;
+        template.recurrenceAnchorEndDate = anchor.endDate;
+        template.recurrenceAnchorLunarDate = anchor.lunarDate;
+        template.recurrenceAnchorLunarLeap = anchor.lunarLeap;
+        const existingDates = new Set(group.map(item => item.date));
+        const maxCount = recurrenceGenerationCount(repeat, anchor.date);
+        if (group.length >= maxCount) return;
+        for (let index = 0; index < maxCount; index++) {
+          const copy = recurrenceCopy(template, repeat, rootId, index);
+          if (!copy) break;
+          if (existingDates.has(copy.date)) continue;
+          Object.assign(copy, {
             googleEventId: "",
             googleDuplicateEventIds: [],
             googleUpdated: "",
@@ -6492,10 +6997,8 @@
             googleSyncedAt: "",
             googleDirty: true,
             completed: false,
-            completedAt: "",
-            createdAt: template.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
+            completedAt: ""
+          });
           if (!isDeletedSchedule(copy)) result.push(copy);
         }
       });
@@ -6601,8 +7104,181 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.26";
+    const appVersion = "1.7.43";
     const versionHistory = [
+      {
+        version: "1.7.43",
+        date: "2026-09-09",
+        title: "일정 드래그 개선과 되돌릴 수 있는 달력 스와이프",
+        changes: [
+          "PC 일정 드래그 즉시 시작, 모바일 길게 누르기 유지",
+          "드래그 이동과 자동 스크롤을 화면 프레임에 맞춰 통합",
+          "달력이 손가락을 따라 이동하고 되돌리면 원래 달로 복귀"
+        ]
+      },
+      {
+        version: "1.7.42",
+        date: "2026-09-08",
+        title: "날짜 상세 스와이프와 바람 정보",
+        changes: [
+          "날짜 상세창을 왼쪽으로 밀면 다음 날, 오른쪽으로 밀면 전날로 이동",
+          "입력창과 버튼 조작 중에는 날짜 스와이프가 실행되지 않도록 오작동 방지",
+          "물때 카드에 선택 지역의 최대 풍속, 최대 순간풍속과 주 풍향 표시"
+        ]
+      },
+      {
+        version: "1.7.41",
+        date: "2026-09-04",
+        title: "AMSYS21 검침 장애 감시",
+        changes: [
+          "AMSYS21 계량값이 5분 이상 갱신되지 않으면 대시보드 최상단에 장애 상태 표시",
+          "수집 프로그램 중단과 계량 데이터 정지를 구분할 수 있도록 마지막 신호·검침 시각 표시",
+          "Android 설비 장애알림에 AMSYS21 중단 및 정상 복구 푸시 추가"
+        ]
+      },
+      {
+        version: "1.7.40",
+        date: "2026-09-03",
+        title: "날짜 상세 일정 이동 버튼 추가",
+        changes: [
+          "날짜 상세창 하단 닫기 버튼 왼쪽에 일정 이동 버튼 추가",
+          "일정 이동을 누르면 상세창의 날짜가 포함된 달력으로 전환",
+          "해당 날짜 칸을 화면 중앙에 표시하고 잠시 강조"
+        ]
+      },
+      {
+        version: "1.7.39",
+        date: "2026-09-02",
+        title: "PC 오늘 할일 정보 갱신 보완",
+        changes: [
+          "PC 앱 창을 다시 열거나 활성화하면 오늘·내일 할일 데이터를 서버에서 즉시 새로 확인",
+          "PC에 열린 웹 화면이 오래된 배포본이면 최신 버전 주소로 자동 갱신",
+          "최근 방문일, 솔루션, 비고, 완료 상태 등 오늘 할일 카드 정보가 모바일과 동일하게 표시되도록 점검"
+        ]
+      },
+      {
+        version: "1.7.38",
+        date: "2026-09-02",
+        title: "기존 모바일 비고 동기화 복구",
+        changes: [
+          "이전 버전에서 휴대폰에만 저장된 비고를 앱 실행 시 서버로 한 번 자동 복구",
+          "PC의 오래된 일정 데이터가 휴대폰에서 수정한 최신 비고를 덮어쓰지 않도록 병합 기준 보완",
+          "비고의 마지막 수정 시각을 별도로 저장해 이후 기기 간 동기화 안정성 강화"
+        ]
+      },
+      {
+        version: "1.7.37",
+        date: "2026-09-02",
+        title: "대시보드 비고 기기 간 동기화 수정",
+        changes: [
+          "비고 입력 후 1초 동안 변경이 없으면 포커스가 남아 있어도 서버 전송",
+          "입력 중 도착한 실시간 데이터는 편집이 끝날 때까지 화면 반영을 보류",
+          "모바일 입력 커서와 키보드를 유지하면서 PC에 비고가 표시되도록 개선"
+        ]
+      },
+      {
+        version: "1.7.36",
+        date: "2026-09-01",
+        title: "대시보드 비고 자동 확장",
+        changes: [
+          "오늘 할일 비고 입력칸이 내용에 맞춰 자동으로 아래로 확장",
+          "긴 비고는 최대 높이까지 확장된 뒤 내부 스크롤 제공",
+          "내일 할일 비고도 줄바꿈과 전체 문장을 그대로 표시"
+        ]
+      },
+      {
+        version: "1.7.35",
+        date: "2026-08-31",
+        title: "오늘 할일 비고 입력 성능 수정",
+        changes: [
+          "비고 입력 한 글자마다 전체 일정과 서버를 저장하던 처리 제거",
+          "입력 중에는 메모리만 변경해 한글 조합과 연속 입력이 끊기지 않도록 개선",
+          "입력을 잠시 멈추면 기기에 저장하고 입력칸을 벗어날 때 서버 동기화"
+        ]
+      },
+      {
+        version: "1.7.34",
+        date: "2026-08-31",
+        title: "대시보드 비고 영역 분리",
+        changes: [
+          "솔루션 타일에는 솔루션 정보만 표시",
+          "솔루션 바로 아래에 별도 비고 라벨과 메모칸 배치",
+          "비고 배경과 테두리를 솔루션 타일과 다른 형태로 조정"
+        ]
+      },
+      {
+        version: "1.7.33",
+        date: "2026-08-31",
+        title: "일정 비고와 대시보드 간편 메모",
+        changes: [
+          "일정 등록·수정창 최하단에 비고 입력란 추가",
+          "오늘·내일 할일의 솔루션 아래에 별도 비고 영역 표시",
+          "오늘 할일 카드에서 비고를 메모장처럼 바로 수정하고 서버 동기화",
+          "솔루션 타일과 카드 간격을 줄여 비고 추가 전후 카드 크기 변화 최소화"
+        ]
+      },
+      {
+        version: "1.7.32",
+        date: "2026-08-31",
+        title: "반복 일정 시작 속도 개선",
+        changes: [
+          "매년 반복을 2100년까지 한꺼번에 계산하던 작업 제거",
+          "앞으로 5년치만 준비하고 해가 바뀌면 자동으로 한 해씩 연장",
+          "이미 생성이 끝난 반복 일정은 앱 시작 시 재계산하지 않도록 개선"
+        ]
+      },
+      {
+        version: "1.7.31",
+        date: "2026-08-31",
+        title: "반복 일정 기준일 방식으로 수정",
+        changes: [
+          "최초 등록일을 반복 기준일로 고정 저장",
+          "매년 반복은 기준일에서 연도만 증가시켜 2100년까지 생성",
+          "기존에 일부만 저장된 반복 일정도 기준일과 반복 규칙으로 자동 복구",
+          "반복 생성 실패 시 저장 완료로 잘못 안내하지 않고 오류 표시"
+        ]
+      },
+      {
+        version: "1.7.30",
+        date: "2026-08-31",
+        title: "음력 일정 선택·반복 등록 수정",
+        changes: [
+          "음력 일정 시작일·종료일을 누르면 음력 월 달력에서 날짜 선택",
+          "선택한 음력 날짜의 양력 변환 결과를 바로 확인",
+          "음력 매월·매년 반복 일정을 음력 날짜 기준으로 생성"
+        ]
+      },
+      {
+        version: "1.7.29",
+        date: "2026-08-31",
+        title: "물때 화면 배치 개선",
+        changes: [
+          "날짜 상세의 물때 타일을 특이사항 아래 최하단으로 이동",
+          "캘린더 물때 지역 검색을 상단 맨 왼쪽 닻 아이콘으로 변경"
+        ]
+      },
+      {
+        version: "1.7.28",
+        date: "2026-08-30",
+        title: "전국 항·방조제 물때 검색",
+        changes: [
+          "항, 포구, 선착장, 방조제 이름으로 전국 장소 검색",
+          "선택 장소에서 가장 가까운 공식 조위관측소 자동 연결",
+          "날짜 상세에 기준 관측소와 거리 표시",
+          "선택 장소를 모바일과 PC에 동기화"
+        ]
+      },
+      {
+        version: "1.7.27",
+        date: "2026-08-30",
+        title: "캘린더 물때·조위 정보",
+        changes: [
+          "캘린더 월 제목 옆에 해안 지역 선택 기능 추가",
+          "날짜 상세에 물때, 만조·간조 시각과 예측 조위 표시",
+          "인접한 만조·간조 수위 차이로 들물·날물 변화량 표시",
+          "선택한 조위관측소를 모바일과 PC에 동기화"
+        ]
+      },
       {
         version: "1.7.26",
         date: "2026-08-24",
@@ -8958,16 +9634,27 @@
     window.toggleTodayCopySchedule = (id, checked) => {
       state.todayCopySelections[id] = checked;
     };
+    function autoGrowDashboardNote(element) {
+      if (!element) return;
+      element.style.height = "28px";
+      const height = Math.min(140, Math.max(28, element.scrollHeight));
+      element.style.height = `${height}px`;
+      element.style.overflowY = element.scrollHeight > 140 ? "auto" : "hidden";
+    }
+    window.autoGrowDashboardNote = autoGrowDashboardNote;
     function renderVisits(elId, date) {
       const wrap = document.getElementById(elId);
       const items = sortedSchedules(date);
       const hideGoogleButton = elId === "todayVisits" || elId === "tomorrowVisits";
       const showRecentVisit = elId === "todayVisits" || elId === "tomorrowVisits";
       const showCompletion = elId === "todayVisits";
+      const showNote = elId === "todayVisits" || elId === "tomorrowVisits";
+      const allowNoteEdit = elId === "todayVisits";
       if (showCompletion) {
         items.sort((a, b) => Number(Boolean(a.completed || a.completedAt)) - Number(Boolean(b.completed || b.completedAt)));
       }
-      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
+      wrap.innerHTML = items.length ? items.map(schedule => scheduleCard(schedule, { hideGoogleButton, showRecentVisit, showCompletion, showNote, allowNoteEdit })).join("") : '<div class="empty">등록된 할일이 없습니다.</div>';
+      wrap.querySelectorAll(".dashboard-schedule-note-editor").forEach(autoGrowDashboardNote);
     }
     function dayScheduleItem(schedule) {
       const org = orgForSchedule(schedule);
@@ -9039,6 +9726,360 @@
       wrap.innerHTML = lines.join("");
       wrap.classList.toggle("hidden", !lines.length);
     }
+    function selectedTideStation() {
+      return tideStationMap.get(state.settings.tideStationCode) || tideStations[0];
+    }
+    function selectedTidePlaceName() {
+      return state.settings.tidePlaceName || selectedTideStation().name;
+    }
+    function tideStationSelectHTML() {
+      return `<button type="button" class="icon secondary tide-location-button" id="openTidePlaceBtn" title="물때 지역 선택 · ${escapeAttr(selectedTidePlaceName())}" aria-label="물때 지역 선택: ${escapeAttr(selectedTidePlaceName())}" onclick="event.stopPropagation(); openTidePlaceDialog()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg></button>`;
+    }
+    function tideDistanceKm(lat1, lon1, lat2, lon2) {
+      const toRad = value => Number(value) * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function nearestTideStation(lat, lon) {
+      return tideStations.map(station => ({ station, distanceKm: tideDistanceKm(lat, lon, station.lat, station.lon) }))
+        .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+    }
+    function applyTidePlace(place, station, distanceKm = 0) {
+      state.settings.tideStationCode = station.code;
+      state.settings.tidePlaceName = String(place?.name || station.name).trim().slice(0, 80);
+      state.settings.tidePlaceLat = Number.isFinite(Number(place?.lat)) ? Number(place.lat) : station.lat;
+      state.settings.tidePlaceLon = Number.isFinite(Number(place?.lon)) ? Number(place.lon) : station.lon;
+      state.settings.tideStationDistanceKm = Math.max(0, Number(distanceKm) || 0);
+      save();
+      if (tidePlaceDialog.open) tidePlaceDialog.close();
+      renderCalendar("mainCalendar", false);
+      if (dayScheduleDialog.open && state.selectedCalendarDate) renderDayTideInfo(state.selectedCalendarDate, { force: true });
+      toast(`${state.settings.tidePlaceName} · ${station.name} 관측소 기준`);
+    }
+    window.selectQuickTideStation = code => {
+      const station = tideStationMap.get(code);
+      if (station) applyTidePlace({ name: station.name, lat: station.lat, lon: station.lon }, station, 0);
+    };
+    window.selectTidePlaceResult = index => {
+      const place = state.tidePlaceResults[Number(index)];
+      if (!place) return;
+      const nearest = nearestTideStation(place.lat, place.lon);
+      applyTidePlace(place, nearest.station, nearest.distanceKm);
+    };
+    function renderTidePlaceQuick() {
+      tidePlaceQuick.innerHTML = tideStations.map(station => `<button type="button" class="secondary" onclick="selectQuickTideStation('${station.code}')">${escapeHTML(station.name)}</button>`).join("");
+    }
+    window.openTidePlaceDialog = () => {
+      tidePlaceSearchInput.value = state.settings.tidePlaceName || "";
+      tidePlaceResults.innerHTML = `<p class="panel-sub">장소를 검색하거나 아래 기준 관측소를 바로 선택할 수 있습니다.</p>`;
+      renderTidePlaceQuick();
+      tidePlaceDialog.showModal();
+      setTimeout(() => tidePlaceSearchInput.focus(), 60);
+    };
+    window.searchTidePlace = async event => {
+      event?.preventDefault?.();
+      const query = String(tidePlaceSearchInput.value || "").trim();
+      if (query.length < 2) {
+        tidePlaceResults.innerHTML = `<p class="panel-sub">두 글자 이상 입력해주세요.</p>`;
+        return;
+      }
+      tidePlaceResults.innerHTML = `<p class="panel-sub">항·방조제 위치를 찾는 중입니다...</p>`;
+      try {
+        const cacheKey = `maint_tide_place_${query}`;
+        let rows = [];
+        try { rows = JSON.parse(localStorage.getItem(cacheKey) || "[]"); } catch {}
+        if (!Array.isArray(rows) || !rows.length) {
+          rows = await requestTidePlaces(query);
+          try { localStorage.setItem(cacheKey, JSON.stringify(rows)); } catch {}
+        }
+        state.tidePlaceResults = rows.map(row => ({
+          name: String(row.name || query).trim(),
+          address: String(row.address || ""),
+          lat: Number(row.lat),
+          lon: Number(row.lon)
+        })).filter(place => place.name && Number.isFinite(place.lat) && Number.isFinite(place.lon));
+        tidePlaceResults.innerHTML = state.tidePlaceResults.length
+          ? state.tidePlaceResults.map((place, index) => {
+              const nearest = nearestTideStation(place.lat, place.lon);
+              return `<button type="button" class="tide-place-result" onclick="selectTidePlaceResult(${index})"><strong>${escapeHTML(place.name)}</strong><span>${escapeHTML(place.address)}</span><span>기준 조위관측소: ${escapeHTML(nearest.station.name)} · 약 ${nearest.distanceKm.toFixed(1)}km</span></button>`;
+            }).join("")
+          : `<p class="panel-sub">검색 결과가 없습니다. ‘항’, ‘방조제’, ‘선착장’까지 포함해 다시 검색해주세요.</p>`;
+      } catch (error) {
+        tidePlaceResults.innerHTML = `<p class="panel-sub">장소 검색에 실패했습니다. 잠시 후 다시 시도해주세요.</p>`;
+      }
+    };
+    function tideMulLabel(date, station = selectedTideStation()) {
+      const lunar = lunarDateInfoFromSolar(date);
+      if (!lunar?.day) return "물때 확인";
+      const west = ["7물", "8물", "9물", "10물", "11물", "12물", "13물", "조금", "무시", "1물", "2물", "3물", "4물", "5물", "6물"];
+      const south = ["8물", "9물", "10물", "11물", "12물", "13물", "조금", "무시", "1물", "2물", "3물", "4물", "5물", "6물", "7물"];
+      return (station.system === 7 ? west : south)[(lunar.day - 1) % 15];
+    }
+    async function requestTidePlaces(query) {
+      const url = new URL("https://nominatim.openstreetmap.org/search");
+      url.searchParams.set("q", query);
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("countrycodes", "kr");
+      url.searchParams.set("addressdetails", "1");
+      url.searchParams.set("accept-language", "ko");
+      url.searchParams.set("limit", "8");
+      const response = await fetch(url, { headers: { accept: "application/json" } });
+      if (!response.ok) throw new Error(`PLACE_HTTP_${response.status}`);
+      const rows = await response.json();
+      return (Array.isArray(rows) ? rows : []).map(row => ({
+        name: String(row?.name || row?.display_name || query).split(",")[0].trim(),
+        address: String(row?.display_name || ""),
+        lat: Number(row?.lat),
+        lon: Number(row?.lon)
+      })).filter(place => place.name && Number.isFinite(place.lat) && Number.isFinite(place.lon));
+    }
+    async function loadTideServiceKey() {
+      if (state.tideServiceKey) return state.tideServiceKey;
+      if (state.tideKeyLoading) return state.tideKeyLoading;
+      state.tideKeyLoading = (async () => {
+        const user = await waitForFirebaseAuthUser();
+        if (!user) throw new Error("LOGIN_REQUIRED");
+        const ref = userTideKeyDoc();
+        if (!ref) throw new Error("LOGIN_REQUIRED");
+        const snapshot = await ref.get({ source: "server" });
+        const key = String(snapshot.data()?.serviceKey || "").trim();
+        if (!key) throw new Error("TIDE_KEY_REQUIRED");
+        state.tideServiceKey = key;
+        return key;
+      })().finally(() => { state.tideKeyLoading = null; });
+      return state.tideKeyLoading;
+    }
+    function tideResponseItems(payload = {}) {
+      const body = payload?.response?.body || payload?.body || {};
+      const source = body?.items?.item ?? body?.items ?? [];
+      return Array.isArray(source) ? source : (source ? [source] : []);
+    }
+    function tideCacheKey(stationCode, date) {
+      return `${stationCode}:${date}`;
+    }
+    function readTideCache(stationCode, date) {
+      const key = tideCacheKey(stationCode, date);
+      if (state.tideCache[key]) return state.tideCache[key];
+      try {
+        const saved = JSON.parse(localStorage.getItem(`maint_tide_${stationCode}_${date}`) || "null");
+        if (saved?.data && Date.now() - Number(saved.savedAt || 0) < 12 * 60 * 60 * 1000) {
+          state.tideCache[key] = saved.data;
+          return saved.data;
+        }
+      } catch {}
+      return null;
+    }
+    function writeTideCache(stationCode, date, data) {
+      const key = tideCacheKey(stationCode, date);
+      state.tideCache[key] = data;
+      try { localStorage.setItem(`maint_tide_${stationCode}_${date}`, JSON.stringify({ savedAt: Date.now(), data })); } catch {}
+    }
+    async function requestTideInfo(stationCode, date, { force = false } = {}) {
+      if (!force) {
+        const cached = readTideCache(stationCode, date);
+        if (cached) return cached;
+      }
+      const key = tideCacheKey(stationCode, date);
+      if (state.tideLoading[key]) return state.tideLoading[key];
+      state.tideLoading[key] = (async () => {
+        const serviceKey = await loadTideServiceKey();
+        const url = new URL("https://apis.data.go.kr/1192136/surveyTideLevel/GetSurveyTideLevelApiService");
+        let decodedKey = serviceKey;
+        try { decodedKey = decodeURIComponent(serviceKey); } catch {}
+        url.searchParams.set("serviceKey", decodedKey);
+        url.searchParams.set("type", "json");
+        url.searchParams.set("obsCode", stationCode);
+        url.searchParams.set("reqDate", date.replaceAll("-", ""));
+        url.searchParams.set("min", "10");
+        url.searchParams.set("pageNo", "1");
+        url.searchParams.set("numOfRows", "300");
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        const payload = await response.json().catch(() => ({}));
+        const header = payload?.response?.header || payload?.header || {};
+        const resultCode = String(header.resultCode ?? "00");
+        if (!response.ok || !["00", "0", "200"].includes(resultCode)) throw new Error(header.resultMsg || `TIDE_HTTP_${response.status}`);
+        const target = date.replaceAll("-", "");
+        const items = tideResponseItems(payload).filter(item => String(item?.obsrvnDt || "").replace(/\D/g, "").startsWith(target));
+        const data = {
+          stationCode,
+          stationName: String(items[0]?.obsvtrNm || ""),
+          date,
+          samples: items.map(item => ({
+            observedAt: String(item.obsrvnDt || ""),
+            predictedCm: Number(item.tdlvHgt),
+            observedCm: item.bscTdlvHgt == null || item.bscTdlvHgt === "" ? null : Number(item.bscTdlvHgt)
+          })).filter(item => Number.isFinite(item.predictedCm))
+        };
+        writeTideCache(stationCode, date, data);
+        return data;
+      })().finally(() => { delete state.tideLoading[key]; });
+      return state.tideLoading[key];
+    }
+    function tideWindDirectionLabel(degrees) {
+      const value = Number(degrees);
+      if (!Number.isFinite(value)) return "";
+      const labels = ["북풍", "북북동풍", "북동풍", "동북동풍", "동풍", "동남동풍", "남동풍", "남남동풍", "남풍", "남남서풍", "남서풍", "서남서풍", "서풍", "서북서풍", "북서풍", "북북서풍"];
+      return labels[Math.round(((value % 360) + 360) % 360 / 22.5) % 16];
+    }
+    async function requestTideWindInfo(date, station = selectedTideStation(), { force = false } = {}) {
+      const latitude = Number.isFinite(Number(state.settings.tidePlaceLat)) ? Number(state.settings.tidePlaceLat) : Number(station.lat);
+      const longitude = Number.isFinite(Number(state.settings.tidePlaceLon)) ? Number(state.settings.tidePlaceLon) : Number(station.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+      const cacheKey = `maint_tide_wind_${latitude.toFixed(3)}_${longitude.toFixed(3)}_${date}`;
+      if (!force) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+          if (cached?.data && Date.now() - Number(cached.savedAt || 0) < 6 * 60 * 60 * 1000) return cached.data;
+        } catch {}
+      }
+      const archiveCutoff = addDaysISO(todayISO(), -5);
+      const endpoint = date < archiveCutoff
+        ? "https://archive-api.open-meteo.com/v1/archive"
+        : "https://api.open-meteo.com/v1/forecast";
+      const url = new URL(endpoint);
+      url.searchParams.set("latitude", String(latitude));
+      url.searchParams.set("longitude", String(longitude));
+      url.searchParams.set("start_date", date);
+      url.searchParams.set("end_date", date);
+      url.searchParams.set("daily", "wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant");
+      url.searchParams.set("wind_speed_unit", "ms");
+      url.searchParams.set("timezone", "Asia/Seoul");
+      const response = await fetch(url, { headers: { accept: "application/json" } });
+      if (!response.ok) return null;
+      const payload = await response.json().catch(() => ({}));
+      const speed = Number(payload?.daily?.wind_speed_10m_max?.[0]);
+      const gust = Number(payload?.daily?.wind_gusts_10m_max?.[0]);
+      const direction = Number(payload?.daily?.wind_direction_10m_dominant?.[0]);
+      if (![speed, gust, direction].some(Number.isFinite)) return null;
+      const data = {
+        speed: Number.isFinite(speed) ? speed : null,
+        gust: Number.isFinite(gust) ? gust : null,
+        direction: Number.isFinite(direction) ? direction : null
+      };
+      try { localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), data })); } catch {}
+      return data;
+    }
+    function tideWindHTML(wind) {
+      if (!wind) return '<div class="day-tide-wind"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a3 3 0 1 1-3 3"/><path d="M3 16h8"/></svg><span>풍량 정보 없음</span></div>';
+      const parts = [];
+      const direction = tideWindDirectionLabel(wind.direction);
+      if (direction) parts.push(direction);
+      if (Number.isFinite(wind.speed)) parts.push(`최대 풍속 ${wind.speed.toFixed(1)}m/s`);
+      if (Number.isFinite(wind.gust)) parts.push(`순간 ${wind.gust.toFixed(1)}m/s`);
+      return `<div class="day-tide-wind"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a3 3 0 1 1-3 3"/><path d="M3 16h8"/></svg><span>${escapeHTML(parts.join(" · ") || "풍량 정보 없음")}</span></div>`;
+    }
+    function tideSampleInfo(sample = {}) {
+      const digits = String(sample.observedAt || "").replace(/\D/g, "");
+      const hour = Number(digits.slice(8, 10));
+      const minute = Number(digits.slice(10, 12));
+      return {
+        ...sample,
+        minutes: Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0,
+        time: `${String(hour || 0).padStart(2, "0")}:${String(minute || 0).padStart(2, "0")}`,
+        height: Math.round(Number(sample.predictedCm) || 0)
+      };
+    }
+    function tideTurningPoints(samples = []) {
+      const values = samples.map(tideSampleInfo).sort((a, b) => a.minutes - b.minutes);
+      const points = [];
+      let previousSign = 0;
+      for (let index = 1; index < values.length; index++) {
+        const diff = values[index].height - values[index - 1].height;
+        const sign = diff > 0 ? 1 : diff < 0 ? -1 : previousSign;
+        if (previousSign && sign && sign !== previousSign) {
+          const point = { ...values[index - 1], type: previousSign > 0 ? "high" : "low" };
+          const last = points[points.length - 1];
+          if (last?.type === point.type) {
+            if ((point.type === "high" && point.height > last.height) || (point.type === "low" && point.height < last.height)) points[points.length - 1] = point;
+          } else if (!last || point.minutes - last.minutes >= 60) {
+            points.push(point);
+          }
+        }
+        previousSign = sign;
+      }
+      return points.slice(0, 5);
+    }
+    function tideFlowSegments(points = []) {
+      return points.slice(1).map((point, index) => {
+        const previous = points[index];
+        const rising = previous.type === "low" && point.type === "high";
+        const falling = previous.type === "high" && point.type === "low";
+        if (!rising && !falling) return null;
+        return {
+          label: rising ? "들물" : "날물",
+          from: previous.time,
+          to: point.time,
+          amount: Math.abs(point.height - previous.height),
+          sign: rising ? "+" : "-"
+        };
+      }).filter(Boolean);
+    }
+    function currentTideFlow(date, samples, points) {
+      if (date !== todayISO() || samples.length < 2) return null;
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const values = samples.map(tideSampleInfo).sort((a, b) => a.minutes - b.minutes);
+      let index = values.findIndex(sample => sample.minutes >= nowMinutes);
+      if (index < 0) index = values.length - 1;
+      else if (index < 1) index = 1;
+      const rising = values[index].height >= values[index - 1].height;
+      const next = points.find(point => point.minutes >= nowMinutes && point.type === (rising ? "high" : "low"));
+      const current = values[index - 1];
+      return {
+        label: rising ? "현재 들물" : "현재 날물",
+        detail: next ? `${next.time} ${rising ? "만조" : "간조"}까지 ${rising ? "+" : "-"}${Math.abs(next.height - current.height)}cm` : "다음 변곡 시각 계산 중"
+      };
+    }
+    function tideWaveIcon() {
+      return '<svg class="day-tide-wave" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2S21.8 7 24 7"/><path d="M2 14c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2 2.2-2 4.4-2"/><path d="M2 19c2.2 0 2.2-2 4.4-2s2.2 2 4.4 2 2.2-2 4.4-2 2.2 2 4.4 2 2.2-2 4.4-2"/></svg>';
+    }
+    function tideErrorMessage(error) {
+      const code = String(error?.message || error || "");
+      if (code === "LOGIN_REQUIRED" || code === "AUTH_REQUIRED") return "로그인 후 물때 정보를 확인할 수 있습니다.";
+      if (code === "TIDE_KEY_REQUIRED") return "해양 공공데이터 API 연결키 등록이 필요합니다.";
+      if (code.includes("404")) return "물때 조회 서버를 배포한 뒤 사용할 수 있습니다.";
+      return "물때 정보를 불러오지 못했습니다. 잠시 후 다시 확인해주세요.";
+    }
+    function tideHeadingHTML(date, station, status) {
+      const placeName = selectedTidePlaceName();
+      const distance = Number(state.settings.tideStationDistanceKm || 0);
+      const basis = placeName !== station.name || distance >= .1
+        ? `<small class="day-tide-basis">${escapeHTML(station.name)} 조위관측소 기준${distance >= .1 ? ` · 약 ${distance.toFixed(1)}km` : ""}</small>`
+        : "";
+      return `<div class="day-tide-head"><div><strong>${tideWaveIcon()}${escapeHTML(placeName)} · ${escapeHTML(tideMulLabel(date, station))}</strong>${basis}</div><span>${escapeHTML(status)}</span></div>`;
+    }
+    async function renderDayTideInfo(date, { force = false } = {}) {
+      const card = document.getElementById("dayTideCard");
+      if (!card) return;
+      const station = selectedTideStation();
+      const requestKey = `${tideCacheKey(station.code, date)}:${state.settings.tidePlaceLat ?? station.lat}:${state.settings.tidePlaceLon ?? station.lon}`;
+      card.hidden = false;
+      card.dataset.requestKey = requestKey;
+      card.innerHTML = `${tideHeadingHTML(date, station, `${station.system}물때식`)}<p class="day-tide-message">만조·간조와 들물·날물 정보를 불러오는 중입니다.</p>`;
+      try {
+        const [data, wind] = await Promise.all([
+          requestTideInfo(station.code, date, { force }),
+          requestTideWindInfo(date, station, { force }).catch(() => null)
+        ]);
+        if (card.dataset.requestKey !== requestKey) return;
+        const samples = Array.isArray(data.samples) ? data.samples : [];
+        const points = tideTurningPoints(samples);
+        if (!samples.length || !points.length) {
+          card.innerHTML = `${tideHeadingHTML(date, station, "예측조위")}<p class="day-tide-message">이 날짜의 조위 예측 자료가 없습니다.</p>${tideWindHTML(wind)}`;
+          return;
+        }
+        const events = points.slice(0, 4).map(point => `<div class="day-tide-event ${point.type}"><span>${point.type === "high" ? "만조" : "간조"}</span><strong>${escapeHTML(point.time)}</strong><em>${point.height.toLocaleString("ko-KR")}cm</em></div>`).join("");
+        const flows = tideFlowSegments(points).slice(0, 4);
+        const current = currentTideFlow(date, samples, points);
+        const flowLines = [current ? `<span><strong>${escapeHTML(current.label)}</strong> · ${escapeHTML(current.detail)}</span>` : "", ...flows.map(flow => `<span><strong>${flow.label}</strong> ${flow.from}→${flow.to} · ${flow.sign}${flow.amount.toLocaleString("ko-KR")}cm</span>`)].filter(Boolean).join("");
+        card.innerHTML = `${tideHeadingHTML(date, station, "예측조위")}<div class="day-tide-events">${events}</div><div class="day-tide-flow">${flowLines}</div>${tideWindHTML(wind)}<p class="day-tide-source">국립해양조사원 예측 조위 · 바람 Open-Meteo · 선택 장소는 가장 가까운 관측소 기준이며 기상과 현장 지형에 따라 실제 수위와 차이가 날 수 있습니다.</p>`;
+      } catch (error) {
+        if (card.dataset.requestKey !== requestKey) return;
+        card.innerHTML = `${tideHeadingHTML(date, station, `${station.system}물때식`)}<p class="day-tide-message">${escapeHTML(tideErrorMessage(error))}</p>`;
+      }
+    }
     function installDayScheduleMenuHandlers(date) {
       dayScheduleList.querySelectorAll(".day-schedule-item[data-schedule-id]").forEach(item => {
         let timer = null;
@@ -9074,6 +10115,7 @@
       dayScheduleTitle.dataset.date = date;
       dayScheduleSub.textContent = items.length ? `${items.length}개 일정` : "등록된 일정이 없습니다.";
       renderDayFitnessSummary(date);
+      renderDayTideInfo(date);
       dayScheduleList.innerHTML = items.length ? items.map(dayScheduleItem).join("") : '<div class="empty">+ 버튼을 눌러 이 날짜에 일정을 추가하세요.</div>';
       dayScheduleNote.value = state.dayNotes?.[date] || "";
       installDayScheduleMenuHandlers(date);
@@ -9328,6 +10370,11 @@
       const o = orgForSchedule(schedule);
       const completed = Boolean(schedule.completed || schedule.completedAt);
       const completedClass = options.showCompletion && completed ? " is-completed" : "";
+      const dashboardClass = options.showNote ? " dashboard-visit-card" : "";
+      const note = String(schedule.note || "").slice(0, 500);
+      const noteBlock = options.allowNoteEdit
+        ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><textarea class="dashboard-schedule-note-editor" maxlength="500" rows="1" placeholder="메모 입력..." aria-label="${escapeAttr(schedule.title)} 비고" oninput="autoGrowDashboardNote(this); queueTodayScheduleNote('${schedule.id}', this.value)" onblur="commitTodayScheduleNote('${schedule.id}', this.value)">${escapeHTML(note)}</textarea></div>`
+        : (options.showNote && note ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div></div>` : "");
       const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
       const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
         <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}')" aria-label="${escapeAttr(schedule.title)} 완료">
@@ -9336,13 +10383,14 @@
       const teamLine = schedule.type === "team" && schedule.teamMembers ? `<div class="visit-meta">팀원: ${escapeHTML(formatTeamMembersWithRoles(schedule.teamMembers))}</div>` : "";
       const reasonLine = scheduleVisitReasonLabel(schedule) ? `<div class="visit-meta">방문사유: ${escapeHTML(scheduleVisitReasonLabel(schedule))}</div>` : "";
       if (!o) {
-        return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
+        return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <div class="visit-statuses"><span class="tag gray">개인</span>${completedStamp}</div>
           </div>
           ${reasonLine}
           ${teamLine}
+          ${noteBlock}
           <div class="visit-actions">
             ${completionControl}
             <button class="icon secondary" title="일정 수정" onclick="openScheduleEditor('${schedule.id}')">${icon("edit")}</button>
@@ -9358,7 +10406,7 @@
         ? buildRecentVisitDateMap(schedule.date).get(o.id) || ""
         : "";
       const recentVisitMeta = options.showRecentVisit ? ` · 최근 방문 ${recentVisitText(previousVisit)}` : "";
-      return `<article class="visit-card schedule-accent${completedClass}" ${scheduleColorStyleAttr(schedule)}>
+      return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)}${escapeHTML(recentVisitMeta)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <div class="visit-statuses">
@@ -9366,7 +10414,8 @@
             ${completedStamp}
           </div>
         </div>
-        <div class="solution-tile">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        <div class="solution-tile${options.showNote ? " dashboard-solution-tile" : ""}">${icon("package")}<div><span>솔루션</span><strong>${solution}</strong></div></div>
+        ${noteBlock}
         ${reasonLine}
         ${teamLine}
         ${closed ? `<div class="visit-meta">휴관일: ${escapeHTML(closed)}</div>` : ""}
@@ -9400,6 +10449,75 @@
       const cloudSaved = await persistSchedulesNow("schedule-completion");
       if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
     };
+    const todayScheduleNoteTimers = new Map();
+    function migrateAndroidScheduleNotesForCloud() {
+      if (!window.ReportMateAndroid) return false;
+      const schedules = state.schedules.filter(schedule => String(schedule.note || "").trim() && !schedule.noteUpdatedAt);
+      if (!schedules.length) return false;
+      const now = new Date().toISOString();
+      schedules.forEach(schedule => {
+        schedule.noteUpdatedAt = now;
+        schedule.updatedAt = now;
+        markGoogleDirty(schedule);
+      });
+      state.settings.cloudPendingScheduleSyncToken = `${now}:${uid()}`;
+      try {
+        localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+        localStorage.setItem("maint_settings", JSON.stringify(state.settings));
+      } catch {}
+      return true;
+    }
+    function isDashboardScheduleNoteEditing() {
+      return Boolean(document.activeElement?.classList?.contains("dashboard-schedule-note-editor"));
+    }
+    function applyDeferredCloudSnapshot() {
+      if (isDashboardScheduleNoteEditing() || !state.deferredCloudSnapshot) return;
+      const data = state.deferredCloudSnapshot;
+      state.deferredCloudSnapshot = null;
+      applyCloudSnapshot(data);
+    }
+    function setTodayScheduleNoteValue(id, value, { prepareSync = false } = {}) {
+      const schedule = state.schedules.find(item => item.id === id);
+      if (!schedule) return null;
+      const note = String(value || "").slice(0, 500);
+      schedule.note = note;
+      if (prepareSync) {
+        schedule.updatedAt = new Date().toISOString();
+        schedule.noteUpdatedAt = schedule.updatedAt;
+        state.settings.cloudPendingScheduleSyncToken = `${schedule.updatedAt}:${uid()}`;
+        markGoogleDirty(schedule);
+      }
+      return schedule;
+    }
+    async function persistTodayScheduleNote(id, value) {
+      const timer = todayScheduleNoteTimers.get(id);
+      if (timer) clearTimeout(timer);
+      todayScheduleNoteTimers.delete(id);
+      const schedule = setTodayScheduleNoteValue(id, value, { prepareSync: true });
+      if (!schedule) return;
+      applyDeferredCloudSnapshot();
+      save();
+      scheduleGoogleAutoSync("schedule-note");
+      const cloudSaved = await persistSchedulesNow("schedule-note");
+      if (cloudSaved === false) toast("비고는 기기에 저장했고 서버 동기화를 자동 재시도합니다.");
+    }
+    window.queueTodayScheduleNote = (id, value) => {
+      setTodayScheduleNoteValue(id, value);
+      const timer = todayScheduleNoteTimers.get(id);
+      if (timer) clearTimeout(timer);
+      todayScheduleNoteTimers.set(id, setTimeout(async () => {
+        todayScheduleNoteTimers.delete(id);
+        const schedule = setTodayScheduleNoteValue(id, value, { prepareSync: true });
+        if (!schedule) return;
+        try { localStorage.setItem("maint_schedules", JSON.stringify(state.schedules)); } catch {}
+        scheduleGoogleAutoSync("schedule-note-idle");
+        const cloudSaved = await persistSchedulesNow("schedule-note-idle");
+        if (cloudSaved === false) scheduleCloudSave("schedule-note-idle-retry", 1500);
+      }, 1000));
+    };
+    window.commitTodayScheduleNote = (id, value) => {
+      setTimeout(() => persistTodayScheduleNote(id, value), 0);
+    };
     function dashboardSearchText(value) {
       return normalizeOrgKeyword(typeof value === "string" ? value : JSON.stringify(value || ""));
     }
@@ -9413,6 +10531,7 @@
         schedule.endTime,
         schedule.teamMembers,
         schedule.visitReason,
+        schedule.note,
         org?.name,
         org?.region,
         org?.type,
@@ -10455,9 +11574,7 @@
       list.innerHTML = orgMarkup + todoMarkup;
     }
     function monthlyMaintenancePanelFromPoint(x, y, draggedEl) {
-      if (draggedEl) draggedEl.style.visibility = "hidden";
       const panel = document.elementFromPoint(x, y)?.closest("#monthlyMaintenancePanel");
-      if (draggedEl) draggedEl.style.visibility = "";
       return panel;
     }
     function clearMaintenanceDropTarget() {
@@ -10482,12 +11599,16 @@
       ["position", "width", "height", "left", "top", "transform"].forEach(prop => el.style[prop] = "");
     }
     function createMaintenanceDragGhost(drag, event) {
+      drag.startGhostX = event.clientX;
+      drag.startGhostY = event.clientY;
       const rect = drag.el.getBoundingClientRect();
       const ghost = drag.el.cloneNode(true);
       ghost.removeAttribute("id");
       ghost.classList.remove("drag-ready");
       ghost.classList.add("dragging", "maintenance-drag-ghost");
       ghost.style.position = "fixed";
+      ghost.style.transition = "none";
+      ghost.style.willChange = "transform";
       ghost.style.left = `${event.clientX - drag.grabX}px`;
       ghost.style.top = `${event.clientY - drag.grabY}px`;
       ghost.style.width = `${rect.width}px`;
@@ -10632,6 +11753,7 @@
         : createInspectionScheduleFromOrg(meta.id, date);
     }
     window.maintenanceOrgPointerStart = (event, itemToken) => {
+      if (event.button != null && event.button !== 0) return;
       cleanupMaintenanceDragGhosts();
       const el = event.currentTarget;
       try { el.setPointerCapture?.(event.pointerId); } catch {}
@@ -10672,15 +11794,22 @@
         openMaintenanceOrgAction(itemToken);
       }, 1120);
       state.maintenanceOrgDrag = drag;
+      el.addEventListener("lostpointercapture", () => {
+        if (state.maintenanceOrgDrag === drag) maintenanceOrgPointerCancel({}, itemToken);
+      }, { once: true });
       attachScheduleDragTouchBlocker(drag);
     };
     window.maintenanceOrgPointerMove = (event, itemToken) => {
       const drag = state.maintenanceOrgDrag;
-      if (!drag || drag.itemToken !== itemToken) return;
+      if (!drag || drag.itemToken !== itemToken || drag.pointerId !== event.pointerId || drag.cancelled) return;
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
+      if (drag.pointerType === "mouse" && Math.hypot(dx, dy) > 8) {
+        drag.armed = true;
+        clearTimeout(drag.longPressTimer);
+      }
       if (!drag.armed) {
         if (Math.abs(dx) + Math.abs(dy) > 12) {
           drag.cancelled = true;
@@ -10702,9 +11831,6 @@
       }
       setCalendarDragging(true);
       drag.el.classList.remove("drag-ready");
-      drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
-      drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      refreshMaintenanceDragTarget(drag);
       startScheduleDragAutoScroll(drag, itemToken, true);
     };
     window.maintenanceOrgPointerEnd = (event, itemToken) => {
@@ -11024,9 +12150,10 @@
       }
       updateCalendarScheduleSearchList();
       target.innerHTML = `<div class="calendar-toolbar">
+        ${tideStationSelectHTML()}
         <div class="calendar-nav">
           <button class="icon secondary" onclick="moveMonth(-1)" title="이전 달"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-          <button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button>
+          <div class="calendar-month-tide"><button type="button" class="calendar-title-button" onclick="openCalendarJumpDialog()" title="날짜 이동">${y}년 ${m + 1}월</button></div>
           <button class="icon secondary" onclick="moveMonth(1)" title="다음 달"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
         <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
@@ -11038,8 +12165,45 @@
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
     }
     function installSwipe(target) {
+      target.style.overflowX = "clip";
       target.onpointerdown = null;
       target.onpointerup = null;
+    }
+    function previewCalendarSwipe(range, dx) {
+      const grid = range.swipeGrid || document.querySelector("#mainCalendar .calendar-grid");
+      if (!grid) return;
+      range.swipeGrid = grid;
+      range.swipeDx = Math.max(-grid.clientWidth * .85, Math.min(grid.clientWidth * .85, dx));
+      if (range.swipeFrame) return;
+      range.swipeFrame = requestAnimationFrame(() => {
+        range.swipeFrame = 0;
+        if (state.calendarRange !== range) return;
+        grid.style.willChange = "transform";
+        grid.style.transform = `translate3d(${range.swipeDx}px,0,0)`;
+      });
+    }
+    function settleCalendarSwipe(range, commit = false) {
+      if (range?.swipeFrame) cancelAnimationFrame(range.swipeFrame);
+      const grid = range?.swipeGrid;
+      if (!grid) return false;
+      const dx = range.swipeDx || 0;
+      grid.style.transform = "";
+      grid.style.willChange = "";
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const step = dx < 0 ? 1 : -1;
+      const finish = () => {
+        state.monthSwipeSettling = false;
+        if (commit) moveMonth(step);
+      };
+      if (reduced || !grid.animate) { finish(); return true; }
+      state.monthSwipeSettling = true;
+      const animation = grid.animate([
+        { transform: `translateX(${dx}px)` },
+        { transform: `translateX(${commit ? (dx < 0 ? -1 : 1) * grid.clientWidth : 0}px)` }
+      ], { duration: commit ? 180 : 220, easing: "cubic-bezier(.22,.8,.24,1)" });
+      animation.onfinish = finish;
+      animation.oncancel = () => { state.monthSwipeSettling = false; };
+      return true;
     }
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
@@ -11084,40 +12248,13 @@
       });
     }
     function dateCellFromPoint(x, y, draggedEl) {
-      const hidden = [];
-      const hide = el => {
-        if (!el || hidden.includes(el)) return;
-        hidden.push(el);
-        el.style.visibility = "hidden";
-      };
-      hide(draggedEl);
-      if (document.body.classList.contains("maintenance-drawer-dragging")) {
-        hide(document.getElementById("monthlyMaintenancePanel"));
+      // Event bars are separate overlapping layers. Read cell rectangles directly,
+      // without toggling visibility and forcing repeated style/hit-test passes.
+      for (const cell of document.querySelectorAll("#mainCalendar .day-cell[data-date]")) {
+        const rect = cell.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell;
       }
-      let cell = null;
-      for (let i = 0; i < 10; i++) {
-        const el = document.elementFromPoint(x, y);
-        if (!el) break;
-        cell = el.closest(".day-cell");
-        if (cell) break;
-        const blocker = el.closest(".event-pill, .week-events, .calendar-drag-ghost, .maintenance-drag-ghost, .maintenance-drag-card");
-        if (!blocker || hidden.includes(blocker)) break;
-        hide(blocker);
-      }
-      hidden.forEach(el => { el.style.visibility = ""; });
-      if (!cell) {
-        const candidates = [...document.querySelectorAll("#mainCalendar .day-cell[data-date]")]
-          .map(el => ({ el, rect: el.getBoundingClientRect() }))
-          .filter(item => x >= item.rect.left && x <= item.rect.right)
-          .map(item => {
-            const verticalDistance = y < item.rect.top ? item.rect.top - y : (y > item.rect.bottom ? y - item.rect.bottom : 0);
-            return { ...item, verticalDistance };
-          })
-          .sort((a, b) => a.verticalDistance - b.verticalDistance);
-        const closest = candidates[0];
-        if (closest && closest.verticalDistance <= 48) cell = closest.el;
-      }
-      return cell;
+      return null;
     }
     function isSchedulePillTarget(event) {
       const pill = event.target.closest(".event-pill");
@@ -11202,24 +12339,23 @@
       return direction ? direction * (90 + (maxSpeed - 90) * intensity * intensity) : 0;
     }
     function refreshScheduleDragTarget(drag, id = drag?.id) {
-      clearDropTarget();
-      clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
-      if (refreshCalendarDragCancelZone(drag)) return;
-      dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
-      if (canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))) {
-        monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el)?.classList.add("drop-target");
-      }
+      const cancelled = refreshCalendarDragCancelZone(drag);
+      const cell = cancelled ? null : dateCellFromPoint(drag.lastX, drag.lastY);
+      const panel = !cancelled && canMoveScheduleToUnscheduled(state.schedules.find(item => item.id === id))
+        ? monthlyMaintenancePanelFromPoint(drag.lastX, drag.lastY) : null;
+      updateDragHighlight(drag, panel || cell);
+    }
+    function updateDragHighlight(drag, target) {
+      if (drag.highlight === target) return;
+      drag.highlight?.classList.remove("drop-target");
+      target?.classList.add("drop-target");
+      drag.highlight = target;
     }
     function refreshMaintenanceDragTarget(drag) {
-      clearDropTarget();
-      clearMaintenanceDropTarget();
       if (!drag || !Number.isFinite(drag.lastX) || !Number.isFinite(drag.lastY)) return;
-      if (refreshCalendarDragCancelZone(drag)) return;
-      const targetCell = dateCellFromPoint(drag.lastX, drag.lastY, drag.ghost || drag.el);
-      if (targetCell?.dataset.date && isDateInCurrentCalendarMonth(targetCell.dataset.date)) {
-        targetCell.classList.add("drop-target");
-      }
+      const cell = refreshCalendarDragCancelZone(drag) ? null : dateCellFromPoint(drag.lastX, drag.lastY);
+      updateDragHighlight(drag, cell?.dataset.date && isDateInCurrentCalendarMonth(cell.dataset.date) ? cell : null);
     }
     function scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag = false) {
       drag.autoScrollFrame = 0;
@@ -11229,6 +12365,9 @@
         return;
       }
       const velocity = scheduleDragAutoScrollVelocity(drag);
+      if (drag.ghost) drag.ghost.style.transform = `translate3d(${drag.lastX - drag.startGhostX}px, ${drag.lastY - drag.startGhostY}px, 0)`;
+      if (maintenanceDrag) refreshMaintenanceDragTarget(drag);
+      else refreshScheduleDragTarget(drag, id);
       if (!velocity) {
         drag.autoScrollLastTime = 0;
         return;
@@ -11253,12 +12392,10 @@
         drag.autoScrollLastTime = 0;
         return;
       }
-      if (maintenanceDrag) refreshMaintenanceDragTarget(drag);
-      else refreshScheduleDragTarget(drag, id);
       drag.autoScrollFrame = requestAnimationFrame(nextTime => scheduleDragAutoScrollStep(nextTime, drag, id, maintenanceDrag));
     }
     function startScheduleDragAutoScroll(drag, id, maintenanceDrag = false) {
-      if (!drag || drag.autoScrollFrame || !scheduleDragAutoScrollVelocity(drag)) return;
+      if (!drag || drag.autoScrollFrame) return;
       drag.autoScrollLastTime = 0;
       drag.autoScrollFrame = requestAnimationFrame(timestamp => scheduleDragAutoScrollStep(timestamp, drag, id, maintenanceDrag));
     }
@@ -11282,6 +12419,8 @@
       setCalendarDragging(false);
     }
     function createCalendarDragGhost(drag, event) {
+      drag.startGhostX = event.clientX;
+      drag.startGhostY = event.clientY;
       const rect = drag.el.getBoundingClientRect();
       const ghost = drag.el.cloneNode(true);
       ghost.removeAttribute("id");
@@ -11297,6 +12436,7 @@
       return ghost;
     }
     window.schedulePointerStart = (event, id) => {
+      if (event.button != null && event.button !== 0) return;
       event.stopPropagation();
       if (state.calendarDrag) cancelActiveScheduleDrag();
       const el = event.currentTarget;
@@ -11336,11 +12476,15 @@
     };
     window.schedulePointerMove = (event, id) => {
       const drag = state.calendarDrag;
-      if (!drag || drag.id !== id) return;
+      if (!drag || drag.id !== id || drag.pointerId !== event.pointerId || drag.cancelled) return;
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
+      if (drag.pointerType === "mouse" && Math.hypot(dx, dy) > 8) {
+        drag.armed = true;
+        clearTimeout(drag.longPressTimer);
+      }
       if (!drag.armed) {
         if (Math.abs(dx) + Math.abs(dy) > 12) {
           drag.cancelled = true;
@@ -11360,9 +12504,6 @@
       drag.el.classList.remove("drag-ready");
       drag.el.classList.add("dragging");
       setCalendarDragging(true);
-      drag.ghost.style.left = `${event.clientX - drag.grabX}px`;
-      drag.ghost.style.top = `${event.clientY - drag.grabY}px`;
-      refreshScheduleDragTarget(drag, id);
       startScheduleDragAutoScroll(drag, id);
     };
     function applyScheduleDragDrop(drag, id) {
@@ -11454,11 +12595,16 @@
       state.calendarDrag = null;
     }
     window.addEventListener("blur", cancelActiveScheduleDrag);
+    window.addEventListener("blur", () => {
+      if (state.maintenanceOrgDrag) maintenanceOrgPointerCancel({}, state.maintenanceOrgDrag.itemToken);
+      if (state.calendarRange) calendarRangeCancel();
+    });
     window.addEventListener("pagehide", cancelActiveScheduleDrag);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) cancelActiveScheduleDrag();
     });
     window.calendarRangeStart = (event, date) => {
+      if (state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
       if (isSchedulePillTarget(event)) return;
       clearCalendarLongPress();
       const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, armed: false, cancelled: false, longPressFired: false };
@@ -11492,6 +12638,12 @@
           range.cancelled = true;
           clearCalendarLongPress(range);
         }
+        if (range.cancelled && dx > dy * 1.25) {
+          previewCalendarSwipe(range, event.clientX - range.startX);
+          if (event.cancelable) event.preventDefault();
+        } else if (range.swipeGrid) {
+          previewCalendarSwipe(range, 0);
+        }
         return;
       }
       const cell = dateCellFromPoint(event.clientX, event.clientY, null);
@@ -11517,6 +12669,16 @@
       const totalDy = Math.abs(event.clientY - range.startY);
       if (range.cancelled) {
         clearRangeSelection();
+        const width = range.swipeGrid?.clientWidth || 360;
+        const commit = Math.abs(totalDx) > Math.max(56, width * .2) && Math.abs(totalDx) > totalDy * 1.25;
+        if (range.swipeGrid) {
+          state.suppressCalendarClick = true;
+          setTimeout(() => { state.suppressCalendarClick = false; }, 500);
+          // Use final pointer position, including a last-moment reversal.
+          range.swipeDx = Math.max(-width * .85, Math.min(width * .85, totalDx));
+          settleCalendarSwipe(range, commit);
+          return;
+        }
         if (Math.abs(totalDx) > 56 && Math.abs(totalDx) > totalDy * 1.25) {
           state.suppressCalendarClick = true;
           setTimeout(() => { state.suppressCalendarClick = false; }, 260);
@@ -11540,10 +12702,12 @@
     };
     window.calendarRangeCancel = () => {
       clearCalendarLongPress();
+      settleCalendarSwipe(state.calendarRange, false);
       state.calendarRange = null;
       clearRangeSelection();
     };
     window.openScheduleForDate = (event, date) => {
+      if (state.monthSwipeSettling) return;
       if (isSchedulePillTarget(event)) return;
       if (state.suppressCalendarClick) return;
       if (state.calendarRange?.moved) return;
@@ -11870,13 +13034,111 @@
       const { leapWrap, hint } = scheduleLunarFormElements();
       [scheduleDate, scheduleEndDate].forEach(input => {
         input.type = enabled ? "text" : "date";
-        input.inputMode = enabled ? "numeric" : "";
-        input.placeholder = enabled ? "YYYY-MM-DD" : "";
-        if (enabled) input.setAttribute("pattern", "\\d{4}-\\d{1,2}-\\d{1,2}");
-        else input.removeAttribute("pattern");
+        input.readOnly = enabled;
+        input.inputMode = enabled ? "none" : "";
+        input.placeholder = enabled ? "눌러서 음력 날짜 선택" : "";
+        input.classList.toggle("lunar-picker-input", enabled);
+        input.removeAttribute("pattern");
       });
       leapWrap?.classList.toggle("hidden", !enabled);
       hint?.classList.toggle("hidden", !enabled);
+    }
+    function lunarDatePickerElements() {
+      return {
+        dialog: document.getElementById("lunarDatePickerDialog"),
+        year: document.getElementById("lunarDateYear"),
+        month: document.getElementById("lunarDateMonth"),
+        grid: document.getElementById("lunarDateGrid"),
+        preview: document.getElementById("lunarDatePreview")
+      };
+    }
+    function lunarPickerState() {
+      state.lunarDatePicker = state.lunarDatePicker || { year: new Date().getFullYear(), month: 1, day: 1, targetId: "scheduleDate" };
+      return state.lunarDatePicker;
+    }
+    function ensureLunarDatePickerOptions() {
+      const { year, month } = lunarDatePickerElements();
+      if (!year?.options.length) {
+        year.innerHTML = Array.from({ length: 201 }, (_, index) => {
+          const value = 1900 + index;
+          return `<option value="${value}">${value}년</option>`;
+        }).join("");
+      }
+      if (!month?.options.length) {
+        month.innerHTML = Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}">${index + 1}월</option>`).join("");
+      }
+    }
+    function lunarPickerISO(day = lunarPickerState().day) {
+      const picker = lunarPickerState();
+      return `${picker.year}-${String(picker.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    function renderLunarDatePicker() {
+      ensureLunarDatePickerOptions();
+      const picker = lunarPickerState();
+      const { year, month, grid, preview } = lunarDatePickerElements();
+      year.value = String(picker.year);
+      month.value = String(picker.month);
+      const leap = Boolean(scheduleLunarFormElements().leap?.checked);
+      const firstISO = `${picker.year}-${String(picker.month).padStart(2, "0")}-01`;
+      const firstSolar = solarDateForLunarISO(firstISO, leap);
+      if (!firstSolar) {
+        grid.innerHTML = `<span class="lunar-date-empty">${leap ? "선택한 해에는 이 윤달이 없습니다." : "선택할 수 없는 음력 월입니다."}</span>`;
+        preview.textContent = "다른 연도나 월을 선택해주세요.";
+        return;
+      }
+      const day30ISO = `${picker.year}-${String(picker.month).padStart(2, "0")}-30`;
+      const maxDay = solarDateForLunarISO(day30ISO, leap) ? 30 : 29;
+      picker.day = clamp(Number(picker.day) || 1, 1, maxDay);
+      const firstWeekday = new Date(`${firstSolar}T00:00:00`).getDay();
+      const currentLunar = lunarDateInfoFromSolar(todayISO());
+      const blanks = Array.from({ length: firstWeekday }, () => "<span aria-hidden=\"true\"></span>");
+      const days = Array.from({ length: maxDay }, (_, index) => {
+        const day = index + 1;
+        const selected = day === picker.day ? " selected" : "";
+        const today = currentLunar && currentLunar.year === picker.year && currentLunar.month === picker.month && currentLunar.day === day && Boolean(currentLunar.leap) === leap ? " today" : "";
+        return `<button type="button" class="${selected}${today}" data-lunar-day="${day}" aria-label="음력 ${picker.month}월 ${day}일">${day}</button>`;
+      });
+      grid.innerHTML = [...blanks, ...days].join("");
+      const selectedSolar = solarDateForLunarISO(lunarPickerISO(), leap);
+      preview.textContent = `${leap ? "윤달 " : "음력 "}${picker.year}년 ${picker.month}월 ${picker.day}일 · 양력 ${selectedSolar}`;
+    }
+    function shiftLunarPickerMonth(offset) {
+      const picker = lunarPickerState();
+      const total = picker.year * 12 + picker.month - 1 + offset;
+      picker.year = clamp(Math.floor(total / 12), 1900, 2100);
+      picker.month = (total % 12 + 12) % 12 + 1;
+      picker.day = 1;
+      renderLunarDatePicker();
+      hapticTap(8);
+    }
+    function openLunarDatePicker(targetInput) {
+      if (!scheduleLunarFormElements().enabled?.checked) return;
+      const todayLunar = lunarDateInfoFromSolar(todayISO());
+      const parsed = parseLunarDateISO(targetInput.value) || todayLunar;
+      if (!parsed) {
+        toast("음력 날짜 선택기를 열 수 없습니다.");
+        return;
+      }
+      state.lunarDatePicker = { year: parsed.year, month: parsed.month, day: parsed.day, targetId: targetInput.id };
+      renderLunarDatePicker();
+      lunarDatePickerElements().dialog.showModal();
+    }
+    function applyLunarDatePicker() {
+      const picker = lunarPickerState();
+      const leap = Boolean(scheduleLunarFormElements().leap?.checked);
+      const value = lunarPickerISO();
+      if (!solarDateForLunarISO(value, leap)) {
+        toast("선택할 수 없는 음력 날짜입니다.");
+        return;
+      }
+      const target = document.getElementById(picker.targetId);
+      if (!target) return;
+      target.value = value;
+      if (target === scheduleDate && (!scheduleEndDate.value || scheduleEndDate.value < value)) scheduleEndDate.value = value;
+      if (target === scheduleEndDate && scheduleDate.value && value < scheduleDate.value) scheduleDate.value = value;
+      lunarDatePickerElements().dialog.close();
+      refreshScheduleLunarHint();
+      hapticTap(12);
     }
     function refreshScheduleLunarHint() {
       const { enabled, leap, hint } = scheduleLunarFormElements();
@@ -11929,6 +13191,14 @@
     document.getElementById("scheduleLunarLeap")?.addEventListener("change", refreshScheduleLunarHint);
     scheduleDate.addEventListener("input", refreshScheduleLunarHint);
     scheduleEndDate.addEventListener("input", refreshScheduleLunarHint);
+    [scheduleDate, scheduleEndDate].forEach(input => {
+      input.addEventListener("click", () => openLunarDatePicker(input));
+      input.addEventListener("keydown", event => {
+        if (!scheduleLunarFormElements().enabled?.checked || !["Enter", " "].includes(event.key)) return;
+        event.preventDefault();
+        openLunarDatePicker(input);
+      });
+    });
     function openScheduleDialog(schedule = {}) {
       if (dayScheduleDialog.open) dayScheduleDialog.close();
       const org = schedule.orgId ? orgForSchedule(schedule) : null;
@@ -11944,6 +13214,7 @@
       scheduleOrgSearch.value = org ? org.name : "";
       scheduleName.value = schedule.title || "";
       scheduleTeamMembers.value = schedule.teamMembers || "";
+      scheduleNote.value = schedule.note || "";
       setScheduleVisitReason(schedule.visitReason || "");
       const lunarForm = scheduleLunarFormElements();
       lunarForm.enabled.checked = Boolean(schedule.lunarDate);
@@ -12000,6 +13271,7 @@
         title,
         teamMembers: type === "team" ? scheduleTeamMembers.value.trim() : "",
         visitReason: scheduleVisitReasonFromForm(),
+        note: scheduleNote.value.trim().slice(0, 500),
         date,
         endDate,
         startTime: scheduleStartTime.value,
@@ -12014,7 +13286,7 @@
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "date", "endDate", "startTime", "endTime", "color", "lunarDate", "lunarStartDate", "lunarEndDate", "lunarLeap"].some(key => String(existing[key] || "") !== String(data[key] || ""));
+      const scheduleChanged = !existing || ["type", "orgId", "title", "teamMembers", "visitReason", "note", "date", "endDate", "startTime", "endTime", "color", "lunarDate", "lunarStartDate", "lunarEndDate", "lunarLeap"].some(key => String(existing[key] || "") !== String(data[key] || ""));
       if (existing && !scheduleChanged) {
         if (closeAfter) scheduleDialog.close();
         return true;
@@ -12033,6 +13305,7 @@
             item.title = data.title;
             item.teamMembers = data.teamMembers;
             item.visitReason = data.visitReason;
+            item.note = data.note;
             item.startTime = data.startTime;
             item.endTime = data.endTime;
             item.color = data.color;
@@ -12065,6 +13338,10 @@
         }
       } else {
         const copies = recurringScheduleCopies(data, data.recurrence);
+        if (data.recurrence !== "none" && copies.length < 2) {
+          toast("반복 날짜를 생성하지 못했습니다. 시작일과 반복 설정을 확인해주세요.");
+          return false;
+        }
         state.schedules.push(...copies);
         forgetDeletedSchedules(copies);
         logAdminAction("일정", copies.length > 1 ? "반복 일정 등록" : "일정 등록", `${data.title} · ${formatDateWithYear(data.date)}${copies.length > 1 ? ` 외 ${copies.length - 1}건` : ""}`);
@@ -12072,7 +13349,7 @@
       save();
       if (closeAfter) scheduleDialog.close();
       render();
-      toast(existing ? "일정을 수정했습니다." : (data.recurrence && data.recurrence !== "none" ? "반복 일정을 등록했습니다." : "일정을 등록했습니다."));
+      toast(existing ? "일정을 수정했습니다." : (data.recurrence && data.recurrence !== "none" ? `${scheduleRepeat.options[scheduleRepeat.selectedIndex]?.text || "반복"} 일정이 기준일부터 등록되었습니다.` : "일정을 등록했습니다."));
       scheduleGoogleAutoSync("schedule-save");
       return true;
     }
@@ -12201,11 +13478,71 @@
     };
     dayScheduleNote.addEventListener("blur", () => persistDayScheduleNotes({ cloud: true }));
     dayScheduleDialog.addEventListener("close", () => persistDayScheduleNotes({ cloud: true }));
+    function shiftDayScheduleDialog(offset) {
+      const currentDate = state.selectedCalendarDate || dayScheduleTitle.dataset.date || todayISO();
+      const nextDate = addDaysISO(currentDate, offset);
+      persistDayScheduleNotes({ cloud: true });
+      dayScheduleDialog.classList.remove("day-swipe-next", "day-swipe-prev");
+      renderDayScheduleDialog(nextDate);
+      const parsed = new Date(nextDate + "T00:00:00");
+      requestMonthlySteps(parsed.getFullYear(), parsed.getMonth() + 1);
+      void dayScheduleDialog.offsetWidth;
+      dayScheduleDialog.classList.add(offset > 0 ? "day-swipe-next" : "day-swipe-prev");
+      setTimeout(() => dayScheduleDialog.classList.remove("day-swipe-next", "day-swipe-prev"), 240);
+      hapticTap(10);
+    }
+    let dayScheduleSwipeStart = null;
+    dayScheduleDialog.addEventListener("touchstart", event => {
+      const touch = event.touches?.[0];
+      const blocked = event.target?.closest?.("button, input, textarea, select, a, [contenteditable='true'], .photo-log-map");
+      dayScheduleSwipeStart = touch && event.touches.length === 1 && !blocked
+        ? { x: touch.clientX, y: touch.clientY }
+        : null;
+    }, { passive: true });
+    dayScheduleDialog.addEventListener("touchend", event => {
+      if (!dayScheduleSwipeStart) return;
+      const touch = event.changedTouches?.[0];
+      const start = dayScheduleSwipeStart;
+      dayScheduleSwipeStart = null;
+      if (!touch) return;
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      shiftDayScheduleDialog(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    dayScheduleDialog.addEventListener("touchcancel", () => { dayScheduleSwipeStart = null; }, { passive: true });
+    goDayScheduleCalendarBtn.onclick = () => {
+      const date = state.selectedCalendarDate || dayScheduleTitle.dataset.date || todayISO();
+      persistDayScheduleNotes({ cloud: true });
+      goToCalendarDate(date);
+    };
     closeDayScheduleDialogBtn.onclick = () => dayScheduleDialog.close();
     closeScheduleActionDialogBtn.onclick = () => scheduleActionDialog.close();
     closeCalendarSearchDialogBtn.onclick = () => calendarSearchDialog.close();
+    closeTidePlaceDialogBtn.onclick = () => tidePlaceDialog.close();
     cancelCalendarJumpBtn.onclick = () => calendarJumpDialog.close();
     applyCalendarJumpBtn.onclick = applyCalendarJump;
+    document.getElementById("cancelLunarDateBtn").onclick = () => lunarDatePickerElements().dialog.close();
+    document.getElementById("applyLunarDateBtn").onclick = applyLunarDatePicker;
+    document.getElementById("lunarDatePrevBtn").onclick = () => shiftLunarPickerMonth(-1);
+    document.getElementById("lunarDateNextBtn").onclick = () => shiftLunarPickerMonth(1);
+    document.getElementById("lunarDateYear").onchange = event => {
+      lunarPickerState().year = Number(event.target.value);
+      lunarPickerState().day = 1;
+      renderLunarDatePicker();
+    };
+    document.getElementById("lunarDateMonth").onchange = event => {
+      lunarPickerState().month = Number(event.target.value);
+      lunarPickerState().day = 1;
+      renderLunarDatePicker();
+    };
+    document.getElementById("lunarDateGrid").onclick = event => {
+      const button = event.target.closest("[data-lunar-day]");
+      if (!button) return;
+      lunarPickerState().day = Number(button.dataset.lunarDay);
+      renderLunarDatePicker();
+      hapticTap(8);
+    };
     [calendarJumpYear, calendarJumpMonth, calendarJumpDay].forEach(el => {
       let startY = 0;
       let lastStep = 0;
@@ -12298,10 +13635,18 @@
       stopAiListening();
       stopAiSpeech();
     });
-    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, calendarJumpDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
+    [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, lunarDatePickerDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
     window.moveMonth = step => {
+      if (state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling) return;
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (grid && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        grid.animate?.([
+          { transform: `translateX(${step > 0 ? 36 : -36}px)`, opacity: .45 },
+          { transform: "translateX(0)", opacity: 1 }
+        ], { duration: 280, easing: "cubic-bezier(.22, .8, .24, 1)" });
+      }
     };
     function matchingWorkLogOrgs(value = "", limit = 20) {
       const input = normalizeOrgKeyword(value);
@@ -13131,6 +14476,11 @@
         deletedTodoMemoIds: [...new Set(state.settings.deletedTodoMemoIds || [])],
         deletedWorkLogIds: [...new Set(state.settings.deletedWorkLogIds || [])],
         mobileMembershipBarcode: state.settings.mobileMembershipBarcode || "12810425006025",
+        tideStationCode: selectedTideStation().code,
+        tidePlaceName: state.settings.tidePlaceName || "",
+        tidePlaceLat: state.settings.tidePlaceLat,
+        tidePlaceLon: state.settings.tidePlaceLon,
+        tideStationDistanceKm: Number(state.settings.tideStationDistanceKm || 0),
         workoutPresets: normalizeWorkoutPresets(state.settings.workoutPresets),
         activeWorkoutPresetId: state.settings.activeWorkoutPresetId,
         workoutIntervals: normalizeWorkoutIntervals(state.settings.workoutIntervals),
@@ -13175,6 +14525,13 @@
       if (typeof data.mobileMembershipBarcode === "string" && data.mobileMembershipBarcode.trim()) {
         state.settings.mobileMembershipBarcode = data.mobileMembershipBarcode.slice(0, 80);
       }
+      if (typeof data.tideStationCode === "string" && tideStationMap.has(data.tideStationCode)) {
+        state.settings.tideStationCode = data.tideStationCode;
+      }
+      if (typeof data.tidePlaceName === "string") state.settings.tidePlaceName = data.tidePlaceName.trim().slice(0, 80);
+      if (Number.isFinite(Number(data.tidePlaceLat))) state.settings.tidePlaceLat = Number(data.tidePlaceLat);
+      if (Number.isFinite(Number(data.tidePlaceLon))) state.settings.tidePlaceLon = Number(data.tidePlaceLon);
+      if (Number.isFinite(Number(data.tideStationDistanceKm))) state.settings.tideStationDistanceKm = Math.max(0, Number(data.tideStationDistanceKm));
       const incomingWorkoutIntervals = Array.isArray(data.workoutIntervals)
         ? normalizeWorkoutIntervals(data.workoutIntervals)
         : null;
@@ -13365,6 +14722,10 @@
           if (serverConfirmed) uploadCloudData({ silent: true });
           return;
         }
+        if (isDashboardScheduleNoteEditing()) {
+          state.deferredCloudSnapshot = snapshot.data();
+          return;
+        }
         applyCloudSnapshot(snapshot.data());
         if (serverConfirmed && state.settings.cloudPendingScheduleSyncToken) {
           scheduleCloudSave("pending-schedule-snapshot", 0);
@@ -13407,6 +14768,31 @@
       if ((state.lastCloudRefreshAt || 0) + minIntervalMs > now) return;
       state.lastCloudRefreshAt = now;
       await downloadCloudData({ silent: true });
+    }
+    async function refreshDeployedAppIfNeeded() {
+      if (window.ReportMateAndroid || location.protocol === "file:" || document.hidden) return false;
+      if (isDashboardScheduleNoteEditing() || document.querySelector("dialog[open]")) return false;
+      if (state.deployedVersionCheckInProgress) return false;
+      state.deployedVersionCheckInProgress = true;
+      try {
+        const checkUrl = new URL(location.href);
+        checkUrl.searchParams.set("reportmate-version-check", String(Date.now()));
+        const response = await fetch(checkUrl.href, { cache: "no-store", credentials: "same-origin" });
+        if (!response.ok) return false;
+        const html = await response.text();
+        const deployedVersion = html.match(/const\s+appVersion\s*=\s*["']([^"']+)["']/)?.[1] || "";
+        if (!deployedVersion || deployedVersion === appVersion) return false;
+        const reloadUrl = new URL(location.href);
+        reloadUrl.searchParams.delete("reportmate-version-check");
+        reloadUrl.searchParams.set("reportmate-version", deployedVersion);
+        location.replace(reloadUrl.href);
+        return true;
+      } catch (error) {
+        console.warn("ReportMate version refresh failed", error);
+        return false;
+      } finally {
+        state.deployedVersionCheckInProgress = false;
+      }
     }
     function currentViewName() {
       return document.querySelector(".view.active")?.id?.replace("view-", "") || "dashboard";
@@ -13457,6 +14843,34 @@
       titleElement.textContent = title;
       detailElement.textContent = detail;
       lastSeenElement.textContent = lastSeenText || "마지막 신호 확인 전";
+      modeTag.textContent = state.settings.parkingAlertEnabled === "0" ? "장애알림 미사용" : "장애알림 사용";
+    }
+    function syncAmsysDashboardPriority(status) {
+      const dashboard = document.getElementById("view-dashboard");
+      const panel = document.getElementById("amsysStatusPanel");
+      if (!dashboard || !panel) return;
+      const hasFault = status === "offline" || status === "warning";
+      panel.classList.toggle("is-fault", hasFault);
+      panel.classList.toggle("offline-fault", status === "offline");
+      panel.classList.toggle("warning-fault", status === "warning");
+      if (hasFault) {
+        if (dashboard.firstElementChild !== panel) dashboard.prepend(panel);
+      } else if (dashboard.lastElementChild !== panel) {
+        dashboard.append(panel);
+      }
+    }
+    function setAmsysDashboardStatus(status, title, detail, lastSeenText = "") {
+      const indicator = document.getElementById("amsysStatusIndicator");
+      const titleElement = document.getElementById("amsysStatusTitle");
+      const detailElement = document.getElementById("amsysStatusDetail");
+      const lastSeenElement = document.getElementById("amsysStatusLastSeen");
+      const modeTag = document.getElementById("amsysAlertModeTag");
+      if (!indicator || !titleElement || !detailElement || !lastSeenElement || !modeTag) return;
+      syncAmsysDashboardPriority(status);
+      indicator.className = `parking-status-indicator ${status || ""}`;
+      titleElement.textContent = title;
+      detailElement.textContent = detail;
+      lastSeenElement.textContent = lastSeenText || "마지막 검침 확인 전";
       modeTag.textContent = state.settings.parkingAlertEnabled === "0" ? "장애알림 미사용" : "장애알림 사용";
     }
     const equipmentPowerState = {
@@ -13739,6 +15153,57 @@
         button.setAttribute("aria-label", "주차정산기 상태 새로고침");
       }
     });
+    document.getElementById("refreshAmsysStatusBtn")?.addEventListener("click", async () => {
+      const button = document.getElementById("refreshAmsysStatusBtn");
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      button.classList.add("is-loading");
+      try {
+        await refreshAmsysDashboardStatus();
+        toast("AMSYS21 검침 상태를 새로 확인했습니다.");
+      } finally {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+      }
+    });
+    async function refreshAmsysDashboardStatus() {
+      if (state.amsysStatusLoading) return;
+      const services = initFirebaseServices();
+      if (!services?.auth?.currentUser) {
+        setAmsysDashboardStatus("", "로그인 후 확인", "AMSYS21 검침 상태는 ReportMate 로그인 후 표시됩니다.");
+        return;
+      }
+      state.amsysStatusLoading = true;
+      try {
+        const snapshot = await services.db.collection("reportmateSystem").doc("amsys21").get({ source: "server" });
+        if (!snapshot.exists) {
+          setAmsysDashboardStatus("", "검침기 미등록", "전력 측정 PC 업데이트 후 상태가 자동 등록됩니다.");
+          return;
+        }
+        const device = snapshot.data() || {};
+        const lastSeen = device.lastSeenAt?.toDate?.() || null;
+        const latestReading = device.latestReadingAt?.toDate?.() || null;
+        const heartbeatAge = lastSeen ? Date.now() - lastSeen.getTime() : Number.POSITIVE_INFINITY;
+        const readingAge = latestReading ? Date.now() - latestReading.getTime() : Number.POSITIVE_INFINITY;
+        const reported = String(device.status || "error").toLowerCase();
+        const deviceName = String(device.deviceName || "호디 R&D센터 AMSYS21");
+        const lastSeenText = latestReading
+          ? `마지막 검침 ${latestReading.toLocaleString("ko-KR")} · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`
+          : `마지막 검침 확인 불가 · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`;
+        if (heartbeatAge > 5 * 60 * 1000) {
+          setAmsysDashboardStatus("offline", "수집기 연결 끊김", `${deviceName} 수집 프로그램에서 5분 이상 상태 신호가 없습니다.`, lastSeenText);
+        } else if (reported !== "online" || readingAge > 5 * 60 * 1000) {
+          setAmsysDashboardStatus("warning", "검침 데이터 갱신 중단", `${deviceName}의 계량값이 5분 이상 갱신되지 않았습니다.`, lastSeenText);
+        } else {
+          setAmsysDashboardStatus("online", "정상 수집 중", `${deviceName}의 전력 검침 데이터가 정상적으로 갱신되고 있습니다.`, lastSeenText);
+        }
+      } catch (error) {
+        setAmsysDashboardStatus("", "상태 조회 실패", "인터넷 연결 또는 Firestore 권한을 확인해주세요.");
+        console.warn("AMSYS21 status dashboard refresh failed", error);
+      } finally {
+        state.amsysStatusLoading = false;
+      }
+    }
     async function refreshParkingDashboardStatus() {
       if (state.parkingStatusLoading) return;
       const nativeResult = await refreshEquipmentPowerStatus({ silent: true, probeDesktop: true });
@@ -13800,6 +15265,7 @@
       renderWeeklyReport();
       scheduleTodayDestinationMapRender();
       refreshParkingDashboardStatus();
+      refreshAmsysDashboardStatus();
       refreshEquipmentPowerStatus({ silent: true });
     }
     function renderMemoView() {
@@ -14837,6 +16303,7 @@
         lines.push(`음력: ${lunarRange}${schedule.lunarLeap ? " (윤달)" : ""}`);
       }
       if (schedule.body) lines.push(`내용: ${schedule.body}`);
+      if (schedule.note) lines.push(`비고: ${schedule.note}`);
       return lines.filter(Boolean).join("\n");
     }
     function scheduleLocation(schedule) {
@@ -14868,6 +16335,7 @@
             maintenanceManagerOrgId: schedule.orgId || "",
             maintenanceManagerTeamMembers: schedule.teamMembers || "",
             maintenanceManagerVisitReason: schedule.visitReason || "",
+            maintenanceManagerNote: schedule.note || "",
             maintenanceManagerColor: defaultScheduleColor(schedule),
             maintenanceManagerLunarDate: schedule.lunarDate ? "1" : "0",
             maintenanceManagerLunarStartDate: schedule.lunarStartDate || "",
@@ -15002,6 +16470,7 @@
         title: event.summary || "(제목 없음)",
         teamMembers: privateProps.maintenanceManagerTeamMembers || "",
         visitReason: privateProps.maintenanceManagerVisitReason || "",
+        note: privateProps.maintenanceManagerNote || "",
         date,
         endDate: safeEndDate,
         startTime: isAllDay ? "" : googleTimeToLocal(startRaw),
@@ -15534,7 +17003,7 @@
       syncParkingNotificationToAndroid();
       syncNotificationQuietHoursToAndroid();
       refreshParkingDashboardStatus();
-      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 재계약 알림(${state.settings.maintenanceRenewalNoticeDays}일 전), 주차정산기 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
+      logAdminAction("설정", "연동 설정 저장", `카카오워크, 청구 알림, 오늘 일정 알림(${state.settings.dailyNotificationTime}), 재계약 알림(${state.settings.maintenanceRenewalNoticeDays}일 전), 설비 장애알림(${state.settings.parkingAlertEnabled === "0" ? "미사용" : "사용"}), Tmap, Gemini, AI 기능 설정을 저장했습니다.`);
       save();
       startCloudAutoSync({ immediate: true });
       toast("연동 설정이 저장되었습니다.");
@@ -15674,8 +17143,14 @@
     document.getElementById("syncGoogleCalendarBtn")?.addEventListener("click", manualGoogleSync);
     logoutBtn.onclick = logoutReportMate;
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) refreshCloudDataIfStale();
+      if (document.hidden) return;
+      refreshCloudDataIfStale(window.ReportMateAndroid ? 30000 : 0);
+      refreshDeployedAppIfNeeded();
     });
+    if (!window.ReportMateAndroid) {
+      setTimeout(refreshDeployedAppIfNeeded, 8000);
+      setInterval(refreshDeployedAppIfNeeded, 5 * 60 * 1000);
+    }
     window.addEventListener("resize", () => {
       syncMonthlyMaintenanceToggleRoot();
       if (!isNarrowMonthlyMaintenanceDrawer()) closeMonthlyMaintenanceDrawer();
@@ -16415,6 +17890,7 @@
     }
     function notificationSourceLabel(source) {
       if (source === "parking") return "주차정산기";
+      if (source === "amsys") return "AMSYS21";
       if (source === "schedule") return "오늘 일정";
       if (source === "renewal") return "재계약";
       return "ReportMate";
@@ -16478,7 +17954,10 @@
     }
     restoreLoginSession();
     setInterval(() => {
-      if (document.getElementById("view-dashboard")?.classList.contains("active")) refreshParkingDashboardStatus();
+      if (document.getElementById("view-dashboard")?.classList.contains("active")) {
+        refreshParkingDashboardStatus();
+        refreshAmsysDashboardStatus();
+      }
     }, 60 * 1000);
     setInterval(() => {
       if (document.getElementById("view-dashboard")?.classList.contains("active") && !equipmentPowerState.processing) {
