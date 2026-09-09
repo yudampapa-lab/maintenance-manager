@@ -7104,8 +7104,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.43";
+    const appVersion = "1.7.44";
     const versionHistory = [
+      {
+        version: "1.7.44",
+        date: "2026-09-09",
+        title: "이전·다음 달이 함께 보이는 달력 넘기기",
+        changes: [
+          "드래그 중 옆 달의 실제 날짜와 일정도 함께 표시",
+          "방향을 바꾸거나 취소하면 두 달력이 함께 원위치로 복귀",
+          "전환 완료 시 추가 등장 애니메이션 없이 해당 월에 안착"
+        ]
+      },
       {
         version: "1.7.43",
         date: "2026-09-09",
@@ -12101,9 +12111,9 @@
         console.warn("Monthly step data could not be applied", error);
       }
     };
-    function renderCalendar(targetId, compact = false) {
-      const target = document.getElementById(targetId);
-      const cursor = state.monthCursor;
+    function renderCalendar(targetId, compact = false, previewCursor = null) {
+      const target = typeof targetId === "string" ? document.getElementById(targetId) : targetId;
+      const cursor = previewCursor || state.monthCursor;
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
       const first = new Date(y, m, 1);
@@ -12148,7 +12158,7 @@
           }).join("");
         weeks.push(`<div class="calendar-week" style="--event-rows:${rowCount}">${cells.join("")}<div class="week-events">${bars}</div></div>`);
       }
-      updateCalendarScheduleSearchList();
+      if (!previewCursor) updateCalendarScheduleSearchList();
       target.innerHTML = `<div class="calendar-toolbar">
         ${tideStationSelectHTML()}
         <div class="calendar-nav">
@@ -12159,6 +12169,7 @@
         <button type="button" class="icon secondary" id="manualGoogleSyncBtn" onclick="manualGoogleCalendarSync()" title="Google calendar sync" aria-label="Google calendar sync"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.3 6.4"/><path d="M3 12A9 9 0 0 1 18.3 5.6"/><path d="M18 2v4h-4"/><path d="M6 22v-4h4"/></svg></button>
         <button type="button" class="icon secondary" id="openCalendarSearchBtn" onclick="openCalendarSearch()" title="일정 검색" aria-label="일정 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       </div><div class="calendar-grid weeks-${weekCount}" style="--calendar-weeks:${weekCount}"><div class="calendar-day-names">${["일","월","화","수","목","금","토"].map(d => `<div class="day-name">${d}</div>`).join("")}</div>${weeks.join("")}</div>`;
+      if (previewCursor) return;
       installSwipe(target);
       if (!compact) requestMonthlySteps(y, m + 1);
       renderMonthlyMaintenancePanel();
@@ -12173,6 +12184,7 @@
       const grid = range.swipeGrid || document.querySelector("#mainCalendar .calendar-grid");
       if (!grid) return;
       range.swipeGrid = grid;
+      ensureCalendarSwipePage(range, dx < 0 ? 1 : -1);
       range.swipeDx = Math.max(-grid.clientWidth * .85, Math.min(grid.clientWidth * .85, dx));
       if (range.swipeFrame) return;
       range.swipeFrame = requestAnimationFrame(() => {
@@ -12180,29 +12192,89 @@
         if (state.calendarRange !== range) return;
         grid.style.willChange = "transform";
         grid.style.transform = `translate3d(${range.swipeDx}px,0,0)`;
+        positionCalendarSwipePages(range, range.swipeDx);
       });
+    }
+    function ensureCalendarSwipePage(range, step) {
+      const grid = range.swipeGrid;
+      if (!range.swipeStage) {
+        const stage = document.createElement("div");
+        stage.className = "calendar-swipe-stage";
+        stage.style.cssText = "position:relative;overflow:hidden;width:100%;";
+        grid.before(stage);
+        stage.appendChild(grid);
+        range.swipeStage = stage;
+        range.swipePages = {};
+      }
+      if (range.swipePages[step]) return;
+      const container = document.createElement("div");
+      const cursor = state.monthCursor;
+      renderCalendar(container, true, new Date(cursor.getFullYear(), cursor.getMonth() + step, 1));
+      const page = container.querySelector(".calendar-grid");
+      page.setAttribute("aria-hidden", "true");
+      page.inert = true;
+      page.style.cssText += ";position:absolute;left:0;top:0;width:100%;pointer-events:none;will-change:transform;";
+      // Preview pages must never participate in real date hit-testing.
+      page.querySelectorAll("[data-date]").forEach(el => el.removeAttribute("data-date"));
+      range.swipeStage.appendChild(page);
+      range.swipePages[step] = page;
+      positionCalendarSwipePages(range, range.swipeDx || 0);
+    }
+    function positionCalendarSwipePages(range, dx) {
+      const width = range.swipeGrid.clientWidth;
+      Object.entries(range.swipePages || {}).forEach(([step, page]) => {
+        page.style.transform = `translate3d(${Number(step) * width + dx}px,0,0)`;
+      });
+    }
+    function cleanupCalendarSwipePages(range) {
+      const grid = range.swipeGrid;
+      if (range.swipeStage?.isConnected) {
+        range.swipeStage.before(grid);
+        range.swipeStage.remove();
+      }
+      grid.style.transform = "";
+      grid.style.willChange = "";
+      range.swipePages = {};
+      range.swipeStage = null;
     }
     function settleCalendarSwipe(range, commit = false) {
       if (range?.swipeFrame) cancelAnimationFrame(range.swipeFrame);
       const grid = range?.swipeGrid;
       if (!grid) return false;
       const dx = range.swipeDx || 0;
-      grid.style.transform = "";
-      grid.style.willChange = "";
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const step = dx < 0 ? 1 : -1;
       const finish = () => {
+        cleanupCalendarSwipePages(range);
         state.monthSwipeSettling = false;
-        if (commit) moveMonth(step);
+        if (commit) moveMonth(step, false);
       };
       if (reduced || !grid.animate) { finish(); return true; }
       state.monthSwipeSettling = true;
+      const end = commit ? (dx < 0 ? -1 : 1) * grid.clientWidth : 0;
+      const timing = { duration: commit ? 220 : 240, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" };
+      const companions = Object.entries(range.swipePages || {}).map(([offset, page]) => {
+        const base = Number(offset) * grid.clientWidth;
+        return page.animate([
+          { transform: `translateX(${base + dx}px)` },
+          { transform: `translateX(${base + end}px)` }
+        ], timing);
+      });
       const animation = grid.animate([
         { transform: `translateX(${dx}px)` },
-        { transform: `translateX(${commit ? (dx < 0 ? -1 : 1) * grid.clientWidth : 0}px)` }
-      ], { duration: commit ? 180 : 220, easing: "cubic-bezier(.22,.8,.24,1)" });
-      animation.onfinish = finish;
-      animation.oncancel = () => { state.monthSwipeSettling = false; };
+        { transform: `translateX(${end}px)` }
+      ], timing);
+      animation.onfinish = () => {
+        animation.oncancel = null;
+        animation.cancel();
+        companions.forEach(item => item.cancel());
+        finish();
+      };
+      animation.oncancel = () => {
+        companions.forEach(item => item.cancel());
+        cleanupCalendarSwipePages(range);
+        state.monthSwipeSettling = false;
+      };
       return true;
     }
     function clearDropTarget() {
@@ -13636,12 +13708,12 @@
       stopAiSpeech();
     });
     [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, lunarDatePickerDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
-    window.moveMonth = step => {
+    window.moveMonth = (step, animate = true) => {
       if (state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling) return;
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
       render();
       const grid = document.querySelector("#mainCalendar .calendar-grid");
-      if (grid && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (animate && grid && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         grid.animate?.([
           { transform: `translateX(${step > 0 ? 36 : -36}px)`, opacity: .45 },
           { transform: "translateX(0)", opacity: 1 }
