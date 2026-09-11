@@ -3112,6 +3112,12 @@
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
     html { overscroll-behavior-y: none; }
+    .app-shell { transition: transform .24s cubic-bezier(.22, .8, .24, 1); }
+    html.pull-refresh-active .app-shell {
+      transform: translate3d(0, var(--pull-content-distance, 0px), 0);
+      transition: none;
+      will-change: transform;
+    }
     .pull-refresh-indicator {
       --pull-rotate: 0deg;
       position: fixed;
@@ -7182,8 +7188,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.48";
+    const appVersion = "1.7.49";
     const versionHistory = [
+      {
+        version: "1.7.49",
+        date: "2026-09-11",
+        title: "당겨서 새로고침 움직임 개선",
+        changes: [
+          "손가락을 아래로 당기는 동안 화면 본문도 저항감을 두고 함께 이동",
+          "짧게 당기면 부드럽게 원위치로 복귀하고 새로고침 시 내려온 상태 유지",
+          "화면 중앙 회전 모래시계와 본문 이동을 함께 표시"
+        ]
+      },
       {
         version: "1.7.48",
         date: "2026-09-11",
@@ -8903,6 +8919,8 @@
       if (!indicator) return;
       const shown = Math.max(0, Math.min(132, Number(distance) || 0));
       const progress = Math.min(1, shown / 84);
+      const contentDistance = refreshing ? 54 : Math.round(Math.min(58, shown * .48));
+      document.documentElement.style.setProperty("--pull-content-distance", `${contentDistance}px`);
       indicator.style.setProperty("--pull-rotate", `${Math.round(progress * 300)}deg`);
       indicator.classList.toggle("visible", shown > 2 || refreshing);
       indicator.classList.toggle("refreshing", refreshing);
@@ -8954,7 +8972,6 @@
       pullRefresh.active = false;
       pullRefresh.tracking = false;
       pullRefresh.refreshing = true;
-      document.documentElement.classList.remove("pull-refresh-active");
       renderPullRefresh(84, true);
       setTimeout(() => window.location.reload(), 360);
     }, { passive: true });
@@ -18323,4 +18340,3 @@
   </script>
 </body>
 </html>
-
