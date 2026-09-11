@@ -2860,6 +2860,17 @@
     }
     body.calendar-dragging .bottom-nav {
       pointer-events: none;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    body.calendar-dragging .calendar-drag-ghost,
+    body.calendar-dragging .maintenance-drag-ghost {
+      box-shadow: 0 3px 8px rgba(22, 28, 38, .16) !important;
+      transition: none !important;
+    }
+    body.calendar-dragging .calendar-drag-cancel-zone {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
     html.calendar-dragging-root {
       scroll-behavior: auto !important;
@@ -7104,8 +7115,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.45";
+    const appVersion = "1.7.46";
     const versionHistory = [
+      {
+        version: "1.7.46",
+        date: "2026-09-11",
+        title: "모바일 일정 드래그 성능 개선",
+        changes: [
+          "일정 드래그 중 날짜 위치 측정 결과를 재사용하여 반복 화면 계산 축소",
+          "스크롤·화면 크기 변경·달력 갱신 시 드롭 날짜 계산 보정",
+          "드래그 중에만 그림자와 흐림 효과를 줄여 화면 처리 부담 완화"
+        ]
+      },
       {
         version: "1.7.45",
         date: "2026-09-11",
@@ -12348,6 +12369,7 @@
       zone?.setAttribute("aria-hidden", "true");
     }
     function setCalendarDragging(active) {
+      if (document.body.classList.contains("calendar-dragging") === Boolean(active)) return;
       document.body.classList.toggle("calendar-dragging", Boolean(active));
       document.documentElement.classList.toggle("calendar-dragging-root", Boolean(active));
       if (!active) clearCalendarDragCancelZone();
@@ -12369,6 +12391,12 @@
     function dateCellFromPoint(x, y, draggedEl) {
       // Event bars are separate overlapping layers. Read cell rectangles directly,
       // without toggling visibility and forcing repeated style/hit-test passes.
+      const drag = state.calendarDrag || state.maintenanceOrgDrag;
+      if (drag?.moved) {
+        const geometry = scheduleDragGeometry(drag);
+        const px = x + window.scrollX, py = y + window.scrollY;
+        return geometry?.cells.find(cell => px >= cell.left && px <= cell.right && py >= cell.top && py <= cell.bottom)?.el || null;
+      }
       for (const cell of document.querySelectorAll("#mainCalendar .day-cell[data-date]")) {
         const rect = cell.getBoundingClientRect();
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell;
@@ -12410,6 +12438,22 @@
       if (drag.autoScrollFrame) cancelAnimationFrame(drag.autoScrollFrame);
       drag.autoScrollFrame = 0;
       drag.autoScrollLastTime = 0;
+      drag.geometry = null;
+    }
+    function scheduleDragGeometry(drag) {
+      const grid = document.querySelector("#mainCalendar .calendar-grid");
+      if (!grid) return null;
+      const previous = drag.geometry;
+      if (previous && previous.grid === grid && previous.first === grid.firstElementChild
+          && previous.width === window.innerWidth && previous.height === window.innerHeight) return previous;
+      const sx = window.scrollX, sy = window.scrollY;
+      const rect = grid.getBoundingClientRect();
+      const cells = [...grid.querySelectorAll(".day-cell[data-date]")].map(el => {
+        const r = el.getBoundingClientRect();
+        return {el, left:r.left+sx, right:r.right+sx, top:r.top+sy, bottom:r.bottom+sy};
+      });
+      return drag.geometry = {grid, first:grid.firstElementChild, width:window.innerWidth, height:window.innerHeight,
+        left:rect.left+sx, right:rect.right+sx, top:rect.top+sy, bottom:rect.bottom+sy, cells};
     }
     function scheduleDragViewportBounds() {
       const viewport = window.visualViewport;
@@ -12437,8 +12481,8 @@
       const grid = document.querySelector("#mainCalendar .calendar-grid");
       if (!grid || !Number.isFinite(drag?.lastX) || !Number.isFinite(drag?.lastY)) return 0;
       if (isPointInCalendarDragCancelZone(drag.lastX, drag.lastY)) return 0;
-      const gridRect = grid.getBoundingClientRect();
-      if (drag.lastX < gridRect.left - 20 || drag.lastX > gridRect.right + 20) return 0;
+      const geometry = scheduleDragGeometry(drag);
+      if (!geometry || drag.lastX + window.scrollX < geometry.left - 20 || drag.lastX + window.scrollX > geometry.right + 20) return 0;
       const bounds = scheduleDragViewportBounds();
       const usableHeight = Math.max(1, bounds.bottom - bounds.top);
       const isTouch = drag.pointerType === "touch" || drag.pointerType === "pen";
@@ -12500,11 +12544,9 @@
       let delta = velocity * elapsed;
       const grid = document.querySelector("#mainCalendar .calendar-grid");
       if (grid) {
-        const weeks = grid.querySelectorAll(".calendar-week");
-        const firstRect = weeks[0]?.getBoundingClientRect() || grid.getBoundingClientRect();
-        const lastRect = weeks[weeks.length - 1]?.getBoundingClientRect() || grid.getBoundingClientRect();
-        if (delta < 0) delta = Math.max(delta, -Math.max(0, drag.lastY - firstRect.top - 12));
-        if (delta > 0) delta = Math.min(delta, Math.max(0, lastRect.bottom - drag.lastY - 12));
+        const geometry = scheduleDragGeometry(drag);
+        if (geometry && delta < 0) delta = Math.max(delta, -Math.max(0, drag.lastY + window.scrollY - geometry.top - 12));
+        if (geometry && delta > 0) delta = Math.min(delta, Math.max(0, geometry.bottom - window.scrollY - drag.lastY - 12));
       }
       scroller.scrollTop = Math.max(0, Math.min(maximum, before + delta));
       if (Math.abs(scroller.scrollTop - before) < .5) {
