@@ -3111,6 +3111,52 @@
       transition: opacity .18s ease, transform .18s ease;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+    html { overscroll-behavior-y: none; }
+    .pull-refresh-indicator {
+      --pull-distance: 0px;
+      --pull-rotate: 0deg;
+      position: fixed;
+      top: 0;
+      left: 50%;
+      z-index: 10020;
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(0, 122, 255, .16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .94);
+      color: #087f8c;
+      box-shadow: 0 6px 18px rgba(22, 34, 45, .16);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate3d(-50%, calc(-58px + var(--pull-distance)), 0) rotate(var(--pull-rotate));
+      transition: opacity .12s ease, transform .12s ease;
+      will-change: transform, opacity;
+    }
+    .pull-refresh-indicator.visible { opacity: 1; transition: opacity .08s ease; }
+    .pull-refresh-indicator.refreshing {
+      --pull-distance: 82px;
+      opacity: 1;
+      animation: pull-refresh-hourglass .72s linear infinite;
+    }
+    .pull-refresh-indicator svg {
+      width: 25px;
+      height: 25px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    @keyframes pull-refresh-hourglass {
+      from { transform: translate3d(-50%, 24px, 0) rotate(0deg); }
+      to { transform: translate3d(-50%, 24px, 0) rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pull-refresh-indicator { transition: opacity .08s linear; }
+      .pull-refresh-indicator.refreshing { animation-duration: 1.4s; }
+    }
     .ai-command-fab {
       position: fixed;
       right: max(16px, env(safe-area-inset-right));
@@ -4453,6 +4499,9 @@
   </style>
 </head>
 <body class="auth-pending">
+  <div class="pull-refresh-indicator" id="pullRefreshIndicator" role="status" aria-live="polite" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12M6 22h12M7 2c0 5 2 6.2 5 9-3 2.8-5 4-5 9M17 2c0 5-2 6.2-5 9 3 2.8 5 4 5 9"/><path d="M9 6h6M9 18h6"/></svg>
+  </div>
   <section class="login-screen" aria-label="ReportMate 로그인">
     <div class="login-card">
       <div class="login-logo" aria-hidden="true">
@@ -7115,8 +7164,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.46";
+    const appVersion = "1.7.47";
     const versionHistory = [
+      {
+        version: "1.7.47",
+        date: "2026-09-11",
+        title: "화면 당겨서 새로고침",
+        changes: [
+          "화면 최상단에서 아래로 당긴 뒤 놓으면 페이지 새로고침",
+          "당기는 거리와 새로고침 상태를 중앙 회전 모래시계로 표시",
+          "가로 제스처·입력창·팝업·일정 드래그와 충돌하지 않도록 분리"
+        ]
+      },
       {
         version: "1.7.46",
         date: "2026-09-11",
@@ -8801,6 +8860,77 @@
       else if (normalized === "memo") renderMemos();
       else renderVehicle();
     }
+    const pullRefresh = { active: false, tracking: false, refreshing: false, startX: 0, startY: 0, distance: 0 };
+    function pullRefreshScrollTop() {
+      return Math.max(0, Number((document.scrollingElement || document.documentElement)?.scrollTop) || 0);
+    }
+    function pullRefreshBlocked(target) {
+      return pullRefresh.refreshing || state.calendarDrag || state.maintenanceOrgDrag || state.calendarRange?.armed
+        || state.monthSwipeSettling || Boolean(document.querySelector("dialog[open]"))
+        || Boolean(target?.closest?.("input, textarea, select, button, [contenteditable='true'], .calendar-wheel"));
+    }
+    function renderPullRefresh(distance = 0, refreshing = false) {
+      const indicator = document.getElementById("pullRefreshIndicator");
+      if (!indicator) return;
+      const shown = Math.max(0, Math.min(132, Number(distance) || 0));
+      const progress = Math.min(1, shown / 84);
+      indicator.style.setProperty("--pull-distance", `${Math.round(shown * .68)}px`);
+      indicator.style.setProperty("--pull-rotate", `${Math.round(progress * 300)}deg`);
+      indicator.classList.toggle("visible", shown > 2 || refreshing);
+      indicator.classList.toggle("refreshing", refreshing);
+      indicator.setAttribute("aria-hidden", shown > 2 || refreshing ? "false" : "true");
+      indicator.setAttribute("aria-label", refreshing ? "새로고침 중" : (progress >= 1 ? "놓아서 새로고침" : "아래로 당겨 새로고침"));
+    }
+    function cancelPullRefresh() {
+      if (pullRefresh.refreshing) return;
+      pullRefresh.active = false;
+      pullRefresh.tracking = false;
+      pullRefresh.distance = 0;
+      document.documentElement.classList.remove("pull-refresh-active");
+      renderPullRefresh(0, false);
+    }
+    document.addEventListener("touchstart", event => {
+      const touch = event.touches?.[0];
+      if (!touch || event.touches.length !== 1 || pullRefreshScrollTop() > 0 || pullRefreshBlocked(event.target)) return;
+      pullRefresh.active = true;
+      pullRefresh.tracking = false;
+      pullRefresh.startX = touch.clientX;
+      pullRefresh.startY = touch.clientY;
+      pullRefresh.distance = 0;
+    }, { passive: true });
+    document.addEventListener("touchmove", event => {
+      if (!pullRefresh.active || pullRefresh.refreshing || event.touches?.length !== 1) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - pullRefresh.startX;
+      const dy = touch.clientY - pullRefresh.startY;
+      if (!pullRefresh.tracking) {
+        if (Math.abs(dx) + Math.abs(dy) < 8) return;
+        if (dy <= 0 || Math.abs(dx) > dy * .7 || pullRefreshScrollTop() > 0 || pullRefreshBlocked(event.target)) {
+          cancelPullRefresh();
+          return;
+        }
+        pullRefresh.tracking = true;
+        document.documentElement.classList.add("pull-refresh-active");
+      }
+      if (event.cancelable) event.preventDefault();
+      pullRefresh.distance = Math.min(132, Math.max(0, dy * .58));
+      renderPullRefresh(pullRefresh.distance, false);
+    }, { capture: true, passive: false });
+    document.addEventListener("touchend", () => {
+      if (!pullRefresh.active || pullRefresh.refreshing) return;
+      const shouldRefresh = pullRefresh.tracking && pullRefresh.distance >= 84;
+      if (!shouldRefresh) {
+        cancelPullRefresh();
+        return;
+      }
+      pullRefresh.active = false;
+      pullRefresh.tracking = false;
+      pullRefresh.refreshing = true;
+      document.documentElement.classList.remove("pull-refresh-active");
+      renderPullRefresh(84, true);
+      setTimeout(() => window.location.reload(), 360);
+    }, { passive: true });
+    document.addEventListener("touchcancel", cancelPullRefresh, { passive: true });
     function switchView(view, { renderView = true } = {}) {
       if (view === "vehicle") {
         state.recordTab = "vehicle";
