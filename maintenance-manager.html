@@ -3113,10 +3113,9 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
     html { overscroll-behavior-y: none; }
     .pull-refresh-indicator {
-      --pull-distance: 0px;
       --pull-rotate: 0deg;
       position: fixed;
-      top: 0;
+      top: 50%;
       left: 50%;
       z-index: 10020;
       width: 46px;
@@ -3130,13 +3129,12 @@
       box-shadow: 0 6px 18px rgba(22, 34, 45, .16);
       opacity: 0;
       pointer-events: none;
-      transform: translate3d(-50%, calc(-58px + var(--pull-distance)), 0) rotate(var(--pull-rotate));
+      transform: translate3d(-50%, -50%, 0) rotate(var(--pull-rotate));
       transition: opacity .12s ease, transform .12s ease;
       will-change: transform, opacity;
     }
     .pull-refresh-indicator.visible { opacity: 1; transition: opacity .08s ease; }
     .pull-refresh-indicator.refreshing {
-      --pull-distance: 82px;
       opacity: 1;
       animation: pull-refresh-hourglass .72s linear infinite;
     }
@@ -3150,12 +3148,32 @@
       stroke-linejoin: round;
     }
     @keyframes pull-refresh-hourglass {
-      from { transform: translate3d(-50%, 24px, 0) rotate(0deg); }
-      to { transform: translate3d(-50%, 24px, 0) rotate(360deg); }
+      from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
+      to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
     }
     @media (prefers-reduced-motion: reduce) {
       .pull-refresh-indicator { transition: opacity .08s linear; }
       .pull-refresh-indicator.refreshing { animation-duration: 1.4s; }
+    }
+    html.native-android header,
+    html.native-android .panel,
+    html.native-android .bottom-nav,
+    html.native-android .ai-command-fab,
+    html.native-android .monthly-maintenance-toggle,
+    html.native-android .calendar-drag-cancel-zone {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    html.native-android .panel { background: rgba(255, 255, 255, .97); }
+    html.native-android header,
+    html.native-android .bottom-nav { background: rgba(255, 255, 255, .98); }
+    .org-card,
+    .work-log-bubble,
+    .memo-card,
+    .vehicle-record-card,
+    .notification-item {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 180px;
     }
     .ai-command-fab {
       position: fixed;
@@ -7164,8 +7182,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.47";
+    const appVersion = "1.7.48";
     const versionHistory = [
+      {
+        version: "1.7.48",
+        date: "2026-09-11",
+        title: "화면 중앙 새로고침 및 체감 성능 개선",
+        changes: [
+          "당겨서 새로고침 모래시계를 화면 가로·세로 정중앙에 고정",
+          "Android 앱에서 무거운 실시간 흐림 효과를 줄여 스크롤과 화면 전환 개선",
+          "화면 밖 카드 렌더링과 대시보드 지도·설비 상태 중복 처리를 줄여 반응 속도 개선"
+        ]
+      },
       {
         version: "1.7.47",
         date: "2026-09-11",
@@ -8860,6 +8888,7 @@
       else if (normalized === "memo") renderMemos();
       else renderVehicle();
     }
+    document.documentElement.classList.toggle("native-android", Boolean(window.ReportMateAndroid));
     const pullRefresh = { active: false, tracking: false, refreshing: false, startX: 0, startY: 0, distance: 0 };
     function pullRefreshScrollTop() {
       return Math.max(0, Number((document.scrollingElement || document.documentElement)?.scrollTop) || 0);
@@ -8874,7 +8903,6 @@
       if (!indicator) return;
       const shown = Math.max(0, Math.min(132, Number(distance) || 0));
       const progress = Math.min(1, shown / 84);
-      indicator.style.setProperty("--pull-distance", `${Math.round(shown * .68)}px`);
       indicator.style.setProperty("--pull-rotate", `${Math.round(progress * 300)}deg`);
       indicator.classList.toggle("visible", shown > 2 || refreshing);
       indicator.classList.toggle("refreshing", refreshing);
@@ -9182,9 +9210,11 @@
       const sub = document.getElementById("todayDestinationMapSub");
       const mapEl = document.getElementById("todayDestinationMap");
       if (!mapEl || !sub) return;
-      const token = ++state.destinationMapRenderToken;
       const items = todayDestinationItems();
       sub.textContent = items.length ? `${items.length}곳` : "방문 일정 없음";
+      const signature = items.map(item => `${item.org.id}:${item.org.updatedAt || ""}:${item.address}:${item.schedules.map(schedule => schedule.id).join(",")}`).join("|");
+      if (state.destinationMap && state.destinationMapSignature === signature) return;
+      const token = ++state.destinationMapRenderToken;
       if (!window.L) {
         setDestinationMapStatus("지도를 준비하는 중입니다...");
         try {
@@ -9202,6 +9232,7 @@
       if (!items.length) {
         setDestinationMapStatus("오늘 방문일정이 있는 기관이 없습니다.");
         fitDestinationMap();
+        state.destinationMapSignature = signature;
         return;
       }
       setDestinationMapStatus("방문 기관 위치를 확인하는 중입니다.");
@@ -9230,6 +9261,7 @@
       if (missingAddress.length) notes.push(`주소 미입력: ${missingAddress.join(", ")}`);
       if (unresolved.length) notes.push(`위치 확인 필요: ${unresolved.join(", ")}`);
       setDestinationMapStatus(notes.join(" "));
+      state.destinationMapSignature = signature;
       if (!state.currentPositionAsked && location.protocol !== "file:") {
         state.currentPositionAsked = true;
         requestTodayMapLocation({ silent: true });
@@ -9237,7 +9269,10 @@
     }
     function scheduleTodayDestinationMapRender() {
       if (state.destinationMapRenderTimer) clearTimeout(state.destinationMapRenderTimer);
-      state.destinationMapRenderTimer = setTimeout(renderTodayDestinationMapNow, 80);
+      state.destinationMapRenderTimer = setTimeout(() => {
+        state.destinationMapRenderTimer = null;
+        if (currentViewName() === "dashboard") renderTodayDestinationMapNow();
+      }, 180);
     }
     function updateCurrentLocationMarker() {
       const map = ensureDestinationMap();
@@ -15547,6 +15582,15 @@
         state.parkingStatusLoading = false;
       }
     }
+    function scheduleDashboardBackgroundRefresh() {
+      if (state.dashboardStatusRefreshTimer) clearTimeout(state.dashboardStatusRefreshTimer);
+      state.dashboardStatusRefreshTimer = setTimeout(() => {
+        state.dashboardStatusRefreshTimer = null;
+        if (currentViewName() !== "dashboard" || document.hidden) return;
+        refreshParkingDashboardStatus();
+        refreshAmsysDashboardStatus();
+      }, 180);
+    }
     function renderDashboardView() {
       todayDateTag.textContent = formatDate(todayISO());
       tomorrowDateTag.textContent = formatDate(todayISO(1));
@@ -15555,9 +15599,7 @@
       renderDashboardSearch();
       renderWeeklyReport();
       scheduleTodayDestinationMapRender();
-      refreshParkingDashboardStatus();
-      refreshAmsysDashboardStatus();
-      refreshEquipmentPowerStatus({ silent: true });
+      scheduleDashboardBackgroundRefresh();
     }
     function renderMemoView() {
       switchRecordTab(state.recordTab);
@@ -18281,8 +18323,4 @@
   </script>
 </body>
 </html>
-
-
-
-
 
