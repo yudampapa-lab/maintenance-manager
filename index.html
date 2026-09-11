@@ -7104,8 +7104,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.44";
+    const appVersion = "1.7.45";
     const versionHistory = [
+      {
+        version: "1.7.45",
+        date: "2026-09-11",
+        title: "오늘 할일 완료 반응 속도 개선",
+        changes: [
+          "완료 체크에서 전체 데이터 정리와 반복일정 보정 제거",
+          "해당 카드의 완료 도장과 순서만 갱신하여 메모 입력창 유지",
+          "관련 데이터만 기기에 저장하고 서버 동기화는 지연 처리"
+        ]
+      },
       {
         version: "1.7.44",
         date: "2026-09-09",
@@ -10387,13 +10397,13 @@
         : (options.showNote && note ? `<div class="dashboard-note-section"><span class="dashboard-note-label">비고</span><div class="dashboard-schedule-note" title="${escapeAttr(note)}">${escapeHTML(note)}</div></div>` : "");
       const completedStamp = options.showCompletion && completed ? '<span class="schedule-complete-stamp" aria-label="완료됨">완료</span>' : "";
       const completionControl = options.showCompletion ? `<label class="schedule-complete-control${completed ? " checked" : ""}" title="${completed ? "완료 취소" : "할일 완료"}">
-        <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}')" aria-label="${escapeAttr(schedule.title)} 완료">
+        <input type="checkbox" ${completed ? "checked" : ""} onchange="toggleTodayScheduleCompleted('${schedule.id}', this)" aria-label="${escapeAttr(schedule.title)} 완료">
         <span>완료</span>
       </label>` : "";
       const teamLine = schedule.type === "team" && schedule.teamMembers ? `<div class="visit-meta">팀원: ${escapeHTML(formatTeamMembersWithRoles(schedule.teamMembers))}</div>` : "";
       const reasonLine = scheduleVisitReasonLabel(schedule) ? `<div class="visit-meta">방문사유: ${escapeHTML(scheduleVisitReasonLabel(schedule))}</div>` : "";
       if (!o) {
-        return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
+        return `<article data-visit-schedule-id="${escapeAttr(schedule.id)}" class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
           <div class="visit-top">
             <div class="visit-title-text"><h3>${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(scheduleTypeLabel(schedule))} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
             <div class="visit-statuses"><span class="tag gray">개인</span>${completedStamp}</div>
@@ -10416,7 +10426,7 @@
         ? buildRecentVisitDateMap(schedule.date).get(o.id) || ""
         : "";
       const recentVisitMeta = options.showRecentVisit ? ` · 최근 방문 ${recentVisitText(previousVisit)}` : "";
-      return `<article class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
+      return `<article data-visit-schedule-id="${escapeAttr(schedule.id)}" class="visit-card schedule-accent${completedClass}${dashboardClass}" ${scheduleColorStyleAttr(schedule)}>
         <div class="visit-top">
           <div class="visit-title-text"><h3 class="${nameClass}">${escapeHTML(schedule.title)}</h3><div class="visit-meta">${escapeHTML(o.name)}${escapeHTML(recentVisitMeta)} · ${escapeHTML(o.region)} · ${escapeHTML(scheduleDateLabel(schedule))} · ${escapeHTML(scheduleTimeLabel(schedule))}</div></div>
           <div class="visit-statuses">
@@ -10441,7 +10451,35 @@
         </div>
       </article>`;
     }
-    window.toggleTodayScheduleCompleted = async id => {
+    function updateTodayCompletionCard(id, completed, input) {
+      const wrap = document.getElementById("todayVisits");
+      const cards = [...(wrap?.querySelectorAll("[data-visit-schedule-id]") || [])];
+      const card = input?.closest("[data-visit-schedule-id]") || cards.find(el => el.dataset.visitScheduleId === id);
+      if (!card) { renderVisits("todayVisits", todayISO()); return; }
+      card.classList.toggle("is-completed", completed);
+      const control = card.querySelector(".schedule-complete-control");
+      control?.classList.toggle("checked", completed);
+      if (control) control.title = completed ? "완료 취소" : "할일 완료";
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      if (checkbox) checkbox.checked = completed;
+      const stamp = card.querySelector(".schedule-complete-stamp");
+      if (!completed) stamp?.remove();
+      else if (!stamp) {
+        const badge = document.createElement("span");
+        badge.className = "schedule-complete-stamp";
+        badge.setAttribute("aria-label", "완료됨");
+        badge.textContent = "완료";
+        card.querySelector(".visit-statuses")?.appendChild(badge);
+      }
+      const order = sortedSchedules(todayISO());
+      order.sort((a, b) => Number(Boolean(a.completed || a.completedAt)) - Number(Boolean(b.completed || b.completedAt)));
+      const byId = new Map(cards.map(el => [el.dataset.visitScheduleId, el]));
+      // Move only this card; keep other cards and their memo editors intact.
+      const index = order.findIndex(item => item.id === id);
+      const next = order.slice(index + 1).map(item => byId.get(item.id)).find(Boolean);
+      if (card.nextElementSibling !== (next || null)) wrap.insertBefore(card, next || null);
+    }
+    window.toggleTodayScheduleCompleted = (id, input) => {
       const schedule = state.schedules.find(item => item.id === id);
       if (!schedule) return;
       const completed = !Boolean(schedule.completed || schedule.completedAt);
@@ -10452,12 +10490,21 @@
       state.settings.cloudPendingScheduleSyncToken = `${now}:${uid()}`;
       markGoogleDirty(schedule);
       logAdminAction("일정", completed ? "할일 완료" : "할일 완료 취소", `${schedule.title} · ${formatDateWithYear(schedule.date)}`);
-      save();
-      renderVisits("todayVisits", todayISO());
+      // No global normalization, recurrence repair or full-list render for a checkbox.
+      let localSaved = true;
+      try {
+        localStorage.setItem("maint_schedules", JSON.stringify(state.schedules));
+        localStorage.setItem("maint_settings", JSON.stringify(state.settings));
+        localStorage.setItem("maint_admin_logs", JSON.stringify(state.adminLogs));
+      } catch (error) {
+        localSaved = false;
+        console.warn("Completion local save failed", error);
+      }
+      updateTodayCompletionCard(id, completed, input);
       scheduleGoogleAutoSync("schedule-completion");
-      toast(completed ? "오늘 할일을 완료했습니다." : "완료를 취소했습니다.");
-      const cloudSaved = await persistSchedulesNow("schedule-completion");
-      if (cloudSaved === false) toast("기기에는 저장됐고 서버 동기화를 자동 재시도합니다.");
+      scheduleCloudSave("schedule-completion", 900);
+      toast(localSaved ? (completed ? "오늘 할일을 완료했습니다." : "완료를 취소했습니다.")
+        : "기기 저장에 실패했습니다. 서버 동기화 상태를 확인해주세요.");
     };
     const todayScheduleNoteTimers = new Map();
     function migrateAndroidScheduleNotesForCloud() {
