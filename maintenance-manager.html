@@ -4668,10 +4668,10 @@
         </section>
         <section class="panel parking-status-panel amsys-status-panel" id="amsysStatusPanel">
           <div class="panel-head">
-            <div><h2 class="panel-title">AMSYS21 검침 상태</h2><p class="panel-sub" id="amsysStatusLastSeen">마지막 검침 확인 중</p></div>
+            <div><h2 class="panel-title">전력량계 검침 상태</h2><p class="panel-sub" id="amsysStatusLastSeen">마지막 검침 확인 중</p></div>
             <div class="parking-status-head-actions">
               <span class="tag" id="amsysAlertModeTag">장애알림 사용</span>
-              <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshAmsysStatusBtn" title="상태 새로고침" aria-label="AMSYS21 검침 상태 새로고침">
+              <button type="button" class="icon tiny secondary parking-status-refresh" id="refreshAmsysStatusBtn" title="상태 새로고침" aria-label="전력량계 검침 상태 새로고침">
                 <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
               </button>
             </div>
@@ -4897,7 +4897,7 @@
               <div class="field"><label>오늘 일정 알림</label><select id="dailyNotificationEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select></div>
               <div class="field"><label>오늘 일정 알림 시간</label><input id="dailyNotificationTime" type="time" value="09:00"></div>
               <div class="field"><label>유지보수 재계약 알림</label><input id="maintenanceRenewalNoticeDays" type="number" min="0" max="365" step="1" value="30"><div class="file-hint">유지보수 종료일 기준 · 0일이면 사용 안함 · 오전 9시 알림</div></div>
-              <div class="field"><label>설비 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">주차정산기·AMSYS21 · 최초 장애 즉시, 복구 전 업무시간 1시간 간격</div></div>
+              <div class="field"><label>설비 장애알림</label><select id="parkingAlertEnabled"><option value="1">사용</option><option value="0">사용 안함</option></select><div class="file-hint">주차정산기·전력량계 · 최초 장애 즉시, 복구 전 업무시간 1시간 간격</div></div>
               <div class="field"><label>푸시알림 미수신 시간</label><select id="notificationQuietHoursEnabled"><option value="0">사용 안함</option><option value="1">사용</option></select><div class="file-hint">설정한 시간에는 오늘 일정, 재계약 및 설비 장애알림을 표시하지 않습니다.</div></div>
               <div class="field"><label>미수신 시작 시간</label><input id="notificationQuietHoursStart" type="time" value="22:00"></div>
               <div class="field"><label>미수신 종료 시간</label><input id="notificationQuietHoursEnd" type="time" value="08:00"></div>
@@ -7193,8 +7193,16 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.50";
+    const appVersion = "1.7.51";
     const versionHistory = [
+      {
+        version: "1.7.51",
+        date: "2026-09-15",
+        title: "전력량계 검침 명칭 정정",
+        changes: [
+          "대시보드와 알림의 AMSYS21 표시 명칭을 전력량계 검침 상태로 통일"
+        ]
+      },
       {
         version: "1.7.50",
         date: "2026-09-11",
@@ -7287,11 +7295,11 @@
       {
         version: "1.7.41",
         date: "2026-09-04",
-        title: "AMSYS21 검침 장애 감시",
+        title: "전력량계 검침 장애 감시",
         changes: [
-          "AMSYS21 계량값이 5분 이상 갱신되지 않으면 대시보드 최상단에 장애 상태 표시",
+          "전력량계 검침값이 5분 이상 갱신되지 않으면 대시보드 최상단에 장애 상태 표시",
           "수집 프로그램 중단과 계량 데이터 정지를 구분할 수 있도록 마지막 신호·검침 시각 표시",
-          "Android 설비 장애알림에 AMSYS21 중단 및 정상 복구 푸시 추가"
+          "Android 설비 장애알림에 전력량계 검침 중단 및 정상 복구 푸시 추가"
         ]
       },
       {
@@ -15518,7 +15526,7 @@
       button.classList.add("is-loading");
       try {
         await refreshAmsysDashboardStatus();
-        toast("AMSYS21 검침 상태를 새로 확인했습니다.");
+        toast("전력량계 검침 상태를 새로 확인했습니다.");
       } finally {
         button.disabled = false;
         button.classList.remove("is-loading");
@@ -15528,7 +15536,7 @@
       if (state.amsysStatusLoading) return;
       const services = initFirebaseServices();
       if (!services?.auth?.currentUser) {
-        setAmsysDashboardStatus("", "로그인 후 확인", "AMSYS21 검침 상태는 ReportMate 로그인 후 표시됩니다.");
+        setAmsysDashboardStatus("", "로그인 후 확인", "전력량계 검침 상태는 ReportMate 로그인 후 표시됩니다.");
         return;
       }
       state.amsysStatusLoading = true;
@@ -15544,7 +15552,7 @@
         const heartbeatAge = lastSeen ? Date.now() - lastSeen.getTime() : Number.POSITIVE_INFINITY;
         const readingAge = latestReading ? Date.now() - latestReading.getTime() : Number.POSITIVE_INFINITY;
         const reported = String(device.status || "error").toLowerCase();
-        const deviceName = String(device.deviceName || "호디 R&D센터 AMSYS21");
+        const deviceName = String(device.deviceName || "호디 R&D센터 전력량계");
         const lastSeenText = latestReading
           ? `마지막 검침 ${latestReading.toLocaleString("ko-KR")} · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`
           : `마지막 검침 확인 불가 · 수집기 신호 ${lastSeen?.toLocaleString("ko-KR") || "확인 불가"}`;
@@ -18255,7 +18263,7 @@
     }
     function notificationSourceLabel(source) {
       if (source === "parking") return "주차정산기";
-      if (source === "amsys") return "AMSYS21";
+      if (source === "amsys") return "전력량계";
       if (source === "schedule") return "오늘 일정";
       if (source === "renewal") return "재계약";
       return "ReportMate";
