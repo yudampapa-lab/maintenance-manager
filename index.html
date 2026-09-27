@@ -7202,8 +7202,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.52";
+    const appVersion = "1.7.53";
     const versionHistory = [
+      {
+        version: "1.7.53",
+        date: "2026-09-27",
+        title: "일정 위에서도 모바일 달력 넘기기",
+        changes: [
+          "모바일에서 일정 카드를 좌우로 쓸어 월을 넘길 수 있도록 개선",
+          "길게 누른 뒤 일정 날짜를 옮기는 기능은 유지"
+        ]
+      },
       {
         version: "1.7.52",
         date: "2026-09-27",
@@ -12938,6 +12947,18 @@
       drag.lastY = event.clientY;
       const dx = event.clientX - drag.startX;
       const dy = event.clientY - drag.startY;
+      if (drag.monthSwipe) {
+        calendarRangeMove(event);
+        return;
+      }
+      if (drag.pointerType === "touch" && !drag.armed && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+        clearTimeout(drag.longPressTimer);
+        clearTimeout(drag.contextTimer);
+        drag.monthSwipe = true;
+        state.calendarRange = { startX: drag.startX, startY: drag.startY, pointerId: drag.pointerId, cancelled: true, fromSchedule: true };
+        calendarRangeMove(event);
+        return;
+      }
       if (drag.pointerType === "mouse" && Math.hypot(dx, dy) > 8) {
         drag.armed = true;
         clearTimeout(drag.longPressTimer);
@@ -12995,6 +13016,12 @@
       if (!drag || drag.id !== id) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      if (drag.monthSwipe) {
+        resetCalendarDragElement(drag);
+        state.calendarDrag = null;
+        calendarRangeEnd(event);
+        return;
+      }
       if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
         drag.lastX = event.clientX;
         drag.lastY = event.clientY;
@@ -13034,6 +13061,12 @@
       if (!drag || drag.id !== id) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
+      if (drag.monthSwipe) {
+        resetCalendarDragElement(drag);
+        state.calendarDrag = null;
+        calendarRangeCancel(event);
+        return;
+      }
       drag.cancelled = true;
       resetCalendarDragElement(drag);
       clearDropTarget();
@@ -13087,7 +13120,7 @@
     };
     window.calendarRangeMove = event => {
       const range = state.calendarRange;
-      if (!range || isSchedulePillTarget(event)) return;
+      if (!range || (!range.fromSchedule && isSchedulePillTarget(event))) return;
       const dx = Math.abs(event.clientX - range.startX);
       const dy = Math.abs(event.clientY - range.startY);
       if (!range.armed) {
