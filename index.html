@@ -4525,6 +4525,15 @@
         border-radius: 5px;
       }
     }
+    html.native-android .view.active { animation: none; }
+    html.native-android .login-card,
+    html.native-android .org-suggestions,
+    html.native-android .toast,
+    html.native-android dialog::backdrop {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    html.native-android .toast { background: rgba(28, 28, 30, .94); }
   </style>
 </head>
 <body class="auth-pending">
@@ -7193,8 +7202,19 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.51";
+    const appVersion = "1.7.52";
     const versionHistory = [
+      {
+        version: "1.7.52",
+        date: "2026-09-27",
+        title: "모바일 화면과 달력 넘김 성능 개선",
+        changes: [
+          "인접 달을 여유 시간에 미리 준비해 첫 슬라이드의 멈칫함 감소",
+          "음력·공휴일 계산 재사용 및 해당 월 일정만 처리해 달력 생성 속도 개선",
+          "스와이프 중 건강정보 동기화가 달력을 다시 그리지 않도록 조정",
+          "Android 앱의 큰 영역 흐림 및 탭 전환 효과를 가볍게 변경"
+        ]
+      },
       {
         version: "1.7.51",
         date: "2026-09-15",
@@ -11615,11 +11635,11 @@
     function scheduleOverlapsRange(schedule, start, end) {
       return schedule.date <= end && (schedule.endDate || schedule.date) >= start;
     }
-    function calendarWeekSegments(weekDates) {
+    function calendarWeekSegments(weekDates, candidates = state.schedules) {
       const weekStart = weekDates[0];
       const weekEnd = weekDates[6];
       const rowEnds = [];
-      return state.schedules
+      return candidates
         .filter(schedule => scheduleOverlapsRange(schedule, weekStart, weekEnd))
         .sort((a, b) => {
           const startCompare = Math.max(0, daysBetweenISO(weekStart, a.date)) - Math.max(0, daysBetweenISO(weekStart, b.date));
@@ -11687,9 +11707,14 @@
       "12-25": { label: "성탄절", substitute: "weekend" }
     };
     const holidayCalendarCache = {};
+    let lunarDateFormatter = null;
+    function lunarDateParts(date) {
+      lunarDateFormatter ||= new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" });
+      return lunarDateFormatter.formatToParts(date);
+    }
     function lunarMonthDay(date) {
       try {
-        const parts = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" }).formatToParts(date);
+        const parts = lunarDateParts(date);
         const month = parseInt(parts.find(part => part.type === "month")?.value, 10);
         const day = parseInt(parts.find(part => part.type === "day")?.value, 10);
         return month && day ? `${month}-${day}` : "";
@@ -11765,13 +11790,13 @@
       return holidayInfo(iso)?.labels[0] || "";
     }
     function lunarLabel(iso, date) {
+      if (date.getDay() !== 0 && iso !== todayISO()) return "";
       try {
-        const parts = new Intl.DateTimeFormat("ko-KR-u-ca-chinese", { month: "numeric", day: "numeric" }).formatToParts(date);
+        const parts = lunarDateParts(date);
         const month = parts.find(part => part.type === "month")?.value;
         const day = parts.find(part => part.type === "day")?.value;
         if (!month || !day) return "";
-        const shouldShow = date.getDay() === 0 || iso === todayISO();
-        return shouldShow ? `${month}.${day}` : "";
+        return `${month}.${day}`;
       } catch {
         return "";
       }
@@ -12241,12 +12266,14 @@
     }
     function applyHealthMonth(key, value, { overwrite = true } = {}) {
       if (state.monthlyStepsKey !== key) return;
+      const previous = JSON.stringify([state.monthlySteps, state.monthlyExercises, state.monthlyCalories]);
       const steps = normalizeHealthSteps(value?.steps, key);
       const exercises = normalizeHealthExercises(value?.exercises, key);
       const calories = normalizeHealthCalories(value?.calories, key);
       state.monthlySteps = overwrite ? { ...state.monthlySteps, ...steps } : { ...steps, ...state.monthlySteps };
       state.monthlyExercises = overwrite ? { ...state.monthlyExercises, ...exercises } : { ...exercises, ...state.monthlyExercises };
       state.monthlyCalories = overwrite ? { ...state.monthlyCalories, ...calories } : { ...calories, ...state.monthlyCalories };
+      if (previous === JSON.stringify([state.monthlySteps, state.monthlyExercises, state.monthlyCalories])) return;
       if (dayScheduleDialog?.open && state.selectedCalendarDate?.startsWith(`${key}-`)) {
         renderDayFitnessSummary(state.selectedCalendarDate);
       }
@@ -12385,6 +12412,10 @@
       }
     };
     function renderCalendar(targetId, compact = false, previewCursor = null) {
+      if (!previewCursor && (state.calendarRange || state.monthSwipeSettling)) {
+        state.calendarRenderPending = true;
+        return;
+      }
       const target = typeof targetId === "string" ? document.getElementById(targetId) : targetId;
       const cursor = previewCursor || state.monthCursor;
       const y = cursor.getFullYear();
@@ -12394,6 +12425,12 @@
       const weeks = [];
       const daysInMonth = new Date(y, m + 1, 0).getDate();
       const weekCount = Math.ceil((first.getDay() + daysInMonth) / 7);
+      const visibleEnd = new Date(start);
+      visibleEnd.setDate(start.getDate() + weekCount * 7 - 1);
+      const visibleStartISO = localDateISO(start);
+      const visibleEndISO = localDateISO(visibleEnd);
+      const visibleSchedules = state.schedules.filter(schedule => scheduleOverlapsRange(schedule, visibleStartISO, visibleEndISO));
+      const today = todayISO();
       for (let w = 0; w < weekCount; w++) {
         const weekDates = [];
         const cells = [];
@@ -12406,9 +12443,10 @@
           if (d.getMonth() !== m) classes.push("muted");
           if (d.getDay() === 0) classes.push("sunday");
           if (d.getDay() === 6) classes.push("saturday");
-          const holiday = holidayLabel(iso);
-          if (isHoliday(iso)) classes.push("holiday");
-          if (iso === todayISO()) classes.push("today");
+          const holidayEntry = holidayInfo(iso);
+          const holiday = holidayEntry?.labels[0] || "";
+          if (holidayEntry) classes.push("holiday");
+          if (iso === today) classes.push("today");
           const lunar = lunarLabel(iso, d);
           const stepCount = d.getMonth() === m ? Math.max(0, Math.round(Number(state.monthlySteps[iso]) || 0)) : 0;
           const stepText = calendarStepText(stepCount);
@@ -12419,7 +12457,7 @@
             ${stepText || hasExercise ? `<span class="day-steps ${stepCount >= 8000 ? "step-goal" : ""} ${hasExercise && !stepText ? "exercise-only" : ""}" title="${escapeHTML(healthTitle)}">${hasExercise ? `<svg class="day-exercise" viewBox="0 0 24 24" aria-label="운동 기록 있음"><path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-3.7 11.8 1-4.4 2.1 2V21h2v-7.5l-2.1-2 .6-3C14.7 9.9 16.7 11 19 11V9c-2 0-3.7-1.1-4.6-2.7l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.2L5 6.3V11h2V7.6l1.8-.7-1.6 8.2-4.9-1-.4 2 7.9 1.2Z"/></svg>` : ""}${stepText ? `<svg class="step-footprints" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-18 8 14)"><ellipse cx="8" cy="15" rx="2.4" ry="4.1"/><circle cx="5.1" cy="10.4" r="1"/><circle cx="7" cy="9.3" r="1.15"/><circle cx="9.2" cy="9.2" r="1.05"/><circle cx="11.1" cy="10.2" r=".9"/></g><g transform="rotate(18 16 9)"><ellipse cx="16" cy="9" rx="2.4" ry="4.1"/><circle cx="12.9" cy="13.7" r=".9"/><circle cx="14.8" cy="14.8" r="1.05"/><circle cx="17" cy="14.9" r="1.15"/><circle cx="18.9" cy="13.8" r="1"/></g></svg>${escapeHTML(stepText)}` : ""}</span>` : ""}
           </div>`);
         }
-        const segments = calendarWeekSegments(weekDates);
+        const segments = calendarWeekSegments(weekDates, visibleSchedules);
         const rowCount = Math.max(1, ...segments.map(segment => segment.row + 1));
         const bars = segments.map(({ schedule, startIndex, endIndex, row }) => {
             const org = orgForSchedule(schedule);
@@ -12447,18 +12485,69 @@
       if (!compact) requestMonthlySteps(y, m + 1);
       renderMonthlyMaintenancePanel();
       requestAnimationFrame(syncMonthlyMaintenancePanelHeight);
+      warmCalendarSwipePreviews();
     }
     function installSwipe(target) {
       target.style.overflowX = "clip";
       target.onpointerdown = null;
       target.onpointerup = null;
     }
+    const calendarSwipePreviewCache = { key: "", pages: {}, generation: 0, idleId: 0, idleType: "" };
+    function calendarSwipeMonthKey() {
+      return `${state.monthCursor.getFullYear()}-${state.monthCursor.getMonth()}`;
+    }
+    function makeCalendarSwipePage(step) {
+      const container = document.createElement("div");
+      const cursor = state.monthCursor;
+      renderCalendar(container, true, new Date(cursor.getFullYear(), cursor.getMonth() + step, 1));
+      const page = container.querySelector(".calendar-grid");
+      page.setAttribute("aria-hidden", "true");
+      page.inert = true;
+      page.style.cssText += ";position:absolute;left:0;top:0;width:100%;pointer-events:none;will-change:transform;";
+      page.querySelectorAll("[data-date]").forEach(el => el.removeAttribute("data-date"));
+      return page;
+    }
+    function warmCalendarSwipePreviews() {
+      const cache = calendarSwipePreviewCache;
+      if (cache.idleId) {
+        if (cache.idleType === "idle") cancelIdleCallback(cache.idleId);
+        else clearTimeout(cache.idleId);
+      }
+      cache.key = calendarSwipeMonthKey();
+      cache.pages = {};
+      const generation = ++cache.generation;
+      const steps = [1, -1];
+      const prepareNext = () => {
+        cache.idleId = 0;
+        if (generation !== cache.generation || currentViewName() !== "calendar" || state.calendarRange || state.monthSwipeSettling) return;
+        const step = steps.shift();
+        if (step == null) return;
+        cache.pages[step] = makeCalendarSwipePage(step);
+        if (steps.length) scheduleNext();
+      };
+      const scheduleNext = () => {
+        if (typeof requestIdleCallback === "function") {
+          cache.idleType = "idle";
+          cache.idleId = requestIdleCallback(prepareNext, { timeout: 1500 });
+        } else {
+          cache.idleType = "timeout";
+          cache.idleId = setTimeout(prepareNext, 250);
+        }
+      };
+      scheduleNext();
+    }
+    function flushPendingCalendarRender() {
+      if (!state.calendarRenderPending || state.monthSwipeSettling || state.calendarRange) return;
+      state.calendarRenderPending = false;
+      if (currentViewName() === "calendar") renderCalendar("mainCalendar", false);
+    }
     function previewCalendarSwipe(range, dx) {
       const grid = range.swipeGrid || document.querySelector("#mainCalendar .calendar-grid");
       if (!grid) return;
       range.swipeGrid = grid;
+      range.swipeWidth ||= grid.clientWidth;
       ensureCalendarSwipePage(range, dx < 0 ? 1 : -1);
-      range.swipeDx = Math.max(-grid.clientWidth * .85, Math.min(grid.clientWidth * .85, dx));
+      range.swipeDx = Math.max(-range.swipeWidth * .85, Math.min(range.swipeWidth * .85, dx));
       if (range.swipeFrame) return;
       range.swipeFrame = requestAnimationFrame(() => {
         range.swipeFrame = 0;
@@ -12480,21 +12569,16 @@
         range.swipePages = {};
       }
       if (range.swipePages[step]) return;
-      const container = document.createElement("div");
-      const cursor = state.monthCursor;
-      renderCalendar(container, true, new Date(cursor.getFullYear(), cursor.getMonth() + step, 1));
-      const page = container.querySelector(".calendar-grid");
-      page.setAttribute("aria-hidden", "true");
-      page.inert = true;
-      page.style.cssText += ";position:absolute;left:0;top:0;width:100%;pointer-events:none;will-change:transform;";
-      // Preview pages must never participate in real date hit-testing.
-      page.querySelectorAll("[data-date]").forEach(el => el.removeAttribute("data-date"));
+      const cache = calendarSwipePreviewCache;
+      const page = cache.key === calendarSwipeMonthKey() && cache.pages[step]
+        ? cache.pages[step] : makeCalendarSwipePage(step);
+      delete cache.pages[step];
       range.swipeStage.appendChild(page);
       range.swipePages[step] = page;
       positionCalendarSwipePages(range, range.swipeDx || 0);
     }
     function positionCalendarSwipePages(range, dx) {
-      const width = range.swipeGrid.clientWidth;
+      const width = range.swipeWidth || range.swipeGrid.clientWidth;
       Object.entries(range.swipePages || {}).forEach(([step, page]) => {
         page.style.transform = `translate3d(${Number(step) * width + dx}px,0,0)`;
       });
@@ -12520,14 +12604,20 @@
       const finish = () => {
         cleanupCalendarSwipePages(range);
         state.monthSwipeSettling = false;
-        if (commit) moveMonth(step, false);
+        if (commit) {
+          state.calendarRenderPending = false;
+          moveMonth(step, false);
+        } else {
+          flushPendingCalendarRender();
+        }
       };
       if (reduced || !grid.animate) { finish(); return true; }
       state.monthSwipeSettling = true;
-      const end = commit ? (dx < 0 ? -1 : 1) * grid.clientWidth : 0;
+      const width = range.swipeWidth || grid.clientWidth;
+      const end = commit ? (dx < 0 ? -1 : 1) * width : 0;
       const timing = { duration: commit ? 220 : 240, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" };
       const companions = Object.entries(range.swipePages || {}).map(([offset, page]) => {
-        const base = Number(offset) * grid.clientWidth;
+        const base = Number(offset) * width;
         return page.animate([
           { transform: `translateX(${base + dx}px)` },
           { transform: `translateX(${base + end}px)` }
@@ -12547,6 +12637,7 @@
         companions.forEach(item => item.cancel());
         cleanupCalendarSwipePages(range);
         state.monthSwipeSettling = false;
+        flushPendingCalendarRender();
       };
       return true;
     }
@@ -13033,6 +13124,7 @@
       state.calendarRange = null;
       const totalDx = event.clientX - range.startX;
       const totalDy = Math.abs(event.clientY - range.startY);
+      if (!range.swipeGrid) flushPendingCalendarRender();
       if (range.cancelled) {
         clearRangeSelection();
         const width = range.swipeGrid?.clientWidth || 360;
@@ -13071,6 +13163,7 @@
       settleCalendarSwipe(state.calendarRange, false);
       state.calendarRange = null;
       clearRangeSelection();
+      flushPendingCalendarRender();
     };
     window.openScheduleForDate = (event, date) => {
       if (state.monthSwipeSettling) return;
