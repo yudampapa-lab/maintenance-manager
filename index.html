@@ -37,7 +37,7 @@
     }
 
     * { box-sizing: border-box; }
-    .hidden { display: none !important; }
+    .hidden, [hidden] { display: none !important; }
     body {
       margin: 0;
       background: linear-gradient(180deg, #edf4f8 0%, #f7f9fb 42%, #eef3f6 100%);
@@ -3292,7 +3292,6 @@
       main { padding: 12px 10px 88px; }
       .form-grid { grid-template-columns: 1fr; }
       .panel-head { align-items: start; }
-      .top-actions .secondary { display: none; }
       .calendar-layout { grid-template-columns: minmax(0, 1fr) 158px; gap: 6px; }
       .monthly-maintenance-head h3 { font-size: 12px; }
       .monthly-maintenance-head p { font-size: 10px; }
@@ -4096,8 +4095,9 @@
         grid-template-columns: 1fr;
       }
       .work-log-recent-list { grid-template-columns: 1fr; }
-      .workout-preset-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
-      .workout-preset-toolbar #deleteWorkoutPresetBtn { grid-column: 2; }
+      .workout-preset-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .workout-preset-toolbar select { grid-column: 1 / -1; }
+      .workout-preset-toolbar button { min-height: 36px; padding: 7px 10px; font-size: 13px; }
       .work-log-shell {
         height: calc(100dvh - 178px);
         min-height: 340px;
@@ -4524,6 +4524,31 @@
         padding: 3px 4px;
         border-radius: 5px;
       }
+    }
+    /* Keep the scroll boundary on the calendar itself, including the nav-safe last row. */
+    body.calendar-view-active .app-shell { min-height: 100dvh; grid-template-rows: auto; }
+    body.calendar-view-active main { padding-bottom: 0; }
+    #view-calendar > .panel > .panel-body { padding-bottom: 0; }
+    #view-calendar #mainCalendar .calendar-week {
+      --calendar-week-floor: max(calc(86px + var(--event-rows) * 25px), calc((100dvh - 180px) / var(--calendar-weeks)));
+      min-height: var(--calendar-week-floor);
+    }
+    #view-calendar #mainCalendar .calendar-week:last-child {
+      min-height: calc(var(--calendar-week-floor) + max(82px, calc(72px + env(safe-area-inset-bottom))));
+    }
+    dialog[open] { display: flex; flex-direction: column; }
+    dialog > .modal-body { flex: 1 1 auto; min-height: 0; max-height: none; }
+    dialog > form { min-height: 0; max-height: inherit; }
+    @media (max-width: 540px) {
+      #view-calendar #mainCalendar .calendar-week {
+        --calendar-week-floor: max(calc(78px + var(--event-rows) * 23px), calc((100dvh - 180px) / var(--calendar-weeks)));
+      }
+      .workout-interval-row { grid-template-columns: 64px minmax(0, 1fr) 60px 32px; gap: 4px; }
+      .workout-interval-row input, .workout-interval-row select { padding-inline: 7px; font-size: 14px; }
+    }
+    @media (max-width: 380px) {
+      .topbar { gap: 8px; }
+      .top-actions { gap: 5px; }
     }
     html.native-android .view.active { animation: none; }
     html.native-android .login-card,
@@ -7202,8 +7227,20 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.54";
+    const appVersion = "1.7.55";
     const versionHistory = [
+      {
+        version: "1.7.55",
+        date: "2026-10-02",
+        title: "앱·웹 화면과 동작 안정성 점검",
+        changes: [
+          "캘린더 하단의 중복 여백을 제거하고 마지막 주까지 스크롤 범위 조정",
+          "모바일 설정 버튼, 숨김 표시, 팝업 하단 및 운동 프리셋 배치 개선",
+          "캘린더 다중 터치와 화면 전환 시 남는 드래그 상태 정리",
+          "운동 타이머 시작·재개 표시와 백그라운드 시간 오차 수정",
+          "지도·바코드 등 추가 기능 로딩 실패 후 재시도 개선"
+        ]
+      },
       {
         version: "1.7.54",
         date: "2026-09-30",
@@ -9043,7 +9080,10 @@
       }
       const focusedView = document.activeElement?.closest?.(".view");
       if (focusedView && focusedView.id !== "view-" + view) document.activeElement.blur();
-      if (view !== "calendar") closeMonthlyMaintenanceDrawer();
+      if (view !== "calendar") {
+        cancelCalendarInteractions();
+        closeMonthlyMaintenanceDrawer();
+      }
       document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
       document.getElementById("view-" + view).classList.add("active");
       document.body.classList.toggle("calendar-view-active", view === "calendar");
@@ -12430,7 +12470,7 @@
       }
     };
     function renderCalendar(targetId, compact = false, previewCursor = null) {
-      if (!previewCursor && (state.calendarRange || state.monthSwipeSettling)) {
+      if (!previewCursor && (state.calendarRange || state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling)) {
         state.calendarRenderPending = true;
         return;
       }
@@ -12555,7 +12595,7 @@
       scheduleNext();
     }
     function flushPendingCalendarRender() {
-      if (!state.calendarRenderPending || state.monthSwipeSettling || state.calendarRange) return;
+      if (!state.calendarRenderPending || state.monthSwipeSettling || state.calendarRange || state.calendarDrag || state.maintenanceOrgDrag) return;
       state.calendarRenderPending = false;
       if (currentViewName() === "calendar") renderCalendar("mainCalendar", false);
     }
@@ -12626,6 +12666,7 @@
       const dx = range.swipeDx || 0;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const step = dx < 0 ? 1 : -1;
+      if (commit) ensureCalendarSwipePage(range, step);
       let completed = false;
       let animation;
       let companions = [];
@@ -12640,6 +12681,7 @@
         }
         companions.forEach(item => item.cancel());
         cleanupCalendarSwipePages(range);
+        if (state.monthSwipeFinish === finish) state.monthSwipeFinish = null;
         state.monthSwipeSettling = false;
         if (didCommit) {
           state.calendarRenderPending = false;
@@ -12650,6 +12692,7 @@
       };
       if (reduced || !grid.animate) { finish(commit); return true; }
       state.monthSwipeSettling = true;
+      state.monthSwipeFinish = finish;
       const width = range.swipeWidth || grid.clientWidth;
       const end = commit ? (dx < 0 ? -1 : 1) * width : 0;
       const timing = { duration: commit ? 220 : 240, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" };
@@ -12921,7 +12964,7 @@
       return ghost;
     }
     window.schedulePointerStart = (event, id) => {
-      if (state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
+      if (event.isPrimary === false || state.calendarRange || state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
       event.stopPropagation();
       if (state.calendarDrag) cancelActiveScheduleDrag();
       const el = event.currentTarget;
@@ -13032,7 +13075,7 @@
     }
     window.schedulePointerEnd = (event, id) => {
       const drag = state.calendarDrag;
-      if (!drag || drag.id !== id) return;
+      if (!drag || drag.id !== id || (event.pointerId != null && drag.pointerId !== event.pointerId)) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
       if (drag.monthSwipe) {
@@ -13077,7 +13120,7 @@
     };
     window.schedulePointerCancel = (event, id) => {
       const drag = state.calendarDrag;
-      if (!drag || drag.id !== id) return;
+      if (!drag || drag.id !== id || (event.pointerId != null && drag.pointerId !== event.pointerId)) return;
       clearTimeout(drag.longPressTimer);
       clearTimeout(drag.contextTimer);
       if (drag.monthSwipe) {
@@ -13103,18 +13146,25 @@
       clearDropTarget();
       clearMaintenanceDropTarget();
       state.calendarDrag = null;
+      flushPendingCalendarRender();
     }
-    window.addEventListener("blur", cancelActiveScheduleDrag);
-    window.addEventListener("blur", () => {
+    function cancelCalendarInteractions() {
+      cancelActiveScheduleDrag();
       if (state.maintenanceOrgDrag) maintenanceOrgPointerCancel({}, state.maintenanceOrgDrag.itemToken);
       if (state.calendarRange) calendarRangeCancel();
+      state.monthSwipeFinish?.(false);
+      flushPendingCalendarRender();
+    }
+    ["pointerup", "pointercancel"].forEach(type => {
+      document.addEventListener(type, () => setTimeout(flushPendingCalendarRender, 0), true);
     });
-    window.addEventListener("pagehide", cancelActiveScheduleDrag);
+    window.addEventListener("blur", cancelCalendarInteractions);
+    window.addEventListener("pagehide", cancelCalendarInteractions);
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) cancelActiveScheduleDrag();
+      if (document.hidden) cancelCalendarInteractions();
     });
     window.calendarRangeStart = (event, date) => {
-      if (state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
+      if (event.isPrimary === false || state.calendarRange || state.calendarDrag || state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
       if (isSchedulePillTarget(event)) return;
       clearCalendarLongPress();
       const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, armed: false, cancelled: false, longPressFired: false };
@@ -13140,7 +13190,7 @@
     };
     window.calendarRangeMove = event => {
       const range = state.calendarRange;
-      if (!range || (!range.fromSchedule && isSchedulePillTarget(event))) return;
+      if (!range || (event.pointerId != null && range.pointerId !== event.pointerId) || (!range.fromSchedule && isSchedulePillTarget(event))) return;
       const dx = Math.abs(event.clientX - range.startX);
       const dy = Math.abs(event.clientY - range.startY);
       if (!range.armed) {
@@ -13167,7 +13217,7 @@
     };
     window.calendarRangeEnd = event => {
       const range = state.calendarRange;
-      if (!range) return;
+      if (!range || (event.pointerId != null && range.pointerId !== event.pointerId)) return;
       clearCalendarLongPress(range);
       const endCell = dateCellFromPoint(event.clientX, event.clientY, null);
       if (endCell?.dataset.date) {
@@ -13211,7 +13261,8 @@
       setTimeout(() => { state.suppressCalendarClick = false; }, 250);
       openScheduleDialog({ date: from, endDate: to });
     };
-    window.calendarRangeCancel = () => {
+    window.calendarRangeCancel = event => {
+      if (event?.pointerId != null && state.calendarRange?.pointerId !== event.pointerId) return;
       clearCalendarLongPress();
       settleCalendarSwipe(state.calendarRange, false);
       state.calendarRange = null;
@@ -15791,8 +15842,12 @@
       switchRecordTab(state.recordTab);
     }
     function renderActiveView() {
-      cleanupMaintenanceDragGhosts();
       const view = currentViewName();
+      if (view === "calendar" && (state.calendarRange || state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling)) {
+        state.calendarRenderPending = true;
+        return;
+      }
+      cleanupMaintenanceDragGhosts();
       if (view === "dashboard") renderDashboardView();
       else if (view === "calendar") renderCalendar("mainCalendar", false);
       else if (view === "orgs") renderOrgs();
@@ -17712,7 +17767,7 @@
         && searchRect.top >= 0
         && searchRect.top <= 32
       );
-      const showNativeSearch = Boolean(visible && searchIsAligned);
+      const showNativeSearch = Boolean(visible && searchIsAligned && !document.querySelector("dialog[open]"));
       orgSearch.classList.toggle("native-search-covered", useNativeOrgSearch && showNativeSearch);
       if (!useNativeOrgSearch) return;
       try { window.ReportMateAndroid.setInstitutionSearchVisible(showNativeSearch, orgSearch.value); }
@@ -17727,7 +17782,12 @@
       });
     }
     window.addEventListener("scroll", handleNativeInstitutionSearchScroll, { passive: true });
+    window.addEventListener("resize", handleNativeInstitutionSearchScroll, { passive: true });
     document.addEventListener("scroll", handleNativeInstitutionSearchScroll, { passive: true, capture: true });
+    if (typeof window.ReportMateAndroid?.setInstitutionSearchVisible === "function") {
+      const searchDialogObserver = new MutationObserver(handleNativeInstitutionSearchScroll);
+      document.querySelectorAll("dialog").forEach(dialog => searchDialogObserver.observe(dialog, { attributes: true, attributeFilter: ["open"] }));
+    }
     window.applyNativeInstitutionSearch = value => {
       const normalized = String(value ?? "");
       if (orgSearch.value === normalized) return;
@@ -17772,12 +17832,25 @@
       state[stateKey] = new Promise((resolve, reject) => {
         const existing = document.querySelector(`script[data-reportmate-src="${src}"]`);
         const script = existing || document.createElement("script");
-        const finish = () => ready() ? resolve(true) : reject(new Error(`${src} failed to initialize`));
-        script.addEventListener("load", finish, { once: true });
-        script.addEventListener("error", () => {
+        let timeout;
+        const cleanup = () => {
+          clearTimeout(timeout);
+          script.removeEventListener("load", finish);
+          script.removeEventListener("error", fail);
+        };
+        const fail = () => {
+          cleanup();
           script.remove();
           reject(new Error(`${src} failed to load`));
-        }, { once: true });
+        };
+        const finish = () => {
+          if (!ready()) { fail(); return; }
+          cleanup();
+          resolve(true);
+        };
+        script.addEventListener("load", finish, { once: true });
+        script.addEventListener("error", fail, { once: true });
+        timeout = setTimeout(fail, 15000);
         if (!existing) {
           script.src = src;
           script.async = true;
@@ -17827,6 +17900,7 @@
     }
     let workoutTimerHandle = 0;
     let workoutTimerRunning = false;
+    let workoutTimerStarted = false;
     let workoutTimerIndex = 0;
     let workoutTimerRemainingMs = 0;
     let workoutTimerDeadline = 0;
@@ -17942,7 +18016,7 @@
       const next = plan[workoutTimerIndex + 1];
       document.getElementById("workoutNext").textContent = workoutTimerIndex >= plan.length ? "운동을 마쳤습니다." : next ? `다음: ${workoutPhaseLabel(next)} ${next.seconds}초` : "마지막 구간";
       document.getElementById("workoutProgress").textContent = `${Math.min(workoutTimerIndex + 1, plan.length)} / ${plan.length}`;
-      document.getElementById("startWorkoutTimerBtn").textContent = workoutTimerRunning ? "진행 중" : workoutTimerRemainingMs > 0 ? "계속" : workoutTimerIndex >= plan.length ? "다시 시작" : "시작";
+      document.getElementById("startWorkoutTimerBtn").textContent = workoutTimerRunning ? "진행 중" : workoutTimerIndex >= plan.length ? "다시 시작" : workoutTimerStarted ? "계속" : "시작";
       document.getElementById("startWorkoutTimerBtn").disabled = workoutTimerRunning;
       document.getElementById("pauseWorkoutTimerBtn").disabled = !workoutTimerRunning;
       document.getElementById("workoutTimerBtn")?.classList.toggle("running", workoutTimerRunning);
@@ -18008,6 +18082,7 @@
         workoutTimerIndex = Math.max(0, Math.min(Number(snapshot.index) || 0, workoutTimerPlan.length));
         workoutTimerRemainingMs = Math.max(0, Number(snapshot.remainingMs) || 0);
         workoutTimerRunning = Boolean(snapshot.running) && workoutTimerIndex < workoutTimerPlan.length;
+        workoutTimerStarted = true;
         workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
         stopWorkoutTick();
         if (workoutTimerRunning) workoutTimerHandle = setInterval(workoutTick, 100);
@@ -18021,13 +18096,17 @@
     };
     function workoutTick() {
       if (!workoutTimerRunning) return;
-      workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
-      if (workoutTimerRemainingMs > 0) {
-        renderWorkoutClock();
-        return;
+      const now = Date.now();
+      const previousIndex = workoutTimerIndex;
+      while (now >= workoutTimerDeadline && workoutTimerIndex < workoutTimerPlan.length) {
+        workoutTimerIndex++;
+        if (workoutTimerIndex < workoutTimerPlan.length) {
+          workoutTimerDeadline += workoutTimerPlan[workoutTimerIndex].seconds * 1000;
+        }
       }
-      workoutTimerIndex++;
+      workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - now);
       if (workoutTimerIndex >= workoutTimerPlan.length) {
+        workoutTimerRemainingMs = 0;
         workoutTimerRunning = false;
         setWorkoutWakeLock(false);
         stopWorkoutTick();
@@ -18036,16 +18115,16 @@
         renderWorkoutClock();
         return;
       }
-      const next = workoutTimerPlan[workoutTimerIndex];
-      workoutTimerRemainingMs = next.seconds * 1000;
-      workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
-      playWorkoutAlert(next.type, false);
+      if (workoutTimerIndex !== previousIndex) playWorkoutAlert(workoutTimerPlan[workoutTimerIndex].type, false);
       renderWorkoutClock();
     }
     function startWorkoutTimer() {
       if (workoutTimerRunning) return;
-      workoutAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-      workoutAudioContext.resume?.();
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) workoutAudioContext ||= new AudioContextClass();
+        workoutAudioContext?.resume?.()?.catch?.(() => {});
+      } catch (_) {}
       if (!workoutTimerPlan.length || workoutTimerIndex >= workoutTimerPlan.length) {
         workoutTimerPlan = normalizeWorkoutIntervals(state.settings.workoutIntervals).map(item => ({ ...item }));
         workoutTimerIndex = 0;
@@ -18054,6 +18133,7 @@
         workoutTimerRemainingMs = workoutTimerPlan[workoutTimerIndex].seconds * 1000;
       }
       workoutTimerRunning = true;
+      workoutTimerStarted = true;
       setWorkoutWakeLock(true);
       workoutTimerDeadline = Date.now() + workoutTimerRemainingMs;
       stopWorkoutTick();
@@ -18063,6 +18143,8 @@
       renderWorkoutClock();
     }
     function pauseWorkoutTimer() {
+      if (!workoutTimerRunning) return;
+      workoutTick();
       if (!workoutTimerRunning) return;
       workoutTimerRemainingMs = Math.max(0, workoutTimerDeadline - Date.now());
       workoutTimerRunning = false;
@@ -18074,6 +18156,7 @@
     }
     function resetWorkoutTimer() {
       workoutTimerRunning = false;
+      workoutTimerStarted = false;
       setWorkoutWakeLock(false);
       if (!applyingNativeWorkoutState) {
         try { window.ReportMateAndroid?.stopWorkoutOverlay?.(); } catch (_) {}
@@ -18087,7 +18170,7 @@
       renderWorkoutClock();
     }
     function openWorkoutTimer() {
-      if (!workoutTimerPlan.length || state.workoutConfigChanged) resetWorkoutTimer();
+      if (!workoutTimerPlan.length || (state.workoutConfigChanged && !workoutTimerStarted)) resetWorkoutTimer();
       else {
         renderWorkoutIntervals();
         renderWorkoutClock();
