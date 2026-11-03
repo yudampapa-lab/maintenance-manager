@@ -7227,8 +7227,18 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.55";
+    const appVersion = "1.7.56";
     const versionHistory = [
+      {
+        version: "1.7.56",
+        date: "2026-11-03",
+        title: "모바일 달력 넘김 개선",
+        changes: [
+          "미리 준비한 다음 달 화면을 재사용하여 넘김 완료 시 다시 그리는 부담 감소",
+          "짧고 빠른 스와이프와 손가락 방향 전환에 맞춘 넘김 동작 개선",
+          "넘김 모션 중에도 다음 터치를 받아 연속으로 달력 이동 가능"
+        ]
+      },
       {
         version: "1.7.55",
         date: "2026-10-02",
@@ -12547,8 +12557,34 @@
     }
     function installSwipe(target) {
       target.style.overflowX = "clip";
-      target.onpointerdown = null;
-      target.onpointerup = null;
+      if (target.dataset.swipeInstalled) return;
+      target.dataset.swipeInstalled = "true";
+      // A second touch can land on the inert incoming page while it is settling.
+      // Finish that page first, then capture the new gesture on the stable root.
+      target.addEventListener("pointerdown", event => {
+        if (!state.monthSwipeSettling || event.pointerType !== "touch" || event.isPrimary === false) return;
+        const grid = target.querySelector(":scope > .calendar-grid");
+        const rect = grid?.getBoundingClientRect();
+        if (!rect || event.clientY < rect.top || event.clientY > rect.bottom
+            || event.target.closest("button, input, select, textarea")) return;
+        state.monthSwipeFinish?.();
+        const cell = dateCellFromPoint(event.clientX, event.clientY, null);
+        if (!cell?.dataset.date) return;
+        event.stopPropagation();
+        calendarRangeStart({ currentTarget: target, target: cell, pointerId: event.pointerId,
+          pointerType: event.pointerType, isPrimary: event.isPrimary, button: event.button,
+          clientX: event.clientX, clientY: event.clientY, timeStamp: event.timeStamp }, cell.dataset.date);
+        if (state.calendarRange) state.calendarRange.fromRoot = true;
+      }, true);
+      target.addEventListener("pointermove", event => {
+        if (state.calendarRange?.fromRoot) calendarRangeMove(event);
+      });
+      target.addEventListener("pointerup", event => {
+        if (state.calendarRange?.fromRoot) calendarRangeEnd(event);
+      });
+      target.addEventListener("pointercancel", event => {
+        if (state.calendarRange?.fromRoot) calendarRangeCancel(event);
+      });
     }
     const calendarSwipePreviewCache = { key: "", pages: {}, generation: 0, idleId: 0, idleType: "" };
     function calendarSwipeMonthKey() {
@@ -12559,25 +12595,39 @@
       const cursor = state.monthCursor;
       renderCalendar(container, true, new Date(cursor.getFullYear(), cursor.getMonth() + step, 1));
       const page = container.querySelector(".calendar-grid");
+      const month = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
+      page.dataset.swipeMonth = `${month.getFullYear()}-${month.getMonth()}`;
+      return prepareCalendarSwipePage(page);
+    }
+    function prepareCalendarSwipePage(page) {
+      page.dataset.liveStyle = page.getAttribute("style") || "";
       page.setAttribute("aria-hidden", "true");
       page.inert = true;
       page.style.cssText += ";position:absolute;left:0;top:0;width:100%;pointer-events:none;will-change:transform;";
-      page.querySelectorAll("[data-date]").forEach(el => el.removeAttribute("data-date"));
+      page.querySelectorAll("[data-date]").forEach(el => {
+        el.dataset.swipeDate = el.dataset.date;
+        el.removeAttribute("data-date");
+      });
       return page;
     }
-    function warmCalendarSwipePreviews() {
+    function warmCalendarSwipePreviews(reusePage = null, reuseStep = 0) {
       const cache = calendarSwipePreviewCache;
       if (cache.idleId) {
         if (cache.idleType === "idle") cancelIdleCallback(cache.idleId);
         else clearTimeout(cache.idleId);
       }
       cache.key = calendarSwipeMonthKey();
-      cache.pages = {};
+      cache.pages = reusePage ? { [reuseStep]: prepareCalendarSwipePage(reusePage) } : {};
       const generation = ++cache.generation;
-      const steps = [1, -1];
+      const steps = [1, -1].filter(step => !cache.pages[step]);
       const prepareNext = () => {
         cache.idleId = 0;
-        if (generation !== cache.generation || currentViewName() !== "calendar" || state.calendarRange || state.monthSwipeSettling) return;
+        if (generation !== cache.generation || currentViewName() !== "calendar") return;
+        if (state.calendarRange || state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling) {
+          cache.idleType = "timeout";
+          cache.idleId = setTimeout(prepareNext, 120);
+          return;
+        }
         const step = steps.shift();
         if (step == null) return;
         cache.pages[step] = makeCalendarSwipePage(step);
@@ -12605,7 +12655,7 @@
       range.swipeGrid = grid;
       range.swipeWidth ||= grid.clientWidth;
       ensureCalendarSwipePage(range, dx < 0 ? 1 : -1);
-      range.swipeDx = Math.max(-range.swipeWidth * .85, Math.min(range.swipeWidth * .85, dx));
+      range.swipeDx = Math.max(-range.swipeWidth, Math.min(range.swipeWidth, dx));
       if (range.swipeFrame) return;
       range.swipeFrame = requestAnimationFrame(() => {
         range.swipeFrame = 0;
@@ -12624,9 +12674,11 @@
         range.swipeParent = parent;
         range.swipeParentPosition = parent.style.position;
         range.swipeParentOverflow = parent.style.overflow;
+        range.swipeParentOverflowX = parent.style.overflowX;
+        range.swipeParentOverflowY = parent.style.overflowY;
         parent.style.position = "relative";
         parent.style.overflow = "hidden";
-        stage.style.cssText = `position:absolute;left:${grid.offsetLeft}px;top:${grid.offsetTop}px;width:${grid.clientWidth}px;height:${grid.offsetHeight}px;overflow:hidden;pointer-events:none;`;
+        stage.style.cssText = `position:absolute;left:${grid.offsetLeft}px;top:${grid.offsetTop}px;width:${grid.clientWidth}px;height:${grid.offsetHeight}px;overflow:hidden;pointer-events:none;contain:layout paint;`;
         grid.after(stage);
         range.swipeStage = stage;
         range.swipePages = {};
@@ -12652,6 +12704,8 @@
       if (range.swipeParent) {
         range.swipeParent.style.position = range.swipeParentPosition;
         range.swipeParent.style.overflow = range.swipeParentOverflow;
+        range.swipeParent.style.overflowX = range.swipeParentOverflowX;
+        range.swipeParent.style.overflowY = range.swipeParentOverflowY;
       }
       grid.style.transform = "";
       grid.style.willChange = "";
@@ -12670,7 +12724,7 @@
       let completed = false;
       let animation;
       let companions = [];
-      const finish = didCommit => {
+      const finish = (didCommit = commit) => {
         if (completed) return;
         completed = true;
         clearTimeout(range.swipeSettleTimer);
@@ -12680,12 +12734,13 @@
           animation.cancel();
         }
         companions.forEach(item => item.cancel());
+        const incoming = didCommit && !state.calendarRenderPending ? range.swipePages?.[step] : null;
         cleanupCalendarSwipePages(range);
         if (state.monthSwipeFinish === finish) state.monthSwipeFinish = null;
         state.monthSwipeSettling = false;
         if (didCommit) {
           state.calendarRenderPending = false;
-          moveMonth(step, false);
+          moveMonth(step, false, incoming);
         } else {
           flushPendingCalendarRender();
         }
@@ -12695,7 +12750,9 @@
       state.monthSwipeFinish = finish;
       const width = range.swipeWidth || grid.clientWidth;
       const end = commit ? (dx < 0 ? -1 : 1) * width : 0;
-      const timing = { duration: commit ? 220 : 240, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" };
+      const remaining = Math.abs(end - dx) / Math.max(1, width);
+      const timing = { duration: commit ? Math.round(150 + remaining * 100) : 190,
+        easing: "cubic-bezier(.2,.75,.25,1)", fill: "forwards" };
       companions = Object.entries(range.swipePages || {}).map(([offset, page]) => {
         const base = Number(offset) * width;
         return page.animate([
@@ -12714,6 +12771,15 @@
     }
     function clearDropTarget() {
       document.querySelectorAll(".day-cell.drop-target").forEach(cell => cell.classList.remove("drop-target"));
+    }
+    function recordCalendarSwipeSample(range, event) {
+      const time = Number.isFinite(event.timeStamp) ? event.timeStamp : Date.now();
+      const samples = range.swipeSamples ||= [{ x: range.startX, time: range.startTime ?? time }];
+      if (time - samples[samples.length - 1].time > 100) samples.length = 0;
+      samples.push({ x: event.clientX, time });
+      while (samples.length > 2 && samples[1].time < time - 100) samples.shift();
+      const first = samples[0];
+      range.swipeVelocity = time > first.time ? (event.clientX - first.x) / (time - first.time) : 0;
     }
     function isPointInCalendarDragCancelZone(x, y) {
       const zone = document.getElementById("calendarDragCancelZone");
@@ -12969,7 +13035,7 @@
       if (state.calendarDrag) cancelActiveScheduleDrag();
       const el = event.currentTarget;
       const rect = el.getBoundingClientRect();
-      const drag = { id, el, pointerId: event.pointerId, pointerType: event.pointerType || "mouse", startX: event.clientX, startY: event.clientY, grabX: event.clientX - rect.left, grabY: event.clientY - rect.top, moved: false, armed: false, cancelled: false, lastX: event.clientX, lastY: event.clientY, autoScrollFrame: 0, autoScrollLastTime: 0 };
+      const drag = { id, el, pointerId: event.pointerId, pointerType: event.pointerType || "mouse", startX: event.clientX, startY: event.clientY, startTime: event.timeStamp, grabX: event.clientX - rect.left, grabY: event.clientY - rect.top, moved: false, armed: false, cancelled: false, lastX: event.clientX, lastY: event.clientY, autoScrollFrame: 0, autoScrollLastTime: 0 };
       try { el.setPointerCapture?.(event.pointerId); } catch (_) {}
       drag.lostPointerCaptureHandler = () => {
         setTimeout(() => {
@@ -13017,7 +13083,7 @@
         clearTimeout(drag.longPressTimer);
         clearTimeout(drag.contextTimer);
         drag.monthSwipe = true;
-        state.calendarRange = { startX: drag.startX, startY: drag.startY, pointerId: drag.pointerId, cancelled: true, fromSchedule: true };
+        state.calendarRange = { startX: drag.startX, startY: drag.startY, startTime: drag.startTime, pointerId: drag.pointerId, cancelled: true, fromSchedule: true, swipeAxis: "x" };
         calendarRangeMove(event);
         return;
       }
@@ -13166,8 +13232,10 @@
     window.calendarRangeStart = (event, date) => {
       if (event.isPrimary === false || state.calendarRange || state.calendarDrag || state.monthSwipeSettling || (event.button != null && event.button !== 0)) return;
       if (isSchedulePillTarget(event)) return;
+      // Suppress only the click generated by the preceding swipe, not a fresh tap.
+      state.suppressCalendarClick = false;
       clearCalendarLongPress();
-      const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, armed: false, cancelled: false, longPressFired: false };
+      const range = { start: date, end: date, moved: false, startX: event.clientX, startY: event.clientY, startTime: event.timeStamp, pointerId: event.pointerId, pointerType: event.pointerType, armed: false, cancelled: false, longPressFired: false };
       range.longPressTimer = setTimeout(() => {
         if (state.calendarRange !== range || range.cancelled) return;
         range.longPressFired = true;
@@ -13194,15 +13262,18 @@
       const dx = Math.abs(event.clientX - range.startX);
       const dy = Math.abs(event.clientY - range.startY);
       if (!range.armed) {
+        if (!range.swipeAxis && dx + dy > 10) {
+          if (dx > dy * 1.15) range.swipeAxis = "x";
+          else if (dy > dx * 1.15) range.swipeAxis = "y";
+        }
         if (dx + dy > 12) {
           range.cancelled = true;
           clearCalendarLongPress(range);
         }
-        if (range.cancelled && dx > dy * 1.25) {
+        if (range.cancelled && range.swipeAxis === "x") {
+          recordCalendarSwipeSample(range, event);
           previewCalendarSwipe(range, event.clientX - range.startX);
           if (event.cancelable) event.preventDefault();
-        } else if (range.swipeGrid) {
-          previewCalendarSwipe(range, 0);
         }
         return;
       }
@@ -13219,7 +13290,7 @@
       const range = state.calendarRange;
       if (!range || (event.pointerId != null && range.pointerId !== event.pointerId)) return;
       clearCalendarLongPress(range);
-      const endCell = dateCellFromPoint(event.clientX, event.clientY, null);
+      const endCell = range.swipeGrid ? null : dateCellFromPoint(event.clientX, event.clientY, null);
       if (endCell?.dataset.date) {
         range.end = endCell.dataset.date;
         if (range.end !== range.start) range.moved = true;
@@ -13231,12 +13302,16 @@
       if (range.cancelled) {
         clearRangeSelection();
         const width = range.swipeGrid?.clientWidth || 360;
-        const commit = Math.abs(totalDx) > Math.max(56, width * .2) && Math.abs(totalDx) > totalDy * 1.25;
         if (range.swipeGrid) {
+          recordCalendarSwipeSample(range, event);
+          const velocity = range.swipeVelocity || 0;
+          const reversing = Math.abs(velocity) >= .25 && Math.sign(velocity) !== Math.sign(totalDx);
+          const commit = !reversing && (Math.abs(totalDx) > Math.max(48, width * .16)
+            || (Math.abs(totalDx) >= 24 && Math.abs(velocity) >= .45));
           state.suppressCalendarClick = true;
           setTimeout(() => { state.suppressCalendarClick = false; }, 500);
           // Use final pointer position, including a last-moment reversal.
-          range.swipeDx = Math.max(-width * .85, Math.min(width * .85, totalDx));
+          range.swipeDx = Math.max(-width, Math.min(width, totalDx));
           settleCalendarSwipe(range, commit);
           return;
         }
@@ -13249,6 +13324,11 @@
       }
       if (!range.armed) {
         clearRangeSelection();
+        if (range.fromRoot || range.pointerType === "touch") {
+          state.suppressCalendarClick = true;
+          setTimeout(() => { state.suppressCalendarClick = false; }, 300);
+          openDayScheduleDialog(range.start);
+        }
         return;
       }
       if (!range.moved) {
@@ -13273,7 +13353,7 @@
       if (state.monthSwipeSettling) return;
       if (isSchedulePillTarget(event)) return;
       if (state.suppressCalendarClick) return;
-      if (state.calendarRange?.moved) return;
+      if (state.calendarRange || state.calendarDrag) return;
       openDayScheduleDialog(date);
     };
     window.searchCalendarSchedule = event => {
@@ -14199,9 +14279,35 @@
       stopAiSpeech();
     });
     [orgDialog, callDialog, memoDialog, todoMemoDialog, reportDialog, workLogHistoryDialog, photoPreviewDialog, photoSourceDialog, dayScheduleDialog, scheduleActionDialog, calendarSearchDialog, tidePlaceDialog, calendarJumpDialog, lunarDatePickerDialog, todayCopyDialog, vehicleRecordDialog, issueDialog, adminLogDialog, versionHistoryDialog, notificationHistoryDialog, workoutTimerDialog, infoDialog].forEach(dialog => closeOnOutsideClick(dialog));
-    window.moveMonth = (step, animate = true) => {
+    window.moveMonth = (step, animate = true, preparedPage = null) => {
       if (state.calendarDrag || state.maintenanceOrgDrag || state.monthSwipeSettling) return;
+      const previousMonthKey = calendarSwipeMonthKey();
       state.monthCursor = new Date(state.monthCursor.getFullYear(), state.monthCursor.getMonth() + step, 1);
+      const monthKey = calendarSwipeMonthKey();
+      const previousGrid = document.querySelector("#mainCalendar > .calendar-grid");
+      if (preparedPage?.dataset.swipeMonth === monthKey && previousGrid && currentViewName() === "calendar") {
+        preparedPage.inert = false;
+        preparedPage.removeAttribute("aria-hidden");
+        preparedPage.setAttribute("style", preparedPage.dataset.liveStyle || "");
+        delete preparedPage.dataset.liveStyle;
+        preparedPage.querySelectorAll("[data-swipe-date]").forEach(cell => {
+          cell.dataset.date = cell.dataset.swipeDate;
+          delete cell.dataset.swipeDate;
+        });
+        previousGrid.replaceWith(preparedPage);
+        const cursor = state.monthCursor;
+        document.querySelector("#mainCalendar .calendar-title-button").textContent = `${cursor.getFullYear()}년 ${cursor.getMonth() + 1}월`;
+        previousGrid.dataset.swipeMonth = previousMonthKey;
+        warmCalendarSwipePreviews(previousGrid, -step);
+        // Let the incoming page paint before health and maintenance-panel work.
+        requestAnimationFrame(() => setTimeout(() => {
+          if (calendarSwipeMonthKey() !== monthKey || currentViewName() !== "calendar") return;
+          requestMonthlySteps(cursor.getFullYear(), cursor.getMonth() + 1);
+          renderMonthlyMaintenancePanel();
+          syncMonthlyMaintenancePanelHeight();
+        }, 0));
+        return;
+      }
       render();
       const grid = document.querySelector("#mainCalendar .calendar-grid");
       if (animate && grid && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
