@@ -7227,8 +7227,17 @@
       rose: { bg: "rgba(234, 162, 189, .34)", fg: "#8b4861", border: "rgba(199, 102, 139, .26)" },
       sage: { bg: "rgba(168, 201, 156, .36)", fg: "#4d7044", border: "rgba(114, 166, 96, .26)" }
     };
-    const appVersion = "1.7.56";
+    const appVersion = "1.7.57";
     const versionHistory = [
+      {
+        version: "1.7.57",
+        date: "2026-11-05",
+        title: "일정 없는 날 알림 제외",
+        changes: [
+          "Android 1.5.56부터 일정이 없는 날에는 오늘 일정 알림을 보내지 않음",
+          "일정 알림 테스트에서도 빈 일정은 전송하지 않도록 개선"
+        ]
+      },
       {
         version: "1.7.56",
         date: "2026-11-03",
@@ -17696,6 +17705,10 @@
     notificationQuietHoursEnabled.addEventListener("change", updateNotificationQuietHoursFields);
     testDailyNotificationBtn.onclick = () => {
       if (window.ReportMateAndroid?.showDailyNotificationNow) {
+        if (!state.schedules.some(schedule => scheduleIncludesDate(schedule, todayISO()))) {
+          toast("오늘은 등록된 일정이 없어 알림을 보내지 않습니다.");
+          return;
+        }
         syncDailyNotificationToAndroid();
         syncNotificationQuietHoursToAndroid();
         window.ReportMateAndroid.showDailyNotificationNow();
